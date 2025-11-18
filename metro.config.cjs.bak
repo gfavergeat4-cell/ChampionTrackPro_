@@ -1,0 +1,13 @@
+// metro.config.cjs
+const { getDefaultConfig } = require('@react-native/metro-config');
+const exclusionList = require('metro-config/src/defaults/exclusionList');
+
+const config = getDefaultConfig(__dirname);
+config.resolver = {
+  ...config.resolver,
+  blockList: exclusionList([
+    /(^|[\\/])functions([\\/].*)?/, // exclure entièrement Cloud Functions
+  ]),
+};
+
+module.exports = config;

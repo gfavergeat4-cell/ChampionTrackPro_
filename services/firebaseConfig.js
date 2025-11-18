@@ -1,0 +1,34 @@
+﻿import { Platform } from "react-native";
+
+let auth, db, app;
+
+if (Platform.OS !== "web") {
+  // React Native - utiliser firebaseConfig.native.js
+  const nativeConfig = require("../firebaseConfig.native");
+  const { getFirestore } = require("firebase/firestore");
+  
+  auth = nativeConfig.auth;
+  db = getFirestore(nativeConfig.app);
+  app = nativeConfig.app;
+} else {
+  // Web - config standard
+  const { initializeApp, getApp, getApps } = require("firebase/app");
+  const { getAuth } = require("firebase/auth");
+  const { getFirestore } = require("firebase/firestore");
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDwslrK0lbuqsBl61C_l3gjVDGF8ZqTZ5o",
+    authDomain: "championtrackpro.firebaseapp.com",
+    projectId: "championtrackpro",
+    storageBucket: "championtrackpro.firebasestorage.app",
+    messagingSenderId: "308674968497",
+    appId: "1:308674968497:web:5f8d10b09ee98717a81b90"
+  };
+
+  app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+  auth = getAuth(app);
+  db = getFirestore(app);
+}
+
+// Note: getFunctions est importé directement dans les composants qui en ont besoin
+export { auth, db, app };

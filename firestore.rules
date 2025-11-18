@@ -1,0 +1,191 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { 
+      return request.auth != null; 
+    }
+    
+    // Fonction pour vérifier si le document utilisateur existe
+    function userExists() {
+      return signedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+    
+    // Fonction pour obtenir le document utilisateur
+    function me() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+    
+    // Fonction pour obtenir le rôle de l'utilisateur
+    function myRole() { 
+      return signedIn() && userExists() && me().data != null && me().data.role != null 
+        ? me().data.role 
+        : null;
+    }
+    
+    function isAdmin() { 
+      return signedIn() && userExists() && myRole() == "admin"; 
+    }
+    
+    function isCoach() { 
+      return signedIn() && userExists() && myRole() == "coach"; 
+    }
+
+    // Un membre est défini par la présence d'un doc members/{uid}
+    function isTeamMember(teamId) {
+      return signedIn() &&
+             exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid));
+    }
+    
+    // Vérifie si l'utilisateur appartient à l'équipe via users/{uid}.teamId
+    function myTeamId() {
+      return signedIn() && userExists() && me().data != null && me().data.teamId != null
+        ? me().data.teamId
+        : null;
+    }
+    
+    // Vérifie si l'utilisateur peut lire les trainings de l'équipe
+    // Autorisé si: admin, coach membre, OU (signedIn ET (teamId dans users/{uid}.teamId OU membership existe))
+    function canReadTrainings(teamId) {
+      return isAdmin() ||
+             (isCoach() && isTeamMember(teamId)) ||
+             (signedIn() && (
+               (userExists() && myTeamId() == teamId) ||
+               exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid))
+             ));
+    }
+
+    match /users/{uid} {
+      // Lecture : l'utilisateur lui-même, admin, ou coach de son équipe
+      allow read: if signedIn() && (
+        uid == request.auth.uid ||
+        isAdmin() ||
+        (isCoach() && resource.data != null && resource.data.teamId != null && isTeamMember(resource.data.teamId))
+      );
+      
+      // Création : l'utilisateur lui-même lors de l'inscription
+      // IMPORTANT: Permettre la création même si le document n'existe pas encore
+      allow create: if signedIn() && request.auth.uid == uid;
+      
+      // Mise à jour : l'utilisateur lui-même (limité) ou admin
+      allow update: if signedIn() && (
+        isAdmin() ||
+        (uid == request.auth.uid && 
+         resource.data != null &&
+         (!('role' in request.resource.data) || request.resource.data.role == resource.data.role) &&
+         (!('teamId' in request.resource.data) || request.resource.data.teamId == resource.data.teamId))
+      );
+      
+      // Suppression : admin uniquement
+      allow delete: if isAdmin();
+    }
+
+    match /teams/{teamId} {
+      // Lecture publique : permettre la lecture pour valider les codes d'accès
+      // Les codes sont publics par design (partagés avec les athlètes)
+      // OU si l'utilisateur est authentifié et membre/admin/coach
+      allow read: if request.auth == null || 
+                     isAdmin() || 
+                     isCoach() || 
+                     isTeamMember(teamId);
+      
+      // Création/suppression : admin uniquement
+      allow create, delete: if isAdmin();
+      
+      // Mise à jour :
+      // - Admin
+      // - OU incrémentation du compteur members (lors de la création d'un membership)
+      allow update: if isAdmin() || 
+                       (signedIn() && 
+                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members']) &&
+                        request.resource.data.members == resource.data.members + 1);
+
+      // Sous-collection MEMBERS : indispensable pour lier l'athlète à l'équipe
+      match /members/{uid} {
+        // Lecture : admin, coach de l'équipe, ou membre de l'équipe
+        allow read: if isAdmin() || 
+                       (isCoach() && isTeamMember(teamId)) || 
+                       isTeamMember(teamId);
+        
+        // Création : par l'utilisateur lui-même
+        // Permet la création si l'utilisateur est authentifié et crée son propre document
+        // Le teamId est vérifié côté client (dans resolveAthleteTeamAndMembership)
+        allow create: if signedIn() && request.auth.uid == uid;
+        
+        // Mise à jour : admin ou l'utilisateur lui-même
+        allow update: if isAdmin() || (signedIn() && request.auth.uid == uid);
+        
+        // Suppression : admin uniquement
+        allow delete: if isAdmin();
+      }
+
+      match /trainings/{trainingId} {
+        // Lecture autorisée si: admin, coach membre, OU (signedIn ET (teamId dans users/{uid}.teamId OU membership existe))
+        allow read: if canReadTrainings(teamId);
+        allow create, update, delete: if isAdmin();
+
+        match /responses/{responseId} {
+          function trainingExists() {
+            return exists(/databases/$(database)/documents/teams/$(teamId)/trainings/$(trainingId));
+          }
+
+          // Vérifie si la fenêtre temporelle du questionnaire est ouverte
+          // Fenêtre: 30 min après la fin du training, pendant 5 heures
+          function isQuestionnaireWindowOpen() {
+            let training = get(/databases/$(database)/documents/teams/$(teamId)/trainings/$(trainingId));
+            let endUtc = training.data.endUtc;
+            // Si pas de endUtc, on autorise (fallback pour compatibilité)
+            return endUtc == null || (
+              request.time >= endUtc + duration.value(30, 'm') &&
+              request.time <= endUtc + duration.value(30, 'm') + duration.value(5, 'h')
+            );
+          }
+
+          // Permet de "get" son propre doc même s'il n'existe pas encore
+          // Permet aussi la lecture si l'utilisateur est membre de l'équipe via users/{uid}.teamId
+          allow get: if signedIn()
+                     && trainingExists()
+                     && (
+                       isAdmin()
+                       || (responseId == request.auth.uid && (
+                         isTeamMember(teamId) || 
+                         (userExists() && myTeamId() == teamId)
+                       ))
+                       || (isCoach() && isTeamMember(teamId))
+                     );
+
+          // Lister toutes les réponses = réservé staff
+          allow list: if isAdmin() || (isCoach() && isTeamMember(teamId));
+
+          // Création : uniquement si la fenêtre est ouverte (sauf admin)
+          // Permet la création si l'utilisateur est membre de l'équipe (via membership OU users/{uid}.teamId)
+          allow create: if signedIn()
+                        && trainingExists()
+                        && responseId == request.auth.uid
+                        && (
+                          isAdmin() ||
+                          (
+                            (isTeamMember(teamId) || (userExists() && myTeamId() == teamId)) &&
+                            isQuestionnaireWindowOpen()
+                          )
+                        );
+
+          // Mise à jour : uniquement si la fenêtre est ouverte (sauf admin)
+          // Permet la mise à jour si l'utilisateur est membre de l'équipe (via membership OU users/{uid}.teamId)
+          allow update: if signedIn()
+                        && responseId == request.auth.uid
+                        && trainingExists()
+                        && (
+                          isAdmin() ||
+                          (
+                            (isTeamMember(teamId) || (userExists() && myTeamId() == teamId)) &&
+                            isQuestionnaireWindowOpen()
+                          )
+                        );
+
+          allow delete: if isAdmin();
+        }
+      }
+    }
+  }
+}
