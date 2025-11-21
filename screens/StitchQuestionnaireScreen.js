@@ -16,6 +16,28 @@ export default function StitchQuestionnaireScreen() {
     navigation.goBack();
   };
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
+
+  const handleReturnHome = React.useCallback(() => {
+    if (navigation?.goBack) {
+      navigation.goBack();
+    } else if (typeof window !== "undefined") {
+      window.location.href = "/";
+    }
+  }, [navigation]);
+
+  // Auto-redirect after 2 seconds when confirmation is shown
+  useEffect(() => {
+    if (showConfirmation && Platform.OS === 'web') {
+      const timer = setTimeout(() => {
+        handleReturnHome();
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [showConfirmation, handleReturnHome]);
+
   // Vérifier si le questionnaire est accessible (fenêtre temporelle + déjà complété)
   const [isAccessible, setIsAccessible] = useState(false);
   const [isCheckingAccess, setIsCheckingAccess] = useState(true);
@@ -141,13 +163,7 @@ export default function StitchQuestionnaireScreen() {
     }
   }, [isCheckingAccess, isAccessible, accessDeniedReason, navigation]);
   
-  const [painToggle, setPainToggle] = useState(false);
-  const [painDetails, setPainDetails] = useState({
-    discomfort: 50,
-    intensity: 50,
-    frequency: null, // "first-time", "rarely", "often", "always"
-  });
-  const [showSubmitButton, setShowSubmitButton] = useState(false);
+  const painToggle = false; // legacy flag disabled (pain module removed)
   const [sliderValues, setSliderValues] = useState({
     averageIntensity: 50,
     highIntensity: 50,
@@ -165,29 +181,26 @@ export default function StitchQuestionnaireScreen() {
   });
 
   const handleSubmit = async () => {
+    if (isSubmitting) return;
+
+    setSubmitError(null);
+    setIsSubmitting(true);
+
     try {
-      // Get pain markers from 3D model if available
-      const painMarkers = window.anatomyModel ? window.anatomyModel.getPainMarkers() : [];
-      
       console.log("Questionnaire submitted:", { 
         sessionId, 
-        painToggle, 
-        painDetails: painToggle ? painDetails : null,
-        painMarkers: painToggle ? painMarkers : [],
         sliderValues 
       });
 
       if (!auth.currentUser) {
-        alert("Erreur: Utilisateur non connecté");
-        return;
+        throw new Error("Utilisateur non connecté");
       }
 
       // Récupérer l'ID de l'équipe de l'utilisateur
       const userDoc = await getDoc(doc(db, "users", auth.currentUser.uid));
       
       if (!userDoc.exists()) {
-        alert("Erreur: Profil utilisateur non trouvé");
-        return;
+        throw new Error("Profil utilisateur non trouvé");
       }
 
       const userData = userDoc.data();
@@ -196,8 +209,7 @@ export default function StitchQuestionnaireScreen() {
       console.log("🔍 Team ID:", teamId);
 
       if (!teamId) {
-        alert("Erreur: Aucune équipe associée");
-        return;
+        throw new Error("Aucune équipe associée");
       }
 
       // Sauvegarder la réponse dans Firestore
@@ -208,7 +220,6 @@ export default function StitchQuestionnaireScreen() {
         trainingId: sessionId,
         uid: auth.currentUser.uid,
         sliderValuesKeys: Object.keys(sliderValues),
-        painToggle,
       });
       console.log("🔍 Chemin Firestore: teams/", teamId, "/trainings/", sessionId, "/responses/", auth.currentUser.uid);
 
@@ -219,35 +230,16 @@ export default function StitchQuestionnaireScreen() {
         auth.currentUser.uid,
         {
           values: sliderValues, // Encapsuler les valeurs dans un objet values
-          physicalPain: painToggle ? painDetails : null,
-          pain: painToggle ? painDetails : null, // Compatibilité
-          painAssessment: {
-            hasPain: painToggle,
-            details: painToggle ? painDetails : null,
-            markers: painToggle ? painMarkers : []
-          },
           eventTitle: eventTitle || "Training Session",
           eventDate: eventDate || new Date().toISOString(),
         }
       );
 
       console.log("✅ Réponse sauvegardée dans Firestore");
-      
-      // Show success message
-      alert("Questionnaire submitted successfully!");
-      
-      // Navigate back to Home tab
+
       if (Platform.OS === 'web') {
-        // Attendre un peu pour s'assurer que les données sont bien sauvegardées
-        setTimeout(() => {
-          if (navigation?.goBack) {
-            navigation.goBack();
-          } else {
-            window.location.reload();
-          }
-        }, 500);
+        setShowConfirmation(true);
       } else {
-        // Navigate back to Home tab using CommonActions.reset
         navigation.dispatch(
           CommonActions.reset({
             index: 0,
@@ -260,7 +252,13 @@ export default function StitchQuestionnaireScreen() {
       const errorMessage = error?.code === "permission-denied" 
         ? "Erreur de permissions. Vérifie que tu es bien membre de l'équipe et que le questionnaire est toujours disponible."
         : `Erreur lors de la sauvegarde du questionnaire: ${error?.message || error}`;
-      alert(errorMessage);
+      if (Platform.OS === 'web') {
+        setSubmitError(errorMessage);
+      } else {
+        Alert.alert("Erreur", errorMessage);
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -274,18 +272,6 @@ export default function StitchQuestionnaireScreen() {
     setSliderValues(prev => ({ ...prev, [key]: value }));
   };
 
-  const handlePainDetailChange = (key, value) => {
-    setPainDetails(prev => ({
-      ...prev,
-      [key]: value
-    }));
-  };
-
-  const handleScroll = (e) => {
-    const { scrollTop, scrollHeight, clientHeight } = e.target;
-    const isAtBottom = scrollTop + clientHeight >= scrollHeight - 50; // 50px tolerance
-    setShowSubmitButton(isAtBottom);
-  };
 
   if (Platform.OS === "web") {
     // Add CSS for the new design
@@ -380,6 +366,10 @@ export default function StitchQuestionnaireScreen() {
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
+        }
+        @keyframes ctpFadeIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
         }
       `;
       document.head.appendChild(style);
@@ -962,12 +952,11 @@ export default function StitchQuestionnaireScreen() {
 
           {/* Main Content */}
           <div 
-            onScroll={handleScroll}
             style={{ 
               flex: 1, 
               padding: "0 24px", 
               paddingTop: "24px", 
-              paddingBottom: "24px", 
+              paddingBottom: "140px", 
               zIndex: 10, 
               overflowY: "auto",
               overflowX: "hidden",
@@ -1017,7 +1006,7 @@ export default function StitchQuestionnaireScreen() {
               display: "flex", 
               flexDirection: "column", 
               gap: "16px", 
-              paddingBottom: "40px" // Reduced padding since button appears conditionally
+              paddingBottom: "48px"
             }}>
               <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                 {/* Slider Sections */}
@@ -1081,310 +1070,6 @@ export default function StitchQuestionnaireScreen() {
                 ))}
               </div>
 
-              {/* Physical Pain Assessment */}
-              <div 
-                style={{
-                  background: "#141A24",
-                  borderRadius: "16px",
-                  padding: "16px",
-                  border: "1px solid rgba(0, 224, 255, 0.1)",
-                  boxShadow: "inset 0 0 0 1px rgba(0, 224, 255, 0.1)",
-                  animationDelay: `${50 * 6}ms`,
-                }}
-                className="card-animate"
-              >
-                <p style={{
-                  fontSize: "18px", 
-                  fontWeight: "600", 
-                  color: "white",
-                  margin: 0,
-                }}>
-                  Did you feel any physical pain?
-                </p>
-                <div style={{ display: "flex", gap: "12px", marginTop: "12px" }}>
-                  <button
-                    onClick={() => setPainToggle(false)}
-                    className={!painToggle ? "pulse-glow" : ""}
-                    style={{
-                      flex: 1,
-                      padding: "10px 20px",
-                      borderRadius: "12px",
-                      fontSize: "14px",
-                      fontWeight: "500",
-                      cursor: "pointer",
-                      background: !painToggle 
-                        ? "linear-gradient(90deg, #00E0FF, #4A67FF)" 
-                        : "#1E222D",
-                      color: !painToggle ? "white" : "rgba(154, 163, 178, 0.7)",
-                      border: "none",
-                      transition: "all 0.2s",
-                    }}
-                  >
-                    No
-                  </button>
-                  <button
-                    onClick={() => setPainToggle(true)}
-                    style={{
-                      flex: 1,
-                      padding: "10px 20px",
-                      borderRadius: "12px",
-                      fontSize: "14px",
-                      fontWeight: "500",
-                      cursor: "pointer",
-                      background: painToggle 
-                        ? "linear-gradient(90deg, #00E0FF, #4A67FF)" 
-                        : "#1E222D",
-                      color: painToggle ? "white" : "rgba(154, 163, 178, 0.7)",
-                      border: "none",
-                      transition: "all 0.2s",
-                    }}
-                  >
-                    Yes
-                  </button>
-                </div>
-              </div>
-
-              {/* Pain Details - Only show when pain = Yes */}
-              {painToggle && (
-                <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                  {/* Human Anatomy Model */}
-                  <div style={{
-                    background: "#141A24",
-                    borderRadius: "16px",
-                    padding: "20px",
-                    border: "1px solid rgba(0, 224, 255, 0.1)",
-                    boxShadow: "inset 0 0 0 1px rgba(0, 224, 255, 0.1)",
-                  }}>
-                    <div style={{
-                      width: "100%",
-                      height: "300px",
-                      background: "linear-gradient(135deg, #1E222D, #2A2F3A)",
-                      borderRadius: "12px",
-                      position: "relative",
-                      overflow: "hidden",
-                      border: "1px solid rgba(0, 224, 255, 0.2)",
-                      boxShadow: "inset 0 0 20px rgba(0, 224, 255, 0.1)"
-                    }}>
-                      <div id="body-viewer" style={{
-                        width: "100%",
-                        height: "100%",
-                        position: "relative",
-                        background: "radial-gradient(circle at center, rgba(0, 224, 255, 0.05) 0%, rgba(0, 0, 0, 0.3) 100%)",
-                        borderRadius: "12px",
-                        overflow: "hidden",
-                      }}>
-                        <canvas id="anatomyCanvas" style={{
-                          width: "100%",
-                          height: "100%",
-                          cursor: "grab"
-                        }}></canvas>
-                        
-                        {/* Loading indicator */}
-                        <div id="loading-indicator" style={{
-                          position: "absolute",
-                          top: "50%",
-                          left: "50%",
-                          transform: "translate(-50%, -50%)",
-                          color: "#00E0FF",
-                          fontSize: "14px",
-                          display: "none"
-                        }}>
-                          Loading 3D Model...
-                        </div>
-                      </div>
-                      <div style={{
-                        position: "absolute",
-                        bottom: "10px",
-                        left: "50%",
-                        transform: "translateX(-50%)",
-                        color: "rgba(154, 163, 178, 0.7)",
-                        fontSize: "12px",
-                        textAlign: "center",
-                        zIndex: 10,
-                      }}>
-                        <div>SWIPE TO ROTATE · PINCH TO ZOOM · TAP TO MARK</div>
-                        <div style={{ marginTop: "4px" }}>
-                          <button 
-                            id="resetView"
-                            onClick={() => {
-                              if (window.anatomyModel) {
-                                window.anatomyModel.resetView();
-                              }
-                            }}
-                            style={{ 
-                              color: "#00E0FF", 
-                              textDecoration: "underline",
-                              textUnderlineOffset: "2px",
-                              background: "none",
-                              border: "none",
-                              cursor: "pointer",
-                              fontSize: "12px",
-                              transition: "all 0.2s ease"
-                            }}
-                            onMouseEnter={(e) => {
-                              e.target.style.color = "#4A67FF";
-                              e.target.style.transform = "scale(1.05)";
-                            }}
-                            onMouseLeave={(e) => {
-                              e.target.style.color = "#00E0FF";
-                              e.target.style.transform = "scale(1)";
-                            }}
-                          >
-                            Reset view
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Level of Discomfort */}
-                  <div style={{
-                    background: "#141A24",
-                    borderRadius: "16px",
-                    padding: "16px",
-                    border: "1px solid rgba(0, 224, 255, 0.1)",
-                    boxShadow: "inset 0 0 0 1px rgba(0, 224, 255, 0.1)",
-                  }}>
-                    <div style={{ marginBottom: "12px" }}>
-                      <label 
-                        style={{
-                          fontSize: "18px",
-                          fontWeight: "600",
-                          color: "white",
-                          margin: 0,
-                        }}
-                      >
-                        Level of Discomfort
-                      </label>
-                      <p style={{
-                        fontSize: "14px",
-                        color: "rgba(154, 163, 178, 0.7)",
-                        margin: "4px 0 0 0",
-                      }}>
-                        Extent of perceived unease.
-                      </p>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                      <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{ color: "#9AA3B2" }}>
-                        <path d="M18 12H6" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                      <input
-                        type="range"
-                        min="0"
-                        max="100"
-                        value={painDetails.discomfort}
-                        onChange={(e) => handlePainDetailChange("discomfort", parseInt(e.target.value))}
-                        className="slider"
-                      />
-                      <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{ color: "#9AA3B2" }}>
-                        <path d="M12 6v12M18 12H6" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    </div>
-                  </div>
-
-                  {/* Level of Pain Intensity */}
-                  <div style={{
-                    background: "#141A24",
-                    borderRadius: "16px",
-                    padding: "16px",
-                    border: "1px solid rgba(0, 224, 255, 0.1)",
-                    boxShadow: "inset 0 0 0 1px rgba(0, 224, 255, 0.1)",
-                  }}>
-                    <div style={{ marginBottom: "12px" }}>
-                      <label 
-                        style={{
-                          fontSize: "18px",
-                          fontWeight: "600",
-                          color: "white",
-                          margin: 0,
-                        }}
-                      >
-                        Level of Pain Intensity
-                      </label>
-                      <p style={{
-                        fontSize: "14px",
-                        color: "rgba(154, 163, 178, 0.7)",
-                        margin: "4px 0 0 0",
-                      }}>
-                        Strength of the felt pain.
-                      </p>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                      <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{ color: "#9AA3B2" }}>
-                        <path d="M18 12H6" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                      <input
-                        type="range"
-                        min="0"
-                        max="100"
-                        value={painDetails.intensity}
-                        onChange={(e) => handlePainDetailChange("intensity", parseInt(e.target.value))}
-                        className="slider"
-                      />
-                      <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{ color: "#9AA3B2" }}>
-                        <path d="M12 6v12M18 12H6" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    </div>
-                  </div>
-
-                  {/* Frequency of Appearance */}
-                  <div style={{
-                    background: "#141A24",
-                    borderRadius: "16px",
-                    padding: "16px",
-                    border: "1px solid rgba(0, 224, 255, 0.1)",
-                    boxShadow: "inset 0 0 0 1px rgba(0, 224, 255, 0.1)",
-                  }}>
-                    <div style={{ marginBottom: "12px" }}>
-                      <label 
-                        style={{
-                          fontSize: "18px",
-                          fontWeight: "600",
-                          color: "white",
-                          margin: 0,
-                        }}
-                      >
-                        Frequency of Appearance
-                      </label>
-                      <p style={{
-                        fontSize: "14px",
-                        color: "rgba(154, 163, 178, 0.7)",
-                        margin: "4px 0 0 0",
-                      }}>
-                        How often does this pain appear?
-                      </p>
-                    </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
-                      {[
-                        { key: "first-time", label: "First time" },
-                        { key: "rarely", label: "Rarely" },
-                        { key: "often", label: "Often" },
-                        { key: "always", label: "Always" }
-                      ].map((option) => (
-                        <button
-                          key={option.key}
-                          onClick={() => handlePainDetailChange("frequency", option.key)}
-                          style={{
-                            padding: "12px 16px",
-                            borderRadius: "8px",
-                            fontSize: "14px",
-                            fontWeight: "500",
-                            cursor: "pointer",
-                            background: painDetails.frequency === option.key 
-                              ? "linear-gradient(90deg, #00E0FF, #4A67FF)" 
-                              : "#1E222D",
-                            color: painDetails.frequency === option.key ? "white" : "rgba(154, 163, 178, 0.7)",
-                            border: "none",
-                            transition: "all 0.2s",
-                          }}
-                        >
-                          {option.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
 
               {/* Additional Slider Sections */}
               <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
@@ -1452,62 +1137,121 @@ export default function StitchQuestionnaireScreen() {
               </div>
             </main>
 
-            {/* Submit Button - Only show when scrolled to bottom */}
-            {showSubmitButton && (
-              <footer style={{ 
-                paddingTop: "12px", 
-                paddingBottom: "12px",
-                position: "fixed",
-                bottom: 0,
-                left: 0,
-                right: 0,
-                background: "linear-gradient(to bottom, transparent, #0B0F1A 80%)",
-                zIndex: 100,
-                maxWidth: "384px",
-                margin: "0 auto",
-                animation: "slideUp 0.3s ease-out"
-              }}>
-                <div style={{ padding: "0 24px" }}>
-                  <button 
-                    onClick={handleSubmit}
-                    style={{
-                      width: "100%",
-                      padding: "16px 0",
-                      borderRadius: "12px",
-                      fontSize: "16px",
-                      fontWeight: "600",
-                      cursor: "pointer",
-                      background: "linear-gradient(90deg, #00E0FF, #4A67FF)",
-                      color: "white",
-                      border: "none",
-                      boxShadow: "0 0 20px 5px rgba(0, 224, 255, 0.25)",
-                      transition: "all 0.2s ease-out",
-                      textTransform: "uppercase",
-                      letterSpacing: "1px",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.target.style.filter = "brightness(1.25)";
-                      e.target.style.transform = "translateY(-2px)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.target.style.filter = "brightness(1)";
-                      e.target.style.transform = "translateY(0)";
-                    }}
-                    onMouseDown={(e) => {
-                      e.target.style.transform = "translateY(2px)";
-                      e.target.style.boxShadow = "0 0 10px 2px rgba(0, 224, 255, 0.15)";
-                    }}
-                    onMouseUp={(e) => {
-                      e.target.style.transform = "translateY(0)";
-                      e.target.style.boxShadow = "0 0 20px 5px rgba(0, 224, 255, 0.25)";
-                    }}
-                  >
-                    Submit
-                  </button>
+            <div style={{ 
+              marginTop: "-16px", 
+              marginBottom: "20px",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center"
+            }}>
+              {submitError && (
+                <div style={{
+                  color: "#FF7A93",
+                  fontSize: "12px",
+                  fontWeight: 500,
+                  textAlign: "center",
+                  marginRight: "16px",
+                  marginLeft: "16px",
+                  marginBottom: "12px"
+                }}>
+                  {submitError}
                 </div>
-              </footer>
-            )}
+              )}
+              <button 
+                onClick={handleSubmit}
+                disabled={isSubmitting}
+                style={{
+                  width: "100%",
+                  padding: "16px 0",
+                  borderRadius: "12px",
+                  fontSize: "16px",
+                  fontWeight: "600",
+                  cursor: isSubmitting ? "not-allowed" : "pointer",
+                  background: "linear-gradient(90deg, #00E0FF, #4A67FF)",
+                  color: "white",
+                  border: "none",
+                  boxShadow: "0 0 20px 5px rgba(0, 224, 255, 0.25)",
+                  transition: "all 0.2s ease-out",
+                  textTransform: "uppercase",
+                  letterSpacing: "1px",
+                  opacity: isSubmitting ? 0.65 : 1,
+                }}
+                onMouseEnter={(e) => {
+                  if (isSubmitting) return;
+                  e.target.style.filter = "brightness(1.25)";
+                  e.target.style.transform = "translateY(-2px)";
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.filter = "brightness(1)";
+                  e.target.style.transform = "translateY(0)";
+                }}
+                onMouseDown={(e) => {
+                  if (isSubmitting) return;
+                  e.target.style.transform = "translateY(2px)";
+                  e.target.style.boxShadow = "0 0 10px 2px rgba(0, 224, 255, 0.15)";
+                }}
+                onMouseUp={(e) => {
+                  e.target.style.transform = "translateY(0)";
+                  e.target.style.boxShadow = "0 0 20px 5px rgba(0, 224, 255, 0.25)";
+                }}
+              >
+                {isSubmitting ? "Sending..." : "Submit"}
+              </button>
+            </div>
           </div>
+          {showConfirmation && Platform.OS === 'web' && (
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                background: "rgba(3, 7, 15, 0.92)",
+                backdropFilter: "blur(18px)",
+                WebkitBackdropFilter: "blur(18px)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 999,
+              }}
+            >
+              <div
+                style={{
+                  width: "90%",
+                  maxWidth: "340px",
+                  padding: "36px 32px",
+                  borderRadius: "24px",
+                  border: "1px solid rgba(0, 255, 194, 0.35)",
+                  background: "rgba(12, 20, 40, 0.95)",
+                  boxShadow: "0 25px 60px rgba(0, 0, 0, 0.65), 0 0 40px rgba(0, 255, 194, 0.2)",
+                  textAlign: "center",
+                  animation: "ctpFadeIn 0.4s ease forwards",
+                }}
+              >
+                <div
+                  style={{
+                    width: "80px",
+                    height: "80px",
+                    borderRadius: "50%",
+                    margin: "0 auto 24px",
+                    background: "linear-gradient(135deg, #00FFC2, #00C16A)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow: "0 0 40px rgba(0, 255, 194, 0.55)",
+                  }}
+                >
+                  <svg width="32" height="24" viewBox="0 0 24 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M3 9L8.5 14.5L21 2" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </div>
+                <div style={{ fontSize: "18px", fontWeight: 700, color: "#FFFFFF", marginBottom: "8px" }}>
+                  Your response has been successfully submitted.
+                </div>
+                <div style={{ fontSize: "14px", color: "rgba(255,255,255,0.7)" }}>
+                  Redirecting to your dashboard...
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </MobileViewport>
     );

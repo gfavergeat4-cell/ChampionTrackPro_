@@ -265,11 +265,13 @@ export async function getEventsForDateRange(options: ScheduleQueryOptions): Prom
     });
     
     const trainingsRef = collection(db, 'teams', String(teamId), 'trainings');
+    // For day view, we want to show all events that start during the day
+    // We query events that start before or during the day, then filter client-side
+    // to include only those that overlap with the day (start during day OR end during day)
     const trainingsQuery = query(
       trainingsRef,
-      where('startUtc', '>=', startBoundary),
       where('startUtc', '<=', endBoundary),
-      orderBy('startUtc', 'asc')
+      orderBy('startUtc', 'desc')
     );
     
     const snapshot = await getDocs(trainingsQuery);
@@ -297,25 +299,92 @@ export async function getEventsForDateRange(options: ScheduleQueryOptions): Prom
     
     const events = snapshot.docs
       .map(adaptTrainingSnapshot)
-      .filter((event): event is FirestoreEvent => Boolean(event))
+      .filter((event): event is FirestoreEvent => Boolean(event));
+    
+    // DEBUG: Log all events before filtering
+    console.log("[DEBUG][getEventsForDateRange] All events from Firestore before filtering:", {
+      totalCount: events.length,
+      queryRange: {
+        from: new Date(from).toISOString(),
+        to: new Date(to).toISOString(),
+      },
+      events: events.map((e) => ({
+        id: e.id,
+        title: e.title,
+        startUTC: e.startUTC,
+        endUTC: e.endUTC,
+        startUtc: e.startUtc?.toMillis?.() ?? null,
+        endUtc: e.endUtc?.toMillis?.() ?? null,
+        startDate: e.startDate?.toISOString?.() ?? null,
+        endDate: e.endDate?.toISOString?.() ?? null,
+      })),
+    });
+    
+    const filteredEvents = events
       .filter((event) => {
         const startMillis = event.startUTC ?? fsTsToMillis(event.startUtc) ?? null;
+        const endMillis = event.endUTC ?? fsTsToMillis(event.endUtc) ?? null;
+        
         if (startMillis === null) {
           console.warn("[UI][WARN] training without startUtc", event.id);
           return false;
         }
-        return (
-          startMillis >= startBoundary.toMillis() &&
-          startMillis <= endBoundary.toMillis()
-        );
+        
+        // Include events that:
+        // 1. Start during the day (startMillis >= dayStart && startMillis <= dayEnd)
+        // 2. End during the day (endMillis >= dayStart && endMillis <= dayEnd)
+        // 3. Span the entire day (startMillis < dayStart && endMillis > dayEnd)
+        const startsInRange = startMillis >= from && startMillis <= to;
+        const endsInRange = endMillis !== null && endMillis >= from && endMillis <= to;
+        const spansRange = endMillis !== null && startMillis < from && endMillis > to;
+        
+        const included = startsInRange || endsInRange || spansRange;
+        
+        // DEBUG: Log filtering decision
+        if (!included) {
+          console.log("[DEBUG][getEventsForDateRange] Event excluded:", {
+            id: event.id,
+            title: event.title,
+            startMillis,
+            endMillis,
+            startDate: new Date(startMillis).toISOString(),
+            endDate: endMillis ? new Date(endMillis).toISOString() : 'N/A',
+            startsInRange,
+            endsInRange,
+            spansRange,
+            rangeFrom: new Date(from).toISOString(),
+            rangeTo: new Date(to).toISOString(),
+          });
+        }
+        
+        return included;
       })
       .filter((event) => {
         if (!filterByPlayer || !playerUid) return true;
         return event.players?.includes?.(playerUid);
       });
     
-    console.log("[CAL][QUERY] trainings filtered", { path, count: events.length });
-    return events;
+    console.log("[CAL][QUERY] trainings filtered", { 
+      path, 
+      count: filteredEvents.length,
+      beforeFilter: events.length,
+      afterFilter: filteredEvents.length,
+    });
+    
+    // DEBUG: Log filtered events
+    console.log("[DEBUG][getEventsForDateRange] Filtered events:", {
+      count: filteredEvents.length,
+      events: filteredEvents.map((e) => ({
+        id: e.id,
+        title: e.title,
+        startUTC: e.startUTC,
+        endUTC: e.endUTC,
+        startDate: e.startDate?.toISOString?.() ?? null,
+        endDate: e.endDate?.toISOString?.() ?? null,
+      })),
+    });
+    
+    return filteredEvents;
   } catch (error: any) {
     const path = `teams/${options.teamId}/trainings`;
     console.error("[CAL][QUERY] trainings query error", { 
@@ -359,11 +428,11 @@ export function subscribeToEvents(
     });
   
     const trainingsRef = collection(db, 'teams', String(teamId), 'trainings');
+    // Use same query logic as getEventsForDateRange to include overlapping events
     const trainingsQuery = query(
       trainingsRef,
-      where('startUtc', '>=', startBoundary),
       where('startUtc', '<=', endBoundary),
-      orderBy('startUtc', 'asc')
+      orderBy('startUtc', 'desc')
     );
     
     return onSnapshot(
@@ -396,13 +465,21 @@ export function subscribeToEvents(
         .filter((event): event is FirestoreEvent => Boolean(event))
         .filter((event) => {
           const startMillis = event.startUTC ?? fsTsToMillis(event.startUtc) ?? null;
+          const endMillis = event.endUTC ?? fsTsToMillis(event.endUtc) ?? null;
+          
           if (startMillis === null) {
             return false;
           }
-          return (
-            startMillis >= startBoundary.toMillis() &&
-            startMillis <= endBoundary.toMillis()
-          );
+          
+          // Include events that:
+          // 1. Start during the day (startMillis >= dayStart && startMillis <= dayEnd)
+          // 2. End during the day (endMillis >= dayStart && endMillis <= dayEnd)
+          // 3. Span the entire day (startMillis < dayStart && endMillis > dayEnd)
+          const startsInRange = startMillis >= from && startMillis <= to;
+          const endsInRange = endMillis !== null && endMillis >= from && endMillis <= to;
+          const spansRange = endMillis !== null && startMillis < from && endMillis > to;
+          
+          return startsInRange || endsInRange || spansRange;
         })
         .filter((event) => {
           if (!filterByPlayer || !playerUid) return true;
@@ -555,6 +632,7 @@ export async function getEventsWithResponseStatus(
             ? {
                 status: responseDoc.status as 'completed' | undefined,
                 submittedAt: responseDoc.submittedAt as Timestamp | undefined,
+                completedAt: responseDoc.completedAt as Timestamp | undefined,
               }
             : null,
           questionnaireStatus,
@@ -676,14 +754,27 @@ export async function getEventsForDayLegacy(
     date: new Date(date.getTime()),
     dayStart: new Date(dayStart.getTime()),
     dayEnd: new Date(dayEnd.getTime()),
+    dayStartISO: dayStart.toISOString(),
+    dayEndISO: dayEnd.toISOString(),
     userId,
+  });
+
+  // Query a wider range to ensure we catch all events that overlap with the day
+  // We query events that start up to 24 hours before the day (to catch events that span into the day)
+  // and up to the end of the day
+  const queryStart = new Date(dayStart.getTime() - 24 * 60 * 60 * 1000); // 24 hours before day start
+  const queryEnd = dayEnd;
+
+  console.log('[CAL][QUERY] getEventsForDayLegacy - expanded query range', {
+    queryStart: queryStart.toISOString(),
+    queryEnd: queryEnd.toISOString(),
   });
 
   return getEventsWithResponseStatus(
     {
       teamId,
-      startDate: dayStart,
-      endDate: dayEnd,
+      startDate: queryStart,
+      endDate: queryEnd,
       timeZone: 'Europe/Paris',
     },
     userId
@@ -758,31 +849,57 @@ export async function getUpcomingTrainings(
     // - Training passé > 5h → Expired (ne pas afficher)
     // - Questionnaire rempli → Completed (peut être affiché)
     // IMPORTANT: Utiliser uniquement questionnaireState (pas de fallback)
-    const pending = events.filter(ev => {
-      // Utiliser uniquement questionnaireState (pas de fallback)
-      // Si questionnaireState n'existe pas, c'est une erreur - log et exclure
+    // IMPORTANT: TOUS les événements avec questionnaireState === 'respond' doivent être inclus
+    const allRespond = events.filter(ev => {
       if (!ev.questionnaireState) {
         console.warn("[UPCOMING][FILTER][WARN] questionnaireState missing for", ev.id, ev.title, "excluding from pending");
         return false;
       }
-      
+      return ev.questionnaireState === 'respond';
+    }).sort((a, b) => (a.endMillis ?? 0) - (b.endMillis ?? 0));
+
+    const FIVE_MINUTES_MS = 5 * 60 * 1000;
+    const recentlyCompleted = events.filter(ev => {
+      if (!ev.questionnaireState || ev.questionnaireState !== 'completed') {
+        return false;
+      }
+      // Inclure uniquement les sessions complétées récemment (moins de 5 minutes)
+      const completedAt = ev.response?.completedAt;
+      if (!completedAt) return false;
+      const completedAtMillis = typeof completedAt === 'number' 
+        ? completedAt 
+        : (typeof completedAt?.toMillis === 'function' ? completedAt.toMillis() : completedAt.seconds * 1000);
+      const ageMs = nowMillis - completedAtMillis;
+      return ageMs <= FIVE_MINUTES_MS && ageMs >= 0;
+    }).sort((a, b) => (a.endMillis ?? 0) - (b.endMillis ?? 0));
+
+    const otherPending = events.filter(ev => {
+      if (!ev.questionnaireState) {
+        return false;
+      }
       const state: QuestionnaireState = ev.questionnaireState;
-      
-      // Inclure : 'respond', 'comingSoon', 'completed'
-      // Exclure : 'expired' (trainings passés > 5h ou entre 30 min et 5h)
-      return state === 'respond' || state === 'comingSoon' || state === 'completed';
+      // Inclure : 'comingSoon', mais exclure 'completed' qui est déjà dans recentlyCompleted
+      // et 'respond' qui est déjà dans allRespond
+      return state === 'comingSoon';
     }).sort((a, b) => {
-      // Trier : d'abord les trainings futurs (comingSoon), puis les passés (respond, completed)
-      const aState = a.questionnaireState;
-      const bState = b.questionnaireState;
-      if (aState === 'comingSoon' && bState !== 'comingSoon') return -1;
-      if (aState !== 'comingSoon' && bState === 'comingSoon') return 1;
       return (a.endMillis ?? 0) - (b.endMillis ?? 0);
     });
 
-    if (pending.length > 0) {
-      console.log("[CAL][QUERY] upcoming trainings (prioritized pending)", { count: pending.length });
-      return pending.slice(0, limitCount);
+    // Combiner: TOUS les 'respond' + TOUTES les sessions complétées récemment + autres jusqu'à la limite
+    const combined = [
+      ...allRespond,
+      ...recentlyCompleted, // Toujours inclure toutes les sessions complétées récemment
+      ...otherPending.slice(0, Math.max(0, limitCount - allRespond.length - recentlyCompleted.length))
+    ];
+
+    if (combined.length > 0) {
+      console.log("[CAL][QUERY] upcoming trainings", { 
+        respondCount: allRespond.length,
+        recentlyCompletedCount: recentlyCompleted.length,
+        otherCount: otherPending.length,
+        totalCount: combined.length 
+      });
+      return combined;
     }
 
     // Sinon, prochains trainings à venir
@@ -949,6 +1066,7 @@ export async function getNextSession(
         ? {
             status: responseDoc.status as 'completed' | undefined,
             submittedAt: responseDoc.submittedAt as Timestamp | undefined,
+            completedAt: responseDoc.completedAt as Timestamp | undefined,
           }
         : null,
       questionnaireStatus,

@@ -84,7 +84,7 @@ export default function StitchLoginScreenClean() {
                 textAlign: "center",
               }}
             >
-              <h1
+              <h1 
                 style={{
                   fontFamily: "'Cinzel', serif",
                   fontSize: "28px",
@@ -112,7 +112,7 @@ export default function StitchLoginScreenClean() {
                 </span>
               </h1>
 
-              <p
+              <p 
                 style={{
                   marginTop: "10px",
                   color: "#C4CCDD",

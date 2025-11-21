@@ -16,19 +16,22 @@ import { resolveAthleteTeamId } from "../lib/teamContext";
 import MobileViewport from "../components/MobileViewport";
 import UnifiedAthleteNavigation from "./UnifiedAthleteNavigation";
 import BrandHeader from "../components/BrandHeader";
+import StatusPill from "../components/StatusPill";
 
 interface AthleteHomeProps {
   sessions?: Array<{ id: string; title: string; time: string; hasResponse?: boolean }>;
   onRespond?: (sessionId: string, eventData?: any) => void;
   onOpenSession?: (sessionId: string) => void;
   onNavigateToTab?: (tab: 'Home' | 'Schedule' | 'Profile') => void;
+  refreshToken?: number;
 }
 
 export default function AthleteHome({
   sessions = [],
   onRespond,
   onOpenSession,
-  onNavigateToTab
+  onNavigateToTab,
+  refreshToken,
 }: AthleteHomeProps) {
   const [calendarEvents, setCalendarEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -36,6 +39,12 @@ export default function AthleteHome({
   const [error, setError] = useState(null);
   const [userData, setUserData] = useState<{ firstName?: string; profileImage?: string } | null>(null);
   const device = useDevice();
+
+  useEffect(() => {
+    if (typeof refreshToken !== "undefined") {
+      setRefreshKey((prev) => prev + 1);
+    }
+  }, [refreshToken]);
   
   // Tabs configuration (active tab fixed to 'Home' on this screen)
   const tabs: Array<'Home' | 'Schedule' | 'Profile'> = ['Home', 'Schedule', 'Profile'];
@@ -112,10 +121,11 @@ export default function AthleteHome({
 
         let upcomingTrainings;
         try {
+          // Utiliser une limite plus élevée pour inclure toutes les sessions complétées récemment
           upcomingTrainings = await getUpcomingTrainings(
             teamId,
             currentUser.uid,
-            5,
+            50, // Augmenter la limite pour inclure toutes les sessions complétées récemment
             30
           );
         } catch (fetchError) {
@@ -213,9 +223,228 @@ export default function AthleteHome({
     }
   }, []);
 
-  const todayEvents = calendarEvents;
-  const nextSession = calendarEvents.length > 0 ? calendarEvents[0] : null;
-  const upcomingSessions = calendarEvents.length > 1 ? calendarEvents.slice(1) : [];
+  const getEventStartMillis = React.useCallback((event: any) => {
+    return (
+      event?.startMillis ??
+      (event?.startDate instanceof Date ? event.startDate.getTime() : null) ??
+      event?.startUTC ??
+      (typeof event?.startUtc?.toMillis === 'function' ? event.startUtc.toMillis() : event?.startUtc) ??
+      0
+    );
+  }, []);
+
+  const getEventEndMillis = React.useCallback((event: any) => {
+    return (
+      event?.endMillis ??
+      (event?.endDate instanceof Date ? event.endDate.getTime() : null) ??
+      event?.endUTC ??
+      (typeof event?.endUtc?.toMillis === 'function' ? event.endUtc.toMillis() : event?.endUtc) ??
+      0
+    );
+  }, []);
+
+  const getResponseSubmittedAtMillis = React.useCallback((event: any) => {
+    const submittedAt =
+      event?.response?.completedAt ||
+      event?.response?.submittedAt ||
+      event?.response?.createdAt ||
+      event?.response?.updatedAt;
+
+    if (!submittedAt) return null;
+    if (typeof submittedAt === 'number') return submittedAt;
+    if (typeof submittedAt?.toMillis === 'function') return submittedAt.toMillis();
+    if (typeof submittedAt?.seconds === 'number') return submittedAt.seconds * 1000;
+    return null;
+  }, []);
+
+  const getTimeRangeLabel = React.useCallback(
+    (session: any) => {
+      if (session?.timeForNextSession) return session.timeForNextSession;
+      if (session?.time) return session.time;
+
+      const startMillis = getEventStartMillis(session);
+      const endMillis = getEventEndMillis(session);
+      const tz = session?.displayTz || session?.tzid || session?.timeZone || 'Europe/Paris';
+
+      if (startMillis && endMillis) {
+        const startLocal = DateTime.fromMillis(startMillis, { zone: 'utc' }).setZone(tz);
+        const endLocal = DateTime.fromMillis(endMillis, { zone: 'utc' }).setZone(tz);
+        if (startLocal.isValid && endLocal.isValid) {
+          return `${startLocal.toFormat('HH:mm')} - ${endLocal.toFormat('HH:mm')}`;
+        }
+      }
+
+      return '──:──';
+    },
+    [getEventEndMillis, getEventStartMillis]
+  );
+
+  const { pendingResponses, futureSessions } = useMemo(() => {
+    const nowMillis = DateTime.utc().toMillis();
+    const FIVE_MINUTES_MS = 5 * 60 * 1000;
+
+    const respondSessions: any[] = [];
+    const recentlyCompletedSessions: any[] = [];
+    const upcomingFutureSessions: any[] = [];
+
+    console.log('[HOME][FILTER] Processing calendar events', {
+      totalCount: calendarEvents.length,
+      events: calendarEvents.map((e: any) => ({
+        id: e.id,
+        title: e.title,
+        questionnaireState: e?.questionnaireState,
+        hasResponse: e?.hasResponse,
+        response: e?.response ? {
+          status: e.response.status,
+          completedAt: e.response.completedAt,
+          submittedAt: e.response.submittedAt,
+        } : null,
+      })),
+    });
+
+    calendarEvents.forEach((event: any) => {
+      const state: QuestionnaireState | undefined = event?.questionnaireState;
+      const startMillis = getEventStartMillis(event);
+
+      console.log('[HOME][FILTER][EVENT]', {
+        id: event.id,
+        title: event.title,
+        state,
+        hasResponse: event?.hasResponse,
+        response: event?.response,
+        submittedAtMillis: getResponseSubmittedAtMillis(event),
+      });
+
+      if (state === 'respond') {
+        respondSessions.push(event);
+      } else if (state === 'completed' || event?.hasResponse) {
+        // Inclure les questionnaires complétés récemment (moins de 5 minutes)
+        const submittedAtMillis = getResponseSubmittedAtMillis(event);
+        if (submittedAtMillis) {
+          const ageMs = nowMillis - submittedAtMillis;
+          console.log('[HOME][FILTER][COMPLETED]', {
+            id: event.id,
+            title: event.title,
+            submittedAtMillis,
+            ageMs,
+            ageMinutes: ageMs / (60 * 1000),
+            shouldInclude: ageMs <= FIVE_MINUTES_MS && ageMs >= 0,
+          });
+          if (ageMs <= FIVE_MINUTES_MS && ageMs >= 0) {
+            // S'assurer que l'événement a bien l'état 'completed' pour l'affichage
+            recentlyCompletedSessions.push({
+              ...event,
+              questionnaireState: 'completed' as QuestionnaireState,
+            });
+          }
+        } else {
+          // Si pas de timestamp mais état completed, inclure quand même (fallback)
+          // Mais seulement si l'événement s'est terminé récemment
+          const endMillis = getEventEndMillis(event);
+          if (endMillis) {
+            const ageMs = nowMillis - endMillis;
+            console.log('[HOME][FILTER][COMPLETED][FALLBACK]', {
+              id: event.id,
+              title: event.title,
+              endMillis,
+              ageMs,
+              ageMinutes: ageMs / (60 * 1000),
+              shouldInclude: ageMs <= FIVE_MINUTES_MS && ageMs >= 0,
+            });
+            if (ageMs <= FIVE_MINUTES_MS && ageMs >= 0) {
+              recentlyCompletedSessions.push({
+                ...event,
+                questionnaireState: 'completed' as QuestionnaireState,
+              });
+            }
+          }
+        }
+      }
+
+      const isFuture = Boolean(startMillis && startMillis > nowMillis);
+      const isInQuestionnaireWindow = state === 'respond' || (state === 'completed' && recentlyCompletedSessions.some((s: any) => s.id === event.id));
+
+      if (isFuture && !isInQuestionnaireWindow) {
+        upcomingFutureSessions.push(event);
+      }
+    });
+
+    // Trier par heure de début (du plus tôt au plus tard dans la journée)
+    const sortByStart = (a: any, b: any) =>
+      (getEventStartMillis(a) ?? Number.MAX_SAFE_INTEGER) -
+      (getEventStartMillis(b) ?? Number.MAX_SAFE_INTEGER);
+
+    respondSessions.sort(sortByStart);
+    recentlyCompletedSessions.sort(sortByStart);
+
+    upcomingFutureSessions.sort(
+      (a, b) =>
+        (getEventStartMillis(a) ?? Number.MAX_SAFE_INTEGER) -
+        (getEventStartMillis(b) ?? Number.MAX_SAFE_INTEGER)
+    );
+
+    console.log('[HOME][COMPLETED] Recently completed sessions', {
+      count: recentlyCompletedSessions.length,
+      sessions: recentlyCompletedSessions.map(s => ({
+        id: s.id,
+        title: s.title,
+        state: s.questionnaireState,
+        completedAt: getResponseSubmittedAtMillis(s),
+      })),
+    });
+
+    return {
+      pendingResponses: [...respondSessions, ...recentlyCompletedSessions],
+      futureSessions: upcomingFutureSessions,
+    };
+  }, [calendarEvents, getEventEndMillis, getEventStartMillis, getResponseSubmittedAtMillis]);
+
+  // Rafraîchissement automatique pour que les sessions complétées disparaissent après 5 minutes
+  useEffect(() => {
+    if (calendarEvents.length === 0) return;
+
+    const FIVE_MINUTES_MS = 5 * 60 * 1000;
+    const nowMillis = DateTime.utc().toMillis();
+
+    // Trouver la prochaine session complétée qui va disparaître
+    const completedSessions = calendarEvents.filter((event: any) => {
+      const state: QuestionnaireState | undefined = event?.questionnaireState;
+      if (state !== 'completed') return false;
+      const submittedAtMillis = getResponseSubmittedAtMillis(event);
+      if (!submittedAtMillis) return false;
+      const ageMs = nowMillis - submittedAtMillis;
+      return ageMs <= FIVE_MINUTES_MS && ageMs >= 0;
+    });
+
+    if (completedSessions.length === 0) return;
+
+    // Trouver la session complétée la plus ancienne (celle qui va disparaître en premier)
+    const oldestCompleted = completedSessions.reduce((oldest: any, current: any) => {
+      const oldestAt = getResponseSubmittedAtMillis(oldest) ?? 0;
+      const currentAt = getResponseSubmittedAtMillis(current) ?? 0;
+      return currentAt < oldestAt ? current : oldest;
+    }, completedSessions[0]);
+
+    const oldestSubmittedAt = getResponseSubmittedAtMillis(oldestCompleted);
+    if (!oldestSubmittedAt) return;
+
+    // Calculer quand cette session doit disparaître (5 minutes après sa soumission)
+    const disappearAt = oldestSubmittedAt + FIVE_MINUTES_MS;
+    const timeUntilDisappear = disappearAt - nowMillis;
+
+    if (timeUntilDisappear > 0) {
+      console.log("[HOME][AUTO_REFRESH] Prochain rafraîchissement dans", Math.round(timeUntilDisappear / 1000), "secondes");
+      const timeoutId = setTimeout(() => {
+        console.log("[HOME][AUTO_REFRESH] Rafraîchissement pour masquer les sessions complétées après 5 minutes");
+        forceRefresh();
+      }, timeUntilDisappear + 1000); // +1 seconde pour s'assurer que c'est bien passé
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [calendarEvents, getResponseSubmittedAtMillis]);
+
+  const nextSession = futureSessions.length > 0 ? futureSessions[0] : null;
+  const upcomingSessions = futureSessions.length > 1 ? futureSessions.slice(1) : [];
 
   const containerStyle = getMainContainerStyle(device);
   const headerPadding = getResponsiveSpacing('xl', device);
@@ -252,98 +481,32 @@ export default function AthleteHome({
     switch (state) {
       case 'completed':
         return (
-          <View style={styles.completedBadge}>
-            <Text style={styles.completedIcon}>✔️</Text>
-            <Text style={[
-              styles.completedText,
-              { fontSize: getResponsiveFontSize('sm', device) }
-            ]}>
-              Completed
-            </Text>
-          </View>
+          <StatusPill variant="completed" testID={`status-pill-completed-${session.id}`} />
         );
 
       case 'comingSoon':
         return (
-          <View style={styles.comingSoonBadge}>
-            <Text style={styles.comingSoonIcon}>⏳</Text>
-            <Text style={styles.comingSoonText}>Coming soon</Text>
-          </View>
+          <StatusPill variant="comingSoon" testID={`status-pill-coming-soon-${session.id}`} />
         );
 
       case 'expired':
         return (
-          <View style={styles.expiredBadge}>
-            <Text style={styles.expiredIcon}>🔒</Text>
-            <Text style={[
-              styles.expiredText,
-              { fontSize: getResponsiveFontSize('sm', device) }
-            ]}>
-              Expired
-            </Text>
-          </View>
+          <StatusPill variant="expired" testID={`status-pill-expired-${session.id}`} />
         );
 
       case 'respond':
         return (
-          <View style={{
-            backgroundColor: 'transparent',
-            borderRadius: 12,
-            overflow: 'hidden',
-            shadowColor: '#00E0FF',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.3,
-            shadowRadius: 8,
-            elevation: 5,
-          }}>
-            <LinearGradient
-              colors={['#00E0FF', '#4A67FF']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={{
-                height: 36,
-                paddingHorizontal: 16,
-                borderRadius: 12,
-                justifyContent: 'center',
-                alignItems: 'center',
-              }}
-            >
-              <Pressable
-                onPress={() => {
-                  console.log("[HOME][RESPOND][CLICK] Respond clicked for session:", session.id, session.title);
-                  if (onRespond) {
-                    onRespond(session.id, session);
-                  }
-                }}
-                style={({ pressed }) => ({
-                  opacity: pressed ? 0.9 : 1,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 6,
-                })}
-              >
-                <Text style={{
-                  color: '#FFFFFF',
-                  fontFamily: 'Inter',
-                  fontSize: 14,
-                  fontWeight: '500',
-                  letterSpacing: 0.03,
-                }}>
-                  Respond
-                </Text>
-                <View style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: 3,
-                  backgroundColor: '#00E0FF',
-                  shadowColor: '#00E0FF',
-                  shadowOffset: { width: 0, height: 0 },
-                  shadowOpacity: 0.8,
-                  shadowRadius: 4,
-                }} />
-              </Pressable>
-            </LinearGradient>
-          </View>
+          <StatusPill
+            variant="respond"
+            onPress={() => {
+              console.log("[HOME][RESPOND][CLICK] Respond clicked for session:", session.id, session.title);
+              if (onRespond) {
+                onRespond(session.id, session);
+              }
+            }}
+            showNotificationDot
+            testID={`respond-button-${session.id}`}
+          />
         );
 
       default:
@@ -366,132 +529,144 @@ export default function AthleteHome({
     switch (state) {
       case 'completed':
         return (
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '6px',
-            height: '36px',
-            padding: '0 16px',
-            borderRadius: '12px',
-            background: 'rgba(0, 255, 200, 0.15)',
-            backdropFilter: 'blur(10px)',
-            WebkitBackdropFilter: 'blur(10px)',
-            border: '0.5px solid rgba(0, 255, 200, 0.4)',
-            color: '#00FFC8',
-            fontFamily: "'Inter', sans-serif",
-            fontSize: '14px',
-            fontWeight: '500',
-            boxShadow: '0 0 12px rgba(0, 255, 200, 0.3)',
-            letterSpacing: '0.03em',
-            cursor: 'not-allowed',
-            userSelect: 'none'
-          }}>
-            <span>✔️</span>
-            <span>Completed</span>
-          </div>
+          <StatusPill variant="completed" testID={`status-pill-completed-web-${session.id}`} />
         );
 
       case 'comingSoon':
         return (
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '6px',
-            height: '36px',
-            padding: '0 16px',
-            borderRadius: '12px',
-            background: 'linear-gradient(135deg, rgba(0, 224, 255, 0.18) 0%, rgba(0, 141, 255, 0.28) 100%)',
-            border: '0.5px solid rgba(0, 224, 255, 0.45)',
-            boxShadow: '0 0 18px rgba(0, 224, 255, 0.25), inset 0 0 12px rgba(0, 224, 255, 0.15)',
-            color: '#DFF8FF',
-            fontFamily: "'Inter', sans-serif",
-            fontSize: '14px',
-            fontWeight: '500',
-            letterSpacing: '0.03em',
-            cursor: 'not-allowed',
-            userSelect: 'none'
-          }}>
-            <span style={{ color: '#8DEBFF', textShadow: '0 0 8px rgba(0, 224, 255, 0.8)' }}>⏳</span>
-            <span>Coming soon</span>
-          </div>
+          <StatusPill variant="comingSoon" testID={`status-pill-coming-soon-web-${session.id}`} />
         );
 
       case 'expired':
         return (
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '6px',
-            height: '36px',
-            padding: '0 16px',
-            borderRadius: '12px',
-            background: '#1A1A1A',
-            color: '#9CA3AF',
-            fontFamily: "'Inter', sans-serif",
-            fontSize: '14px',
-            fontWeight: '500',
-            letterSpacing: '0.03em',
-            cursor: 'not-allowed',
-            userSelect: 'none'
-          }}>
-            <span>🔒</span>
-            <span>Expired</span>
-          </div>
+          <StatusPill variant="expired" testID={`status-pill-expired-web-${session.id}`} />
         );
 
       case 'respond':
         return (
-          <button
-            onClick={() => {
+          <StatusPill
+            variant="respond"
+            onPress={() => {
               if (onRespond) {
                 onRespond(session.id, session);
               }
             }}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              height: '36px',
-              padding: '0 16px',
-              borderRadius: '12px',
-              background: 'linear-gradient(90deg, #00E0FF 0%, #4A67FF 100%)',
-              border: 'none',
-              color: '#FFFFFF',
-              fontFamily: "'Inter', sans-serif",
-              fontSize: '14px',
-              fontWeight: '500',
-              letterSpacing: '0.03em',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              boxShadow: '0 0 12px rgba(0, 224, 255, 0.4), 0 2px 8px rgba(0, 0, 0, 0.2)',
-              position: 'relative',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.boxShadow = '0 0 16px rgba(0, 224, 255, 0.6), 0 4px 12px rgba(0, 0, 0, 0.3)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.boxShadow = '0 0 12px rgba(0, 224, 255, 0.4), 0 2px 8px rgba(0, 0, 0, 0.2)';
-            }}
-          >
-            <span>Respond</span>
-            <div style={{
-              width: '6px',
-              height: '6px',
-              borderRadius: '50%',
-              backgroundColor: '#00E0FF',
-              boxShadow: '0 0 8px rgba(0, 224, 255, 0.8)',
-            }} />
-          </button>
+            showNotificationDot
+            testID={`respond-button-web-${session.id}`}
+          />
         );
 
       default:
         return null;
     }
   };
+
+  const renderPendingQuestionnairesWeb = () => {
+    if (pendingResponses.length === 0) return null;
+
+    return (
+      <div style={{
+        width: "100%",
+        maxWidth: "100%",
+        marginTop: "0px",
+        marginBottom: "30px",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        boxSizing: "border-box"
+      }}>
+        <div style={{
+          fontSize: "14px",
+          fontWeight: 700,
+          color: "#FFFFFF",
+          marginBottom: "6px",
+          letterSpacing: "0.5px",
+          textTransform: "uppercase",
+          textAlign: "center",
+          width: "100%"
+        }}>
+          SESSIONS TO RATE
+        </div>
+        <div style={{
+          fontSize: "14px",
+          color: "rgba(255,255,255,0.65)",
+          marginBottom: "14px",
+          fontWeight: 500,
+          textAlign: "center",
+          width: "100%"
+        }}>
+          Tap RESPOND to complete your questionnaire.
+        </div>
+        <div style={{
+          height: "2px",
+          width: "40%",
+          margin: "0 auto 18px auto",
+          background: "linear-gradient(90deg, transparent 0%, rgba(0, 224, 255, 0.25) 50%, transparent 100%)",
+          boxShadow: "0 0 6px rgba(0, 224, 255, 0.25)"
+        }} />
+        <div style={{ display: "flex", flexDirection: "column", gap: "14px", width: "100%" }}>
+          {pendingResponses.map((session, index) => (
+            <div
+              key={session.id || index}
+              style={{
+                background: "rgba(255,255,255,0.08)",
+                borderRadius: "16px",
+                padding: "16px 20px",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                border: "1px solid rgba(0,224,255,0.35)",
+                boxShadow: "0 10px 32px rgba(0,0,0,0.35)"
+              }}
+            >
+              <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                <span style={{ fontSize: "16px", fontWeight: 600 }}>{session.title}</span>
+                <span style={{ fontSize: "13px", color: "#9CA3AF" }}>
+                  {getTimeRangeLabel(session)}
+                </span>
+              </div>
+              {renderQuestionnaireActionWeb(session)}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const renderPendingQuestionnairesMobile = () => {
+    if (pendingResponses.length === 0) return null;
+    return (
+      <View style={styles.pendingSection}>
+        <Text style={styles.pendingLabel}>SESSIONS TO RATE</Text>
+        <Text style={styles.pendingSubtitle}>Tap RESPOND to complete your questionnaire.</Text>
+        {pendingResponses.map((session: any, index: number) => (
+          <View key={session.id || index} style={styles.pendingCard}>
+            <View style={styles.pendingInfo}>
+              <Text style={styles.pendingTitle}>{session.title}</Text>
+              <Text style={styles.pendingTime}>
+                {getTimeRangeLabel(session)}
+              </Text>
+            </View>
+            <View style={{ marginTop: 8 }}>
+              {renderQuestionnaireAction(session)}
+            </View>
+          </View>
+        ))}
+      </View>
+    );
+  };
+
+  const renderSectionDivider = (styleOverride?: any) => (
+    <View style={[styles.sectionDividerContainer, styleOverride]}>
+      <LinearGradient
+        colors={['transparent', 'rgba(0, 224, 255, 0.8)', 'transparent']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.sectionDivider}
+      />
+    </View>
+  );
 
   const handleTabNavigation = (tab: 'Home' | 'Schedule' | 'Profile') => {
     if (onNavigateToTab) {
@@ -558,9 +733,9 @@ export default function AthleteHome({
             justifyContent: "flex-start",
             boxSizing: "border-box"
           }}>
-            <div style={{ 
-              paddingTop: "60px",
-              paddingBottom: "28px",
+        <div style={{ 
+          paddingTop: "40px",
+              paddingBottom: "36px",
               width: "100%",
               maxWidth: "100%",
               display: "flex",
@@ -569,6 +744,17 @@ export default function AthleteHome({
               justifyContent: "center",
               boxSizing: "border-box"
             }}>
+              {pendingResponses.length > 0 && renderPendingQuestionnairesWeb()}
+              {pendingResponses.length > 0 && (
+                <div style={{
+                  width: "60%",
+                  height: "1px",
+                  margin: "12px auto 36px",
+                  background: "linear-gradient(90deg, rgba(0,0,0,0), rgba(0,224,255,0.9), rgba(0,0,0,0))",
+                  boxShadow: "0 0 20px rgba(0, 224, 255, 0.4)"
+                }} />
+              )}
+
               {loading ? (
                 <div style={{
                   display: "flex",
@@ -633,22 +819,22 @@ export default function AthleteHome({
                         boxShadow: "0 0 6px rgba(0, 224, 255, 0.25)"
                       }} />
                       <div style={{
-                        background: "rgba(255, 255, 255, 0.06)",
-                        backdropFilter: "blur(22px)",
-                        WebkitBackdropFilter: "blur(22px)",
-                        border: "1px solid #00E0FF30",
-                        borderRadius: "16px",
-                        padding: "28px 22px",
+                        background: "rgba(255, 255, 255, 0.07)",
+                        backdropFilter: "blur(24px)",
+                        WebkitBackdropFilter: "blur(24px)",
+                        border: "1px solid rgba(0, 224, 255, 0.35)",
+                        borderRadius: "22px",
+                        padding: "34px 26px",
                         display: "flex",
                         flexDirection: "column",
                         alignItems: "center",
                         justifyContent: "center",
-                        boxShadow: "0 10px 26px rgba(0, 0, 0, 0.45), inset 0 0 18px rgba(0, 224, 255, 0.05)",
+                        boxShadow: "0 16px 40px rgba(0, 0, 0, 0.45), 0 0 30px rgba(0, 224, 255, 0.08)",
                         width: "100%",
                         maxWidth: "100%",
-                        gap: "20px",
+                        gap: "22px",
                         margin: "0 auto",
-                        minHeight: "100px",
+                        minHeight: "140px",
                         boxSizing: "border-box"
                       }}>
                         <div style={{
@@ -686,7 +872,7 @@ export default function AthleteHome({
                           alignItems: "center",
                           width: "100%"
                         }}>
-                          {renderQuestionnaireActionWeb(nextSession)}
+                          <StatusPill variant="comingSoon" />
                         </div>
                       </div>
                     </div>
@@ -881,6 +1067,9 @@ export default function AthleteHome({
           </View>
         </View>
 
+        {renderPendingQuestionnairesMobile()}
+        {pendingResponses.length > 0 && renderSectionDivider({ marginTop: tokens.spacing.md })}
+
         {/* NEXT SESSION Section */}
         <View style={[styles.nextSessionSection, { paddingHorizontal: sectionPadding }]}>
           <Text style={[
@@ -921,9 +1110,9 @@ export default function AthleteHome({
                   {(nextSession as any).timeForNextSession || nextSession.time}
                 </Text>
               </View>
-              <View style={styles.sessionAction}>
-                {renderQuestionnaireAction(nextSession)}
-              </View>
+            <View style={styles.sessionAction}>
+              <StatusPill variant="comingSoon" />
+            </View>
             </View>
           ) : (
             <View style={styles.noSessionsContainer}>
@@ -1174,6 +1363,7 @@ const styles = StyleSheet.create({
   
   nextSessionSection: {
     marginBottom: tokens.spacing.xxl,
+    marginTop: tokens.spacing.xxl,
     paddingTop: tokens.spacing.lg,
     alignItems: 'center',
   },
@@ -1198,20 +1388,22 @@ const styles = StyleSheet.create({
   },
   
   nextSessionCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 18,
-    padding: tokens.spacing.lg,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 22,
+    paddingVertical: tokens.spacing.xl,
+    paddingHorizontal: tokens.spacing.xl,
     flexDirection: 'column',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 0.5,
-    borderColor: 'rgba(0, 234, 255, 0.3)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 32,
-    elevation: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 224, 255, 0.35)',
+    shadowColor: '#00C6FF',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.35,
+    shadowRadius: 30,
+    elevation: 12,
     width: '100%',
+    minHeight: 180,
   },
   
   sessionsSection: {
@@ -1284,6 +1476,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     width: '100%',
+    gap: tokens.spacing.xs,
   },
   
   sessionTime: {
@@ -1305,7 +1498,7 @@ const styles = StyleSheet.create({
   sessionAction: {
     alignItems: 'center',
     width: '100%',
-    marginTop: tokens.spacing.md,
+    marginTop: tokens.spacing.lg,
   },
   
   completedBadge: {
@@ -1339,41 +1532,48 @@ const styles = StyleSheet.create({
     letterSpacing: 0.03,
   },
   
-  respondButton: {
-    position: 'relative',
-    backgroundColor: 'transparent',
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 20,
-    borderWidth: 0,
-    shadowColor: '#00EAFF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 20,
-    elevation: 10,
+
+  pendingSection: {
+    paddingHorizontal: 24,
+    paddingVertical: 24,
+    marginBottom: tokens.spacing.xxl,
+    alignItems: 'center',
+    gap: 12,
   },
-  
-  respondText: {
-    fontSize: 13,
-    fontWeight: tokens.fontWeights.semibold,
+  pendingLabel: {
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    color: tokens.colors.text,
+    fontSize: tokens.fontSizes.lg,
+    fontWeight: tokens.fontWeights.bold,
+    marginBottom: tokens.spacing.xs,
+    textAlign: 'center',
+  },
+  pendingSubtitle: {
+    fontSize: tokens.fontSizes.sm,
+    color: tokens.colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: tokens.spacing.lg,
+  },
+  pendingCard: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(0,224,255,0.25)',
+    marginBottom: 12,
+  },
+  pendingInfo: {
+    marginBottom: 8,
+  },
+  pendingTitle: {
     color: '#FFFFFF',
-    fontFamily: tokens.typography.ui,
-    letterSpacing: 0.3,
+    fontWeight: '600',
+    fontSize: 15,
   },
-  
-  notificationDot: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#EF4444',
-    shadowColor: '#EF4444',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 1,
-    shadowRadius: 12,
-    elevation: 10,
+  pendingTime: {
+    color: '#9CA3AF',
+    fontSize: 12,
   },
   
   loadingContainer: {
@@ -1470,6 +1670,22 @@ const styles = StyleSheet.create({
     fontWeight: tokens.fontWeights.semibold,
   },
   
+  sectionDividerContainer: {
+    width: '70%',
+    alignSelf: 'center',
+    marginTop: tokens.spacing.lg,
+    marginBottom: tokens.spacing.xxl,
+  },
+  sectionDivider: {
+    height: 2,
+    width: '100%',
+    borderRadius: 2,
+    shadowColor: '#00E0FF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.45,
+    shadowRadius: 16,
+  },
+
   activeIndicator: {
     position: 'absolute',
     bottom: -10,

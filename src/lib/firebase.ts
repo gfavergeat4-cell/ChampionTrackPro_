@@ -10,6 +10,7 @@ const firebaseConfig = extra?.firebase ?? {};
 const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
-export const functions = getFunctions(app);
+// Functions are deployed to us-central1 (same region as in functions/index.js)
+export const functions = getFunctions(app, 'us-central1');
 export { app };
 

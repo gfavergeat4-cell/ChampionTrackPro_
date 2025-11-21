@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, Pressable, StyleSheet, Dimensions, Platform, ScrollView, TextInput, Modal } from "react-native";
+import { View, Text, Pressable, StyleSheet, Dimensions, Platform, ScrollView, TextInput, Modal, Alert } from "react-native";
 import { LinearGradient } from 'expo-linear-gradient';
 import { collection, getDocs, doc, getDoc, addDoc, deleteDoc, updateDoc } from "firebase/firestore";
-import { db } from "../lib/firebase";
+import { db, functions } from "../lib/firebase";
 import { getApp } from "firebase/app";
+import { httpsCallable } from "firebase/functions";
 import { tokens } from "../theme/tokens";
 
 interface Team {
@@ -96,38 +97,63 @@ export default function AdminDashboardNew() {
     try {
       setIsImporting(true);
       
-      // Update team with calendar URL
+      const icsUrl = calendarUrl.trim();
+      console.log("[ICS] Starting import for team:", selectedTeam.id, "with URL:", icsUrl);
+      
+      // Update team with calendar URL first
       await updateDoc(doc(db, "teams", selectedTeam.id), {
-        icsUrl: calendarUrl.trim(),
+        icsUrl: icsUrl,
         updatedAt: new Date().toISOString()
       });
 
-      // Call import API
-      const response = await fetch('http://localhost:3001/api/import-ics', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          teamId: selectedTeam.id,
-          icsUrl: calendarUrl.trim()
-        })
-      });
+      console.log("[ICS] Team document updated with icsUrl");
 
-      const result = await response.json();
+      // Call Cloud Function to sync ICS
+      const syncIcsNow = httpsCallable(functions, 'syncIcsNow');
       
-      if (result.ok) {
-        alert(`✅ Calendar imported for ${selectedTeam.name}\n\n${result.processed} events processed\n• ${result.created} new\n• ${result.updated} updated\n• ${result.skipped} unchanged`);
+      console.log("[ICS] Calling syncIcsNow Cloud Function...");
+      const result = await syncIcsNow({ teamId: selectedTeam.id });
+      
+      const data = result.data as any;
+      console.log("[ICS] Import result:", data);
+      
+      if (data) {
+        const message = `✅ Calendrier importé pour ${selectedTeam.name}\n\n` +
+          `${data.seen || 0} événement(s) trouvé(s)\n` +
+          `• ${data.created || 0} créé(s)\n` +
+          `• ${data.updated || 0} mis à jour\n` +
+          `• ${data.cancelled || 0} annulé(s)`;
+        
+        Alert.alert("Import réussi", message);
+        
+        // Reload teams to show updated data
+        const teamsSnapshot = await getDocs(collection(db, "teams"));
+        const teamsData = teamsSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        } as Team));
+        setTeams(teamsData);
       } else {
-        alert(`⚠️ Error: ${result.error}`);
+        Alert.alert("Avertissement", "L'import s'est terminé mais aucun résultat n'a été retourné.");
       }
       
       setShowCalendarModal(false);
       setCalendarUrl('');
       setSelectedTeam(null);
-    } catch (error) {
-      console.error("Import error:", error);
-      alert("Error importing calendar");
+    } catch (error: any) {
+      console.error("[ICS] Import error:", error);
+      
+      let errorMessage = "Erreur lors de l'import du calendrier";
+      
+      if (error.code === 'functions/invalid-argument') {
+        errorMessage = "TeamId manquant ou invalide";
+      } else if (error.code === 'functions/permission-denied') {
+        errorMessage = "Vous n'avez pas la permission d'importer ce calendrier";
+      } else if (error.message) {
+        errorMessage = `Erreur: ${error.message}`;
+      }
+      
+      Alert.alert("Erreur", errorMessage);
     } finally {
       setIsImporting(false);
     }

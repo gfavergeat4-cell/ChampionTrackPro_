@@ -88,6 +88,7 @@ export async function saveQuestionnaireResponse(
       trainingId,
       status: "completed",
       submittedAt: serverTimestamp(),
+      completedAt: serverTimestamp(),
       ...responseData,
     }, { merge: true });
     

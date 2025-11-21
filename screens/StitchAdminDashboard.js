@@ -2,9 +2,12 @@ import React, { useState, useEffect } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { Platform } from "react-native";
 import MobileViewport from "../src/components/MobileViewport";
-import { collection, getDocs, deleteDoc, doc, query, orderBy, where, updateDoc, serverTimestamp, addDoc } from "firebase/firestore";
-import { importICSToFirestore } from "../src/lib/icsImporterReal";
+import { collection, getDocs, deleteDoc, doc, query, orderBy, where, updateDoc, serverTimestamp, addDoc, setDoc, getDoc, Timestamp } from "firebase/firestore";
 import { auth, db } from "../services/firebaseConfig";
+
+const FUNCTIONS_BASE_URL =
+  process.env.EXPO_PUBLIC_FUNCTIONS_BASE_URL ||
+  "https://us-central1-championtrackpro.cloudfunctions.net";
 
 export default function StitchAdminDashboard() {
   const navigation = useNavigation();
@@ -19,6 +22,7 @@ export default function StitchAdminDashboard() {
   const [showCalendarImport, setShowCalendarImport] = useState(false);
   const [calendarUrl, setCalendarUrl] = useState("");
   const [isImporting, setIsImporting] = useState(false);
+  const [importMode, setImportMode] = useState("url"); // "url" or "file"
 
   // Charger les équipes depuis Firestore
   const loadTeams = async () => {
@@ -73,117 +77,300 @@ export default function StitchAdminDashboard() {
     }
   };
 
-  // Importer un calendrier ICS pour une équipe
+  // Importer un calendrier ICS pour une équipe via Cloud Function
+  const handleImportFromFile = async (teamId, file) => {
+    try {
+      setIsImporting(true);
+      console.log("📅 Import du calendrier depuis fichier pour l'équipe:", teamId);
+      
+      const icsText = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.onerror = (e) => reject(new Error('Failed to read file'));
+        reader.readAsText(file);
+      });
+      
+      if (!icsText || !icsText.includes('BEGIN:VCALENDAR')) {
+        throw new Error('Invalid ICS file format');
+      }
+      
+      console.log("✅ ICS file read (size):", icsText.length);
+      
+      // Import directly without URL
+      await importIcsContent(teamId, icsText, null);
+      
+      // Close modal and reset state (importIcsContent already handles reload and modal close)
+      // But we need to ensure modal is closed here too
+      setShowCalendarImport(false);
+      setCalendarUrl("");
+      setSelectedTeam(null);
+      setImportMode("url");
+      
+    } catch (error) {
+      console.error("❌ Erreur lors de l'import du fichier:", error);
+      alert(`Erreur lors de l'import du calendrier: ${error.message}`);
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   const handleImportCalendar = async (teamId, calendarUrl) => {
     try {
       setIsImporting(true);
       console.log("📅 Import du calendrier pour l'équipe:", teamId);
       console.log("📅 URL du calendrier:", calendarUrl);
 
+      const icsUrl = calendarUrl.trim();
+      
+      // Validate URL format
+      try {
+        new URL(icsUrl);
+      } catch (e) {
+        throw new Error("Invalid ICS URL format");
+      }
+
+      // Call Cloud Function via HTTP with auth token
+      console.log("📅 Calling Cloud Function importTeamCalendarFromUrl (HTTP)...");
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        throw new Error("Vous devez être connecté pour importer un calendrier");
+      }
+
+      const idToken = await currentUser.getIdToken();
+      const response = await fetch(`${FUNCTIONS_BASE_URL}/importTeamCalendarFromUrl`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ teamId, icsUrl }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        const serverError = result?.error || "Erreur serveur lors de l'import du calendrier";
+        throw new Error(serverError);
+      }
+
+      const data = result || {};
+      console.log("✅ Import result:", data);
+
+      // Reload teams to show updated data
+      await loadTeams();
+
+      // Close modal
+      setShowCalendarImport(false);
+      setCalendarUrl("");
+      setSelectedTeam(null);
+      setImportMode("url");
+
+      // Show success message
+      const message =
+        `✅ Calendrier importé avec succès !\n\n` +
+        `${data.seen || 0} événement(s) trouvé(s)\n` +
+        `• ${data.created || 0} créé(s)\n` +
+        `• ${data.updated || 0} mis à jour\n` +
+        `• ${data.cancelled || 0} annulé(s)`;
+
+      alert(message);
+
+    } catch (error) {
+      console.error("❌ Erreur lors de l'import du calendrier:", error);
+      
+      // Extract user-friendly error message from server response
+      let errorMessage = "Erreur lors de l'import du calendrier";
+      if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      alert(`Erreur lors de l'import du calendrier: ${errorMessage}`);
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const importIcsContent = async (teamId, icsText, icsUrl) => {
+    try {
+      // Parse and import ICS directly
+      // Use dynamic import for ical (works in both web and React Native)
+      let ical;
+      let DateTime;
+      
+      if (Platform.OS === 'web') {
+        // For web, use ES6 import
+        const icalModule = await import("ical");
+        ical = icalModule.default || icalModule;
+        const luxonModule = await import("luxon");
+        DateTime = luxonModule.DateTime;
+      } else {
+        // For React Native, use require
+        ical = require("ical");
+        DateTime = require("luxon").DateTime;
+      }
+      
       const teamInfo = teams.find((team) => team.id === teamId);
       const defaultTimeZone =
         teamInfo?.timeZone ||
         teamInfo?.tzid ||
         (teamInfo?.settings && teamInfo.settings.timeZone) ||
         "Europe/Paris";
-
-      const icsText = await fetchCalendarIcs(calendarUrl);
-      console.log("📅 Fichier ICS récupéré (taille):", icsText.length);
-
+      
+      console.log("📅 Parsing ICS content...");
+      const parsed = ical.parseICS(icsText);
+      
       // Reset existing trainings for a clean import
       const trainingsCollection = collection(db, "teams", teamId, "trainings");
       const existingTrainings = await getDocs(trainingsCollection);
       if (!existingTrainings.empty) {
         await Promise.all(existingTrainings.docs.map((docSnap) => deleteDoc(docSnap.ref)));
-        console.log("🧹 Anciennes séances supprimées:", existingTrainings.size);
-      }
-
-      const importResult = await importICSToFirestore({
-        teamId,
-        icsText,
-        source: "google",
-        defaultTimeZone,
-      });
-
-      console.log("📅 Résultat import:", importResult);
-
-      // Sauvegarder l'URL et marquer que le calendrier est importé
-      await updateDoc(doc(db, "teams", teamId), {
-        calendarUrl: calendarUrl,
-        calendarImported: true,
-        calendarImportedAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        lastCalendarImport: {
-          at: serverTimestamp(),
-          imported: importResult.importedCount,
-          updated: importResult.updatedCount,
-          removed: importResult.removedCount,
-          source: "google",
-        },
-      });
-
-      // Recharger les équipes pour afficher les changements
-      await loadTeams();
-
-      // Fermer le modal
-      setShowCalendarImport(false);
-      setCalendarUrl("");
-      setSelectedTeam(null);
-
-      alert(
-        `Calendrier importé avec succès !\nCréés: ${importResult.importedCount}\nMis à jour: ${importResult.updatedCount}\nNettoyés: ${importResult.removedCount}`
-      );
-
-    } catch (error) {
-      console.error("❌ Erreur lors de l'import du calendrier:", error);
-      alert("Erreur lors de l'import du calendrier: " + error.message);
-    } finally {
-      setIsImporting(false);
-    }
-  };
-
-  const fetchCalendarIcs = async (calendarUrl) => {
-    try {
-      console.log("📅 Téléchargement du fichier ICS...");
-      const proxyCandidates = [];
-      const encodedUrl = encodeURIComponent(calendarUrl);
-      const localProxy = `http://localhost:3001/proxy-ics?url=${encodedUrl}`;
-      proxyCandidates.push(localProxy);
-      
-      if (Platform.OS === 'web') {
-        proxyCandidates.unshift(`https://cors.isomorphic-git.org/${calendarUrl}`);
-        proxyCandidates.push(`https://corsproxy.io/?${encodedUrl}`);
+        console.log("🧹 Old trainings deleted:", existingTrainings.size);
       }
       
-      proxyCandidates.push(calendarUrl);
+      let created = 0;
+      let updated = 0;
+      let seen = 0;
       
-      let lastError = null;
-
-      for (const candidate of proxyCandidates) {
+      // Import each event
+      for (const key in parsed) {
+        const event = parsed[key];
+        if (event.type !== 'VEVENT') continue;
+        
+        seen++;
+        
         try {
-          console.log("📅 Tentative de récupération ICS via:", candidate);
-          const response = await fetch(candidate);
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status} ${response.statusText}`);
+          const startDate = event.start ? new Date(event.start) : null;
+          const endDate = event.end ? new Date(event.end) : null;
+          
+          if (!startDate || !endDate) {
+            console.warn("⚠️ Skipping event without start/end:", event.summary);
+            continue;
           }
-          const text = await response.text();
-          if (!text || text.length === 0) {
-            throw new Error('Réponse vide');
+          
+          // Convert to UTC timestamps
+          const startUtc = DateTime.fromJSDate(startDate, { zone: defaultTimeZone }).toUTC();
+          const endUtc = DateTime.fromJSDate(endDate, { zone: defaultTimeZone }).toUTC();
+          
+          const startUtcMs = startUtc.toMillis();
+          const endUtcMs = endUtc.toMillis();
+          
+          // Generate ID (simple hash function for client-side)
+          function simpleHash(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+              const char = str.charCodeAt(i);
+              hash = ((hash << 5) - hash) + char;
+              hash = hash & hash; // Convert to 32bit integer
+            }
+            return Math.abs(hash).toString(36).substring(0, 24);
           }
-          console.log("📅 Fichier ICS téléchargé via", candidate);
-          return text;
-        } catch (candidateError) {
-          console.warn("⚠️ Échec du téléchargement ICS via", candidate, candidateError);
-          lastError = candidateError;
+          
+          const eventId = simpleHash(`${teamId}_${event.uid || key}_${startUtcMs}`);
+          
+          const trainingRef = doc(db, "teams", teamId, "trainings", eventId);
+          const trainingSnap = await getDoc(trainingRef);
+          
+          const trainingData = {
+            teamId: teamId,
+            title: event.summary || "Training",
+            summary: event.summary || "Training",
+            description: event.description || "",
+            location: event.location || "",
+            startUtc: Timestamp.fromMillis(startUtcMs),
+            endUtc: Timestamp.fromMillis(endUtcMs),
+            startUTC: startUtcMs,
+            endUTC: endUtcMs,
+            timeZone: defaultTimeZone,
+            displayTz: defaultTimeZone,
+            uid: event.uid || null,
+            status: event.status || "CONFIRMED",
+            source: "ics",
+            cancelled: event.status === "CANCELLED",
+            questionnaireNotified: false,
+            updatedAt: serverTimestamp(),
+          };
+          
+          if (trainingSnap.exists()) {
+            await updateDoc(trainingRef, trainingData);
+            updated++;
+          } else {
+            await setDoc(trainingRef, {
+              ...trainingData,
+              createdAt: serverTimestamp(),
+            });
+            created++;
+          }
+          
+        } catch (eventError) {
+          console.error("❌ Error importing event:", eventError);
         }
       }
       
-      throw new Error(
-        lastError?.message || "Impossible de récupérer le fichier ICS."
-      );
+      const data = {
+        seen: seen,
+        created: created,
+        updated: updated,
+        cancelled: 0
+      };
+      console.log("📅 Import result:", data);
+      
+      if (data) {
+        // Sauvegarder les métadonnées de l'import
+        const updateData = {
+          calendarImported: true,
+          calendarImportedAt: serverTimestamp(),
+          lastCalendarImport: {
+            at: serverTimestamp(),
+            seen: data.seen || 0,
+            created: data.created || 0,
+            updated: data.updated || 0,
+            cancelled: data.cancelled || 0,
+            source: icsUrl ? "url" : "file",
+          },
+        };
+        
+        // Only update calendarUrl if provided (not when importing from file)
+        if (icsUrl) {
+          updateData.calendarUrl = icsUrl;
+        }
+        
+        await updateDoc(doc(db, "teams", teamId), updateData);
+
+        // Recharger les équipes pour afficher les changements
+        await loadTeams();
+
+        // Fermer le modal
+        setShowCalendarImport(false);
+        setCalendarUrl("");
+        setSelectedTeam(null);
+
+        const message = `✅ Calendrier importé avec succès !\n\n` +
+          `${data.seen || 0} événement(s) trouvé(s)\n` +
+          `• ${data.created || 0} créé(s)\n` +
+          `• ${data.updated || 0} mis à jour\n` +
+          `• ${data.cancelled || 0} annulé(s)`;
+        
+        alert(message);
+      } else {
+        alert("⚠️ L'import s'est terminé mais aucun résultat n'a été retourné.");
+      }
+
     } catch (error) {
-      console.error("❌ Erreur lors du téléchargement ICS:", error);
-      throw error;
+      console.error("❌ Erreur lors de l'import du calendrier:", error);
+      
+      let errorMessage = "Erreur lors de l'import du calendrier";
+      
+      if (error.code === 'functions/invalid-argument') {
+        errorMessage = "TeamId manquant ou invalide";
+      } else if (error.code === 'functions/permission-denied') {
+        errorMessage = "Vous n'avez pas la permission d'importer ce calendrier";
+      } else if (error.message) {
+        errorMessage = `Erreur: ${error.message}`;
+      }
+      
+      alert(errorMessage);
+    } finally {
+      setIsImporting(false);
     }
   };
 
@@ -790,43 +977,146 @@ export default function StitchAdminDashboard() {
                 📅 Importer un calendrier pour {selectedTeam.name}
               </h3>
               
-              <div style={{ marginBottom: "16px" }}>
-                <label style={{
-                  color: "#9CA3AF",
-                  fontSize: "14px",
-                  marginBottom: "8px",
-                  display: "block"
-                }}>
-                  URL du calendrier ICS
-                </label>
-                <input
-                  type="url"
-                  value={calendarUrl}
-                  onChange={(e) => setCalendarUrl(e.target.value)}
-                  placeholder="https://example.com/calendar.ics"
+              {/* Mode selector */}
+              <div style={{ 
+                display: "flex", 
+                gap: "8px", 
+                marginBottom: "20px",
+                background: "rgba(26, 32, 44, 0.5)",
+                padding: "4px",
+                borderRadius: "8px"
+              }}>
+                <button
+                  onClick={() => setImportMode("url")}
                   style={{
-                    width: "100%",
-                    padding: "12px",
-                    borderRadius: "8px",
-                    background: "rgba(26, 32, 44, 0.5)",
-                    border: "1px solid rgba(74, 103, 255, 0.3)",
+                    flex: 1,
+                    padding: "8px 16px",
+                    borderRadius: "6px",
+                    background: importMode === "url" 
+                      ? "linear-gradient(135deg, #00E0FF, #4A67FF)" 
+                      : "transparent",
+                    border: "none",
                     color: "white",
                     fontSize: "14px",
-                    outline: "none"
+                    fontWeight: "500",
+                    cursor: "pointer",
+                    transition: "all 0.2s"
                   }}
-                />
+                >
+                  📡 Depuis URL
+                </button>
+                <button
+                  onClick={() => setImportMode("file")}
+                  style={{
+                    flex: 1,
+                    padding: "8px 16px",
+                    borderRadius: "6px",
+                    background: importMode === "file" 
+                      ? "linear-gradient(135deg, #00E0FF, #4A67FF)" 
+                      : "transparent",
+                    border: "none",
+                    color: "white",
+                    fontSize: "14px",
+                    fontWeight: "500",
+                    cursor: "pointer",
+                    transition: "all 0.2s"
+                  }}
+                >
+                  📁 Depuis fichier
+                </button>
               </div>
+              
+              {importMode === "url" ? (
+                <>
+                  <div style={{ marginBottom: "16px" }}>
+                    <label style={{
+                      color: "#9CA3AF",
+                      fontSize: "14px",
+                      marginBottom: "8px",
+                      display: "block"
+                    }}>
+                      URL du calendrier ICS
+                    </label>
+                    <input
+                      type="url"
+                      value={calendarUrl}
+                      onChange={(e) => setCalendarUrl(e.target.value)}
+                      placeholder="https://example.com/calendar.ics"
+                      style={{
+                        width: "100%",
+                        padding: "12px",
+                        borderRadius: "8px",
+                        background: "rgba(26, 32, 44, 0.5)",
+                        border: "1px solid rgba(74, 103, 255, 0.3)",
+                        color: "white",
+                        fontSize: "14px",
+                        outline: "none"
+                      }}
+                    />
+                  </div>
 
-              <div style={{ marginBottom: "16px" }}>
-                <p style={{
-                  color: "#6B7280",
-                  fontSize: "12px",
-                  lineHeight: "1.4"
-                }}>
-                  Collez l'URL de votre calendrier ICS (Google Calendar, Outlook, etc.). 
-                  Les événements seront importés et associés aux questionnaires pour les athlètes.
-                </p>
-              </div>
+                  <div style={{ marginBottom: "16px" }}>
+                    <p style={{
+                      color: "#6B7280",
+                      fontSize: "12px",
+                      lineHeight: "1.4"
+                    }}>
+                      Collez l'URL de votre calendrier ICS (Google Calendar, Outlook, etc.). 
+                      Les événements seront importés et associés aux questionnaires pour les athlètes.
+                      <br /><br />
+                      <strong style={{ color: "#F59E0B" }}>⚠️ Note:</strong> Si vous obtenez une erreur CORS, utilisez l'option "Depuis fichier" ci-dessus.
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div style={{ marginBottom: "16px" }}>
+                    <label style={{
+                      color: "#9CA3AF",
+                      fontSize: "14px",
+                      marginBottom: "8px",
+                      display: "block"
+                    }}>
+                      Fichier ICS
+                    </label>
+                    <input
+                      type="file"
+                      accept=".ics,text/calendar"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          handleImportFromFile(selectedTeam.id, file);
+                        }
+                      }}
+                      disabled={isImporting}
+                      style={{
+                        width: "100%",
+                        padding: "12px",
+                        borderRadius: "8px",
+                        background: "rgba(26, 32, 44, 0.5)",
+                        border: "1px solid rgba(74, 103, 255, 0.3)",
+                        color: "white",
+                        fontSize: "14px",
+                        outline: "none",
+                        cursor: isImporting ? "not-allowed" : "pointer"
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ marginBottom: "16px" }}>
+                    <p style={{
+                      color: "#6B7280",
+                      fontSize: "12px",
+                      lineHeight: "1.4"
+                    }}>
+                      Téléchargez le fichier ICS de votre calendrier (Google Calendar, Outlook, etc.) 
+                      et importez-le directement. Cette méthode évite les problèmes de CORS.
+                      <br /><br />
+                      <strong>Pour Google Calendar:</strong> Paramètres → Exporter → Télécharger le fichier .ics
+                    </p>
+                  </div>
+                </>
+              )}
 
               <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
                 <button
@@ -834,6 +1124,7 @@ export default function StitchAdminDashboard() {
                     setShowCalendarImport(false);
                     setCalendarUrl("");
                     setSelectedTeam(null);
+                    setImportMode("url");
                   }}
                   style={{
                     padding: "10px 20px",
@@ -849,25 +1140,27 @@ export default function StitchAdminDashboard() {
                   Annuler
                 </button>
                 
-                <button
-                  onClick={() => handleImportCalendar(selectedTeam.id, calendarUrl)}
-                  disabled={!calendarUrl.trim() || isImporting}
-                  style={{
-                    padding: "10px 20px",
-                    borderRadius: "8px",
-                    background: !calendarUrl.trim() || isImporting 
-                      ? "rgba(74, 103, 255, 0.3)" 
-                      : "linear-gradient(135deg, #00E0FF, #4A67FF)",
-                    border: "none",
-                    color: "white",
-                    fontSize: "14px",
-                    fontWeight: "500",
-                    cursor: !calendarUrl.trim() || isImporting ? "not-allowed" : "pointer",
-                    opacity: !calendarUrl.trim() || isImporting ? 0.6 : 1
-                  }}
-                >
-                  {isImporting ? "Import en cours..." : "Importer"}
-                </button>
+                {importMode === "url" ? (
+                  <button
+                    onClick={() => handleImportCalendar(selectedTeam.id, calendarUrl)}
+                    disabled={!calendarUrl.trim() || isImporting}
+                    style={{
+                      padding: "10px 20px",
+                      borderRadius: "8px",
+                      background: !calendarUrl.trim() || isImporting
+                        ? "rgba(74, 103, 255, 0.3)"
+                        : "linear-gradient(135deg, #00E0FF, #4A67FF)",
+                      border: "none",
+                      color: "white",
+                      fontSize: "14px",
+                      fontWeight: "500",
+                      cursor: !calendarUrl.trim() || isImporting ? "not-allowed" : "pointer",
+                      opacity: !calendarUrl.trim() || isImporting ? 0.6 : 1,
+                    }}
+                  >
+                    {isImporting ? "Import en cours..." : "Importer"}
+                  </button>
+                ) : null}
               </div>
             </div>
           </div>

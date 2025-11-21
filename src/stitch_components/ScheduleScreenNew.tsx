@@ -16,6 +16,89 @@ import MobileViewport from "../components/MobileViewport";
 import UnifiedAthleteNavigation from "./UnifiedAthleteNavigation";
 import { QuestionnaireState } from "../utils/questionnaire";
 import { useNavigation } from "@react-navigation/native";
+import StatusPill from "../components/StatusPill";
+
+type TrainingStatus =
+  | "upcoming"
+  | "ongoing"
+  | "questionnaire-open"
+  | "cooldown"
+  | "expired"
+  | "completed";
+
+const QUESTIONNAIRE_DELAY_MS = 30 * 60 * 1000;
+const QUESTIONNAIRE_WINDOW_MS = 5 * 60 * 60 * 1000;
+
+function toMillis(value: any): number | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "number" && !isNaN(value)) return value;
+  if (typeof value === "string") {
+    const num = Number(value);
+    return isNaN(num) ? null : num;
+  }
+  if (value instanceof Date) return value.getTime();
+  if (typeof value.toMillis === "function") {
+    const num = value.toMillis();
+    return typeof num === "number" ? num : null;
+  }
+  return null;
+}
+
+function getTrainingStatus(event: any, now: Date = new Date()): TrainingStatus {
+  if (!event) return "upcoming";
+  if (event?.questionnaireState === "completed" || event?.responseStatus === "completed") {
+    return "completed";
+  }
+
+  const startMs =
+    toMillis(event?.startMillis) ??
+    (event?.startDateTime ? event.startDateTime.toMillis() : null) ??
+    toMillis(event?.startDate) ??
+    toMillis(event?.startUTC) ??
+    toMillis(event?.startUtc);
+
+  const endMs =
+    toMillis(event?.endMillis) ??
+    (event?.endDateTime ? event.endDateTime.toMillis() : null) ??
+    toMillis(event?.endDate) ??
+    toMillis(event?.endUTC) ??
+    toMillis(event?.endUtc) ??
+    startMs;
+
+  if (!startMs || !endMs) {
+    return "upcoming";
+  }
+
+  const nowMs = now.getTime();
+  const questionnaireOpenFrom = endMs + QUESTIONNAIRE_DELAY_MS;
+  const questionnaireOpenUntil = endMs + QUESTIONNAIRE_WINDOW_MS;
+
+  if (nowMs < startMs) {
+    return "upcoming";
+  }
+
+  if (nowMs >= startMs && nowMs <= endMs) {
+    return "ongoing";
+  }
+
+  if (nowMs >= endMs && nowMs < questionnaireOpenFrom) {
+    return "cooldown";
+  }
+
+  if (nowMs >= questionnaireOpenFrom && nowMs <= questionnaireOpenUntil) {
+    return "questionnaire-open";
+  }
+
+  if (nowMs > questionnaireOpenUntil) {
+    return "expired";
+  }
+
+  return "expired";
+}
+
+function getUiTrainingStatus(event: any): TrainingStatus {
+  return event?.trainingStatus ?? getTrainingStatus(event);
+}
 
 interface ScheduleScreenProps {
   onRespond?: (sessionId: string, eventData?: any) => void;
@@ -127,6 +210,22 @@ export default function ScheduleScreen({ onRespond }: ScheduleScreenProps) {
         );
         if (activeTab === 'Day') {
           eventsData = await getEventsForDay(teamId, safeSelectedDate, currentUser.uid);
+          
+          // DEBUG: Log all events returned from Firestore for the selected day
+          console.log('[DEBUG][DAY_VIEW] Raw events from Firestore:', {
+            selectedDate: safeSelectedDate.toISOString(),
+            count: eventsData.length,
+            events: eventsData.map((e: any) => ({
+              id: e.id,
+              title: e.title,
+              startUTC: e.startUTC ?? e.startUtc?.toMillis?.() ?? e.startUtc,
+              endUTC: e.endUTC ?? e.endUtc?.toMillis?.() ?? e.endUtc,
+              startDate: e.startDate?.toISOString?.() ?? e.startDate,
+              endDate: e.endDate?.toISOString?.() ?? e.endDate,
+              startMillis: e.startMillis,
+              endMillis: e.endMillis,
+            })),
+          });
         } else if (activeTab === 'Week') {
           // Pour la vue Week, charger les événements de la semaine actuelle
           const weekStart = DateTime.fromJSDate(currentWeek).startOf('week').toJSDate();
@@ -194,6 +293,25 @@ export default function ScheduleScreen({ onRespond }: ScheduleScreenProps) {
       zone: 'utc',
         }).setZone(displayTz)
       : startDateTime;
+    const startMillis =
+      toMillis(event?.startMillis) ??
+      startDateValue?.getTime() ??
+      toMillis(event?.startUTC) ??
+      toMillis(event?.startUtc);
+    const endMillis =
+      toMillis(event?.endMillis) ??
+      endDateValue?.getTime() ??
+      toMillis(event?.endUTC) ??
+      toMillis(event?.endUtc) ??
+      startMillis;
+    const trainingStatus = getTrainingStatus(
+      {
+        ...event,
+        startMillis,
+        endMillis,
+      },
+      new Date()
+    );
 
     return {
       ...event,
@@ -203,250 +321,104 @@ export default function ScheduleScreen({ onRespond }: ScheduleScreenProps) {
       displayTz,
       hasTime: Boolean(startDateTime && endDateTime),
       questionnaireState: event?.questionnaireState,
-      endMillis: event?.endMillis ?? (endDateValue ? endDateValue.getTime() : null),
+      startMillis,
+      endMillis,
+      trainingStatus,
     };
   };
 
   // Render questionnaire action based on state
   const renderQuestionnaireAction = (event: any) => {
-    const state: QuestionnaireState | undefined = event?.questionnaireState;
-    
-    if (!state) {
-      console.error("[SCHEDULE][STATE][ACTION] questionnaireState missing for", event.id, event.title);
-      return null;
-    }
+    const status = getUiTrainingStatus(event);
 
-    const nowMillis = DateTime.utc().toMillis();
-    const endMillis = event?.endMillis ?? (event?.endDate ? new Date(event.endDate).getTime() : null);
-
-    switch (state) {
+    switch (status) {
       case 'completed':
         return (
-          <View style={styles.completedBadge}>
-            <Text style={styles.completedIcon}>✔️</Text>
-            <Text style={styles.completedText}>Completed</Text>
-          </View>
+          <StatusPill variant="completed" testID={`status-pill-completed-${event.id}`} />
         );
 
-      case 'comingSoon':
+      case 'upcoming':
         return (
-          <View style={styles.comingSoonBadge}>
-            <Text style={styles.comingSoonIcon}>⏳</Text>
-            <Text style={styles.comingSoonText}>Coming soon</Text>
-          </View>
+          <StatusPill variant="comingSoon" testID={`status-pill-upcoming-${event.id}`} />
+        );
+
+      case 'cooldown':
+        return (
+          <StatusPill variant="cooldown" testID={`status-pill-cooldown-${event.id}`} />
+        );
+
+      case 'ongoing':
+        return (
+          <StatusPill variant="inProgress" testID={`status-pill-in-progress-${event.id}`} />
         );
 
       case 'expired':
         return (
-          <View style={styles.expiredBadge}>
-            <Text style={styles.expiredIcon}>🔒</Text>
-            <Text style={styles.expiredText}>Expired</Text>
-          </View>
+          <StatusPill variant="expired" testID={`status-pill-expired-${event.id}`} />
         );
 
-      case 'respond':
+      case 'questionnaire-open':
         return (
-          <View style={{
-            backgroundColor: 'transparent',
-            borderRadius: 12,
-            overflow: 'hidden',
-            shadowColor: '#00E0FF',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.3,
-            shadowRadius: 8,
-            elevation: 5,
-          }}>
-            <LinearGradient
-              colors={['#00E0FF', '#4A67FF']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={{
-                height: 36,
-                paddingHorizontal: 16,
-                borderRadius: 12,
-                justifyContent: 'center',
-                alignItems: 'center',
-              }}
-            >
-              <Pressable
-                onPress={() => {
-                  console.log("[SCHEDULE][RESPOND][CLICK] Respond clicked for event:", event.id, event.title);
-                  if (onRespond && event.questionnaireState === 'respond') {
-                    onRespond(event.id, event);
-                  } else {
-                    console.error("[SCHEDULE][RESPOND][ERROR] questionnaireState is not 'respond'", event.questionnaireState);
-                  }
-                }}
-                style={({ pressed }) => ({
-                  opacity: pressed ? 0.9 : 1,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 6,
-                })}
-              >
-                <Text style={{
-                  color: '#FFFFFF',
-                  fontFamily: 'Inter',
-                  fontSize: 14,
-                  fontWeight: '500',
-                  letterSpacing: 0.03,
-                }}>
-                  Respond
-                </Text>
-                <View style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: 3,
-                  backgroundColor: '#00E0FF',
-                  shadowColor: '#00E0FF',
-                  shadowOffset: { width: 0, height: 0 },
-                  shadowOpacity: 0.8,
-                  shadowRadius: 4,
-                }} />
-              </Pressable>
-            </LinearGradient>
-          </View>
+          <StatusPill
+            variant="respond"
+            onPress={() => {
+              console.log("[SCHEDULE][RESPOND][CLICK] Respond clicked for event:", event.id, event.title);
+              if (onRespond) {
+                onRespond(event.id, event);
+              }
+            }}
+            showNotificationDot
+            testID={`respond-button-${event.id}`}
+          />
         );
 
       default:
-        console.warn("[SCHEDULE][STATE][ACTION] Unknown questionnaire state:", state);
         return null;
     }
   };
 
   // Render questionnaire action for web
   const renderQuestionnaireActionWeb = (event: any) => {
-    const state: QuestionnaireState | undefined = event?.questionnaireState;
-    
-    if (!state) {
-      return null;
-    }
+    const status = getUiTrainingStatus(event);
 
-    const nowMillis = DateTime.utc().toMillis();
-    const endMillis = event?.endMillis ?? (event?.endDate ? new Date(event.endDate).getTime() : null);
-
-    switch (state) {
+    switch (status) {
       case 'completed':
         return (
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '6px',
-            height: '36px',
-            padding: '0 16px',
-            borderRadius: '12px',
-            background: 'rgba(0, 255, 200, 0.15)',
-            backdropFilter: 'blur(10px)',
-            WebkitBackdropFilter: 'blur(10px)',
-            border: '0.5px solid rgba(0, 255, 200, 0.4)',
-            color: '#00FFC8',
-            fontFamily: "'Inter', sans-serif",
-            fontSize: '14px',
-            fontWeight: '500',
-            boxShadow: '0 0 12px rgba(0, 255, 200, 0.3)',
-            letterSpacing: '0.03em',
-            cursor: 'not-allowed',
-            userSelect: 'none'
-          }}>
-            <span>✔️</span>
-            <span>Completed</span>
-          </div>
+          <StatusPill variant="completed" testID={`status-pill-completed-web-${event.id}`} />
         );
 
-      case 'comingSoon':
+      case 'upcoming':
         return (
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '6px',
-            height: '36px',
-            padding: '0 16px',
-            borderRadius: '12px',
-            background: 'linear-gradient(135deg, rgba(0, 224, 255, 0.18) 0%, rgba(0, 141, 255, 0.28) 100%)',
-            border: '0.5px solid rgba(0, 224, 255, 0.45)',
-            boxShadow: '0 0 18px rgba(0, 224, 255, 0.25), inset 0 0 12px rgba(0, 224, 255, 0.15)',
-            color: '#DFF8FF',
-            fontFamily: "'Inter', sans-serif",
-            fontSize: '14px',
-            fontWeight: '500',
-            letterSpacing: '0.03em',
-            cursor: 'not-allowed',
-            userSelect: 'none'
-          }}>
-            <span style={{ color: '#8DEBFF', textShadow: '0 0 8px rgba(0, 224, 255, 0.8)' }}>⏳</span>
-            <span>Coming soon</span>
-          </div>
+          <StatusPill variant="comingSoon" testID={`status-pill-upcoming-web-${event.id}`} />
+        );
+
+      case 'cooldown':
+        return (
+          <StatusPill variant="cooldown" testID={`status-pill-cooldown-web-${event.id}`} />
+        );
+
+      case 'ongoing':
+        return (
+          <StatusPill variant="inProgress" testID={`status-pill-in-progress-web-${event.id}`} />
         );
 
       case 'expired':
         return (
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '6px',
-            height: '36px',
-            padding: '0 16px',
-            borderRadius: '12px',
-            background: '#1A1A1A',
-            color: '#9CA3AF',
-            fontFamily: "'Inter', sans-serif",
-            fontSize: '14px',
-            fontWeight: '500',
-            letterSpacing: '0.03em',
-            cursor: 'not-allowed',
-            userSelect: 'none'
-          }}>
-            <span>🔒</span>
-            <span>Expired</span>
-          </div>
+          <StatusPill variant="expired" testID={`status-pill-expired-web-${event.id}`} />
         );
 
-      case 'respond':
+      case 'questionnaire-open':
         return (
-          <button
-            onClick={() => {
-              if (onRespond && event.questionnaireState === 'respond') {
+          <StatusPill
+            variant="respond"
+            onPress={() => {
+              if (onRespond) {
                 onRespond(event.id, event);
               }
             }}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              height: '36px',
-              padding: '0 16px',
-              borderRadius: '12px',
-              background: 'linear-gradient(90deg, #00E0FF 0%, #4A67FF 100%)',
-              border: 'none',
-              color: '#FFFFFF',
-              fontFamily: "'Inter', sans-serif",
-              fontSize: '14px',
-              fontWeight: '500',
-              letterSpacing: '0.03em',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              boxShadow: '0 0 12px rgba(0, 224, 255, 0.4), 0 2px 8px rgba(0, 0, 0, 0.2)',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.boxShadow = '0 0 16px rgba(0, 224, 255, 0.6), 0 4px 12px rgba(0, 0, 0, 0.3)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.boxShadow = '0 0 12px rgba(0, 224, 255, 0.4), 0 2px 8px rgba(0, 0, 0, 0.2)';
-            }}
-          >
-            <span>Respond</span>
-            <div style={{
-              width: '6px',
-              height: '6px',
-              borderRadius: '50%',
-              backgroundColor: '#00E0FF',
-              boxShadow: '0 0 8px rgba(0, 224, 255, 0.8)',
-            }} />
-          </button>
+            showNotificationDot
+            testID={`respond-button-web-${event.id}`}
+          />
         );
 
       default:
@@ -477,10 +449,95 @@ export default function ScheduleScreen({ onRespond }: ScheduleScreenProps) {
       .map(normalizeEvent)
       .filter(Boolean) as Array<any>;
 
-    normalizedEvents.slice(0, 3).forEach((event) => {
-      console.log(
-        `[UI][CHECK][Schedule][Day] id=${event.id} millis=${event.startDateTime?.toMillis()} tz=${event.displayTz} local=${event.startDateTime?.toFormat('HH:mm')}`
-      );
+    // DEBUG: Log all normalized events before filtering
+    console.log('[DEBUG][DAY_VIEW] Normalized events before filtering:', {
+      count: normalizedEvents.length,
+      events: normalizedEvents.map((e: any) => ({
+        id: e.id,
+        title: e.title,
+        startMillis: e.startMillis,
+        endMillis: e.endMillis,
+        startDateTime: e.startDateTime?.toISO?.() ?? e.startDateTime?.toString(),
+        endDateTime: e.endDateTime?.toISO?.() ?? e.endDateTime?.toString(),
+        localTime: e.startDateTime?.toFormat('HH:mm') ?? 'N/A',
+      })),
+    });
+    
+    const selectedDayDt = DateTime.fromJSDate(toJSDate(selectedDate));
+    const dayStart = selectedDayDt.startOf('day').toMillis();
+    const dayEnd = selectedDayDt.endOf('day').toMillis();
+    
+    // DEBUG: Log day boundaries
+    console.log('[DEBUG][DAY_VIEW] Day boundaries:', {
+      selectedDate: selectedDate.toISOString(),
+      dayStart: new Date(dayStart).toISOString(),
+      dayEnd: new Date(dayEnd).toISOString(),
+      dayStartMillis: dayStart,
+      dayEndMillis: dayEnd,
+    });
+    
+    // Filter events that overlap with the selected day
+    // Include events that:
+    // 1. Start during the day (startMillis >= dayStart && startMillis <= dayEnd)
+    // 2. End during the day (endMillis >= dayStart && endMillis <= dayEnd)
+    // 3. Span the entire day (startMillis < dayStart && endMillis > dayEnd)
+    const dayEvents = normalizedEvents
+      .filter((event) => {
+        const startMillis = event.startMillis ?? event.startDateTime?.toMillis?.();
+        const endMillis = event.endMillis ?? event.endDateTime?.toMillis?.();
+        
+        if (!startMillis) {
+          console.warn('[DEBUG][DAY_VIEW] Event without startMillis:', event.id, event.title);
+          return false;
+        }
+        
+        // Event overlaps the day if:
+        // - It starts during the day, OR
+        // - It ends during the day, OR
+        // - It spans the entire day
+        const startsInRange = startMillis >= dayStart && startMillis <= dayEnd;
+        const endsInRange = endMillis !== null && endMillis !== undefined && endMillis >= dayStart && endMillis <= dayEnd;
+        const spansRange = endMillis !== null && endMillis !== undefined && startMillis < dayStart && endMillis > dayEnd;
+        
+        const included = startsInRange || endsInRange || spansRange;
+        
+        // DEBUG: Log filtering decision for each event
+        if (!included) {
+          console.log('[DEBUG][DAY_VIEW] Event excluded:', {
+            id: event.id,
+            title: event.title,
+            startMillis,
+            endMillis,
+            startDate: new Date(startMillis).toISOString(),
+            endDate: endMillis ? new Date(endMillis).toISOString() : 'N/A',
+            startsInRange,
+            endsInRange,
+            spansRange,
+          });
+        }
+        
+        return included;
+      })
+      .sort((a, b) => (a.startMillis ?? a.startDateTime?.toMillis?.() ?? 0) - (b.startMillis ?? b.startDateTime?.toMillis?.() ?? 0));
+
+    // DEBUG: Log filtered events
+    console.log('[DEBUG][DAY_VIEW] Events after filtering:', {
+      count: dayEvents.length,
+      selectedDate: selectedDate.toISOString(),
+      dayStart: new Date(dayStart).toISOString(),
+      dayEnd: new Date(dayEnd).toISOString(),
+      now: new Date().toISOString(),
+      events: dayEvents.map((e: any) => ({
+        id: e.id,
+        title: e.title,
+        startMillis: e.startMillis,
+        endMillis: e.endMillis,
+        startDate: new Date(e.startMillis).toISOString(),
+        endDate: e.endMillis ? new Date(e.endMillis).toISOString() : 'N/A',
+        localTime: e.startDateTime?.toFormat('HH:mm') ?? 'N/A',
+        status: e.trainingStatus ?? e.questionnaireState,
+        isPast: e.endMillis ? e.endMillis < Date.now() : false,
+      })),
     });
 
     const isTodaySelected = DateTime.fromJSDate(selectedDate).hasSame(DateTime.now(), 'day');
@@ -492,7 +549,7 @@ export default function ScheduleScreen({ onRespond }: ScheduleScreenProps) {
             <Text style={styles.todayButtonText}>Today</Text>
           </Pressable>
         )}
-        {normalizedEvents.length === 0 ? (
+        {dayEvents.length === 0 ? (
           <View style={styles.emptyContainerDay}>
             <View style={styles.sleepIconRow}>
               <Text style={[styles.sleepIconZ, styles.sleepIconZSmall]}>z</Text>
@@ -503,20 +560,20 @@ export default function ScheduleScreen({ onRespond }: ScheduleScreenProps) {
             <Text style={styles.emptySubtextDay}>Time to rest and recover</Text>
           </View>
         ) : (
-          <View style={styles.eventsList}>
-            {normalizedEvents.map((event, index) => (
-              <View key={event.id || index} style={styles.eventCard}>
-                <View style={styles.eventInfo}>
-                  <Text style={styles.eventTitle}>{event.title}</Text>
-                  <Text style={styles.eventTime}>
-                    {event.startDateTime.toFormat('HH:mm')} - {event.endDateTime.toFormat('HH:mm')}
-                  </Text>
-                </View>
-                <View style={styles.eventAction}>
+      <View style={styles.eventsList}>
+        {dayEvents.map((event, index) => (
+          <View key={event.id || index} style={styles.eventCard}>
+            <View style={styles.eventInfo}>
+              <Text style={styles.eventTitle}>{event.title}</Text>
+              <Text style={styles.eventTime}>
+                {event.startDateTime.toFormat('HH:mm')} - {event.endDateTime.toFormat('HH:mm')}
+              </Text>
+            </View>
+            <View style={styles.eventAction}>
                   {renderQuestionnaireAction(event)}
-                </View>
-              </View>
-            ))}
+            </View>
+          </View>
+        ))}
           </View>
         )}
       </View>
@@ -528,11 +585,13 @@ export default function ScheduleScreen({ onRespond }: ScheduleScreenProps) {
       .map(normalizeEvent)
       .filter(Boolean) as Array<any>;
 
-  const { weekNumber } = getWeekInfo();
+    const { weekNumber } = getWeekInfo();
     const selectedDayKey = DateTime.fromJSDate(selectedDayInWeek).toISODate();
-    const dayEvents = normalizedEvents.filter((event) => {
-      return event.startDateTime.toISODate() === selectedDayKey;
-    });
+    const dayEvents = normalizedEvents
+      .filter((event) => {
+        return event.startDateTime.toISODate() === selectedDayKey;
+      })
+      .sort((a, b) => (a.startMillis ?? a.startDateTime?.toMillis?.() ?? 0) - (b.startMillis ?? b.startDateTime?.toMillis?.() ?? 0));
     
     return (
       <View style={styles.weekContainer}>
@@ -590,7 +649,7 @@ export default function ScheduleScreen({ onRespond }: ScheduleScreenProps) {
             <Text style={styles.emptyTitleDay}>No training planned</Text>
             <Text style={styles.emptySubtextDay}>Time to rest and recover</Text>
           </View>
-        ) : (
+                ) : (
           <View style={[styles.eventsList, styles.weekEventsList]}>
             {dayEvents.map((event, index) => (
               <View key={event.id || index} style={styles.eventCard}>
@@ -622,9 +681,9 @@ export default function ScheduleScreen({ onRespond }: ScheduleScreenProps) {
     const selectedDay = DateTime.fromJSDate(toJSDate(selectedDate));
     const todayDt = DateTime.now();
     const isMonthOnToday = selectedDay.hasSame(todayDt, 'day');
-    const selectedDayEvents = normalizedEvents.filter((event) =>
-      event.startDateTime.hasSame(selectedDay, 'day')
-    );
+    const selectedDayEvents = normalizedEvents
+      .filter((event) => event.startDateTime.hasSame(selectedDay, 'day'))
+      .sort((a, b) => (a.startDateTime?.toMillis?.() ?? 0) - (b.startDateTime?.toMillis?.() ?? 0));
 
     const daysWithEvents = new Set<number>();
     normalizedEvents.forEach((event) => {
@@ -657,14 +716,14 @@ export default function ScheduleScreen({ onRespond }: ScheduleScreenProps) {
               >
                 <Text
                   style={[
-                    styles.monthDayText,
+                styles.monthDayText,
                     isToday && styles.monthDayTextToday,
                     isSelected && styles.monthDayTextSelected
                   ]}
                 >
-                  {day}
-                </Text>
-                {daysWithEvents.has(day) && <View style={styles.monthEventDot} />}
+                {day}
+              </Text>
+              {daysWithEvents.has(day) && <View style={styles.monthEventDot} />}
               </Pressable>
             );
           })}
@@ -697,9 +756,9 @@ export default function ScheduleScreen({ onRespond }: ScheduleScreenProps) {
                 <View style={styles.eventAction}>
                   {renderQuestionnaireAction(event)}
                 </View>
-              </View>
-            ))}
-          </View>
+            </View>
+          ))}
+        </View>
         )}
       </View>
     );
@@ -878,71 +937,102 @@ export default function ScheduleScreen({ onRespond }: ScheduleScreenProps) {
                       </button>
                     </div>
                   )}
-                  {activeTab === 'Day' && (
-                    <div>
-                      {events.length === 0 ? (
-                        <div style={{
-                          display: "flex",
-                          flexDirection: "column",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          padding: "60px 20px",
-                          textAlign: "center",
-                          width: "100%",
-                          flex: 1,
-                          minHeight: "50vh"
-                        }}>
-                          {/* Sleep Icon (small zzz) */}
+                  {activeTab === 'Day' && (() => {
+                    // Filter events for the selected day
+                    const normalizedEvents = events
+                      .map(normalizeEvent)
+                      .filter(Boolean) as Array<any>;
+                    const selectedDayDt = DateTime.fromJSDate(toJSDate(selectedDate));
+                    const dayStart = selectedDayDt.startOf('day').toMillis();
+                    const dayEnd = selectedDayDt.endOf('day').toMillis();
+                    
+                    // Filter events that overlap with the selected day
+                    // Include events that:
+                    // 1. Start during the day (startMillis >= dayStart && startMillis <= dayEnd)
+                    // 2. End during the day (endMillis >= dayStart && endMillis <= dayEnd)
+                    // 3. Span the entire day (startMillis < dayStart && endMillis > dayEnd)
+                    const dayEvents = normalizedEvents
+                      .filter((event) => {
+                        const startMillis = event.startMillis ?? event.startDateTime?.toMillis?.();
+                        const endMillis = event.endMillis ?? event.endDateTime?.toMillis?.();
+                        
+                        if (!startMillis) return false;
+                        
+                        // Event overlaps the day if:
+                        // - It starts during the day, OR
+                        // - It ends during the day, OR
+                        // - It spans the entire day
+                        const startsInRange = startMillis >= dayStart && startMillis <= dayEnd;
+                        const endsInRange = endMillis !== null && endMillis !== undefined && endMillis >= dayStart && endMillis <= dayEnd;
+                        const spansRange = endMillis !== null && endMillis !== undefined && startMillis < dayStart && endMillis > dayEnd;
+                        
+                        return startsInRange || endsInRange || spansRange;
+                      })
+                      .sort((a, b) => (a.startMillis ?? a.startDateTime?.toMillis?.() ?? 0) - (b.startMillis ?? b.startDateTime?.toMillis?.() ?? 0));
+
+                    return (
+                      <div>
+                        {dayEvents.length === 0 ? (
                           <div style={{
                             display: "flex",
-                            alignItems: "flex-end",
-                            gap: "2px",
-                            marginBottom: "24px",
-                            textTransform: "lowercase",
-                            color: "#8DEBFF",
-                            textShadow: "0 0 6px rgba(0, 224, 255, 0.7), 0 0 16px rgba(0, 224, 255, 0.5)",
-                            filter: "drop-shadow(0 0 6px rgba(0, 224, 255, 0.4))"
+                            flexDirection: "column",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            padding: "60px 20px",
+                            textAlign: "center",
+                            width: "100%",
+                            flex: 1,
+                            minHeight: "50vh"
                           }}>
-                            <span style={{ fontSize: "18px", opacity: 0.6, transform: "translateY(3px)" }}>z</span>
-                            <span style={{ fontSize: "22px", opacity: 0.8, transform: "translateY(1px)" }}>z</span>
-                            <span style={{ fontSize: "26px", opacity: 0.95 }}>z</span>
+                            {/* Sleep Icon (small zzz) */}
+                            <div style={{
+                              display: "flex",
+                              alignItems: "flex-end",
+                              gap: "2px",
+                              marginBottom: "24px",
+                              textTransform: "lowercase",
+                              color: "#8DEBFF",
+                              textShadow: "0 0 6px rgba(0, 224, 255, 0.7), 0 0 16px rgba(0, 224, 255, 0.5)",
+                              filter: "drop-shadow(0 0 6px rgba(0, 224, 255, 0.4))"
+                            }}>
+                              <span style={{ fontSize: "18px", opacity: 0.6, transform: "translateY(3px)" }}>z</span>
+                              <span style={{ fontSize: "22px", opacity: 0.8, transform: "translateY(1px)" }}>z</span>
+                              <span style={{ fontSize: "26px", opacity: 0.95 }}>z</span>
+                            </div>
+                            
+                            {/* Main Message */}
+                            <div style={{
+                              fontSize: "18px",
+                              fontWeight: "700",
+                              color: "#FFFFFF",
+                              fontFamily: "'Inter', sans-serif",
+                              marginBottom: "8px"
+                            }}>
+                              No training planned
+                            </div>
+                            
+                            {/* Sub Message */}
+                            <div style={{
+                              fontSize: "14px",
+                              fontWeight: "400",
+                              color: "#9AA3B2",
+                              fontFamily: "'Inter', sans-serif",
+                              opacity: 0.8
+                            }}>
+                              Time to rest and recover
+                            </div>
                           </div>
-                          
-                          {/* Main Message */}
+                        ) : (
                           <div style={{
-                            fontSize: "18px",
-                            fontWeight: "700",
-                            color: "#FFFFFF",
-                            fontFamily: "'Inter', sans-serif",
-                            marginBottom: "8px"
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: "12px",
+                            width: "100%",
+                            maxWidth: "100%",
+                            alignItems: "center"
                           }}>
-                            No training planned
-                          </div>
-                          
-                          {/* Sub Message */}
-                          <div style={{
-                            fontSize: "14px",
-                            fontWeight: "400",
-                            color: "#9AA3B2",
-                            fontFamily: "'Inter', sans-serif",
-                            opacity: 0.8
-                          }}>
-                            Time to rest and recover
-                          </div>
-                        </div>
-                      ) : (
-                        <div style={{
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: "12px",
-                          width: "100%",
-                          maxWidth: "100%",
-                          alignItems: "center"
-                        }}>
-                          {events.map((event: any, index: number) => {
-                            const normalized = normalizeEvent(event);
-                            if (!normalized) return null;
-                            return (
+                            {dayEvents.map((event: any, index: number) => {
+                              return (
                               <div
                                 key={event.id || index}
                                 style={{
@@ -976,23 +1066,24 @@ export default function ScheduleScreen({ onRespond }: ScheduleScreenProps) {
                                     color: "#FFFFFF",
                                     marginBottom: "4px"
                                   }}>
-                                    {normalized.title}
+                                    {event.title}
                                   </div>
                                   <div style={{
                                     fontSize: "12px",
                                     color: "#9AA3B2"
                                   }}>
-                                    {normalized.startDateTime.toFormat('HH:mm')} - {normalized.endDateTime.toFormat('HH:mm')}
+                                    {event.startDateTime.toFormat('HH:mm')} - {event.endDateTime.toFormat('HH:mm')}
                                   </div>
                                 </div>
-                                {renderQuestionnaireActionWeb(normalized)}
+                                {renderQuestionnaireActionWeb(event)}
                               </div>
                             );
                           })}
                         </div>
                       )}
                     </div>
-                  )}
+                    );
+                  })()}
                   {activeTab === 'Week' && (
                     <div style={{
                       width: "100%",
@@ -1169,9 +1260,11 @@ export default function ScheduleScreen({ onRespond }: ScheduleScreenProps) {
                       {(() => {
                         const normalizedEvents = events.map(normalizeEvent).filter(Boolean) as Array<any>;
                         const selectedDayKey = DateTime.fromJSDate(selectedDayInWeek).toISODate();
-                        const dayEvents = normalizedEvents.filter((event) => {
-                          return event.startDateTime.toISODate() === selectedDayKey;
-                        });
+                        const dayEvents = normalizedEvents
+                          .filter((event) => {
+                            return event.startDateTime.toISODate() === selectedDayKey;
+                          })
+                          .sort((a, b) => (a.startMillis ?? a.startDateTime?.toMillis?.() ?? 0) - (b.startMillis ?? b.startDateTime?.toMillis?.() ?? 0));
                         
                         if (dayEvents.length === 0) {
                           return (
@@ -1761,42 +1854,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.03,
   },
   
-  respondButton: {
-    position: 'relative',
-    backgroundColor: 'transparent',
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 20,
-    borderWidth: 0,
-    shadowColor: '#00EAFF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  
-  respondText: {
-    fontSize: 13,
-    fontWeight: tokens.fontWeights.semibold,
-    color: '#FFFFFF',
-    fontFamily: tokens.typography.ui,
-    letterSpacing: 0.3,
-  },
-  
-  notificationDot: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#EF4444',
-    shadowColor: '#EF4444',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 1,
-    shadowRadius: 12,
-    elevation: 10,
-  },
   
   // Week View Styles
   weekContainer: {
@@ -1893,7 +1950,7 @@ const styles = StyleSheet.create({
     minHeight: '28%',
     width: '100%',
   },
-
+  
   weekEventsList: {
     justifyContent: 'center',
     alignItems: 'center',

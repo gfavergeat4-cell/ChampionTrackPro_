@@ -8,6 +8,7 @@ export type QuestionnaireWindow = {
 
 const OPEN_DELAY_MINUTES = 30;
 const AVAILABLE_HOURS = 5;
+const QUESTIONNAIRE_WINDOW_MINUTES = AVAILABLE_HOURS * 60;
 
 /**
  * Calcule la fenêtre temporelle du questionnaire à partir de l'heure de fin du training
@@ -19,7 +20,7 @@ export function getQuestionnaireWindowFromEnd(
 ): QuestionnaireWindow {
   const end = DateTime.fromMillis(endMillis, { zone: 'utc' });
   const openAt = end.plus({ minutes: OPEN_DELAY_MINUTES });
-  const closeAt = openAt.plus({ hours: AVAILABLE_HOURS });
+  const closeAt = end.plus({ hours: AVAILABLE_HOURS });
   return { openAt, closeAt };
 }
 
@@ -33,10 +34,10 @@ export type QuestionnaireStatus =
  * Nouveau type pour les états du questionnaire (noms simplifiés)
  */
 export type QuestionnaireState =
-  | 'respond'      // Questionnaire ouvert et disponible (bleu, cliquable) - 0 min < (now - end) ≤ 30 min
-  | 'comingSoon'   // Training futur ou en cours (gris, désactivé) - now < endMillis
-  | 'expired'      // Questionnaire fermé, fenêtre dépassée (gris foncé, désactivé) - now > end + 5h
-  | 'completed';   // Questionnaire déjà répondu (vert, désactivé)
+  | 'respond'      // Questionnaire disponible (30 min à 5 h après la fin)
+  | 'comingSoon'   // Training en cours ou dans les 30 premières minutes post-session
+  | 'expired'      // Fenêtre dépassée (> 5 h après la fin)
+  | 'completed';   // Questionnaire déjà répondu
 
 /**
  * Calcule le statut du questionnaire pour un training donné
@@ -85,63 +86,48 @@ export function getQuestionnaireState(
   now: DateTime = DateTime.utc(),
   trainingStartTime?: number | null
 ): QuestionnaireState {
-  // État 4 : Completed - Si l'utilisateur a déjà répondu, le questionnaire est complété
   if (hasResponded) {
     return 'completed';
   }
 
-  // Si pas d'heure de fin, le questionnaire est expiré
   if (!trainingEndTime) {
     return 'expired';
   }
 
   const nowMillis = now.toMillis();
-  
-  // Normaliser trainingEndTime en nombre
+
   let endMillisNum: number | null = null;
   if (trainingEndTime !== null && trainingEndTime !== undefined) {
-    if (typeof trainingEndTime === 'number') {
-      endMillisNum = trainingEndTime;
-    } else {
-      endMillisNum = Number(trainingEndTime);
-    }
+    endMillisNum = typeof trainingEndTime === 'number' ? trainingEndTime : Number(trainingEndTime);
   }
-  
-  // Vérifier que endMillisNum est valide
+
   if (endMillisNum === null || isNaN(endMillisNum) || endMillisNum <= 0) {
     console.warn("[QUESTIONNAIRE][WARN] invalid trainingEndTime in getQuestionnaireState", { trainingEndTime, endMillisNum });
     return 'expired';
   }
 
-  // État 2 : Coming Soon - Training futur ou en cours (nowMillis < endMillis)
+  const startMillis = trainingStartTime !== null && trainingStartTime !== undefined
+    ? (typeof trainingStartTime === 'number' ? trainingStartTime : Number(trainingStartTime))
+    : null;
+
+  if (startMillis && nowMillis < startMillis) {
+    return 'comingSoon';
+  }
+
   if (nowMillis < endMillisNum) {
     return 'comingSoon';
   }
 
-  // Calculer les fenêtres temporelles
-  const thirtyMinutesInMs = 30 * 60 * 1000; // 30 minutes en millisecondes
-  const fiveHoursInMs = 5 * 60 * 60 * 1000; // 5 heures en millisecondes
+  const deltaMinutes = (nowMillis - endMillisNum) / (1000 * 60);
 
-  // État 1 : Respond - Training terminé ET 0 min < (nowMillis - endMillis) ≤ 30 minutes
-  // Condition : endMillis < nowMillis <= endMillis + 30 min
-  const timeSinceEnd = nowMillis - endMillisNum;
-  if (timeSinceEnd > 0 && timeSinceEnd <= thirtyMinutesInMs) {
+  if (deltaMinutes < OPEN_DELAY_MINUTES) {
+    return 'comingSoon';
+  }
+
+  if (deltaMinutes >= OPEN_DELAY_MINUTES && deltaMinutes <= QUESTIONNAIRE_WINDOW_MINUTES) {
     return 'respond';
   }
 
-  // État 3 : Expired - Fenêtre dépassée (nowMillis > endMillis + 5h)
-  // Note: Selon les règles, la fenêtre de réponse est de 0-30 min après la fin
-  // Au-delà de 30 min, c'est expiré. Mais l'utilisateur mentionne "> 5h", donc on garde cette logique.
-  if (timeSinceEnd > fiveHoursInMs) {
-    return 'expired';
-  }
-
-  // Entre 30 min et 5h après la fin, c'est aussi expiré (fenêtre de réponse fermée)
-  if (timeSinceEnd > thirtyMinutesInMs) {
-    return 'expired';
-  }
-
-  // Par défaut, expiré
   return 'expired';
 }
 

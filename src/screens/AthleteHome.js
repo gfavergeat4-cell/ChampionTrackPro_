@@ -1,10 +1,17 @@
-import React from "react";
-import { useNavigation } from "@react-navigation/native";
+import React, { useCallback, useState } from "react";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { Alert } from "react-native";
 import AthleteHomeNew from "../stitch_components/AthleteHomeNew";
 
 export default function AthleteHome() {
   const navigation = useNavigation();
+  const [refreshToken, setRefreshToken] = useState(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      setRefreshToken((prev) => prev + 1);
+    }, [])
+  );
 
   const handleRespond = (sessionId, eventData) => {
     console.log("[ATHLETE_HOME] Respond clicked for session:", sessionId);
@@ -73,6 +80,7 @@ export default function AthleteHome() {
       onRespond={handleRespond}
       onOpenSession={handleOpenSession}
       onNavigateToTab={handleNavigateToTab}
+      refreshToken={refreshToken}
     />
   );
 }

@@ -51,8 +51,35 @@ export async function getWebMessaging(): Promise<Messaging | null> {
 
 export async function initAuth() {
   await setPersistence(auth, browserLocalPersistence);
+  
+  // Afficher l'état de débogage au démarrage (uniquement sur le web)
+  if (typeof window !== 'undefined') {
+    try {
+      const { debugWebPushStatus } = await import('../src/services/webNotifications');
+      debugWebPushStatus();
+    } catch (err) {
+      console.warn('[WEB PUSH] Could not load debug function:', err);
+    }
+  }
+  
   await new Promise<void>((resolve) => {
-    const unsub = onAuthStateChanged(auth, () => { unsub(); resolve(); });
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      // Enregistrer le token FCM pour les notifications push web
+      // IMPORTANT: Uniquement sur le web, pas sur iOS/Android
+      if (user && typeof window !== 'undefined') {
+        try {
+          const { registerWebPushTokenForCurrentUser, setupForegroundMessageHandler } = await import('../src/services/webNotifications');
+          // Enregistrer le service worker et obtenir le token
+          await registerWebPushTokenForCurrentUser();
+          // Configurer le handler pour les messages en foreground
+          setupForegroundMessageHandler();
+        } catch (err) {
+          console.error('[WEB PUSH] Error initializing push notifications:', err);
+        }
+      }
+      unsub();
+      resolve();
+    });
   });
 }
 

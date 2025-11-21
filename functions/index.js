@@ -10,6 +10,7 @@ const admin = require("firebase-admin");
 const ical = require("node-ical");
 const fetch = require("node-fetch"); // v2 CJS
 const crypto = require("crypto");
+const cors = require("cors")({ origin: true });
 
 try { admin.app(); } catch { admin.initializeApp(); }
 const db = admin.firestore();
@@ -37,6 +38,26 @@ function eventDocId(uid, start) {
   return crypto.createHash("sha1").update(key).digest("hex");
 }
 
+function cleanTitle(rawTitle, rawDescription) {
+  if (!rawTitle) {
+    return rawDescription && rawDescription.trim().length > 0
+      ? rawDescription.trim()
+      : "Training";
+  }
+
+  const t = String(rawTitle).trim();
+  const lower = t.toLowerCase();
+
+  if (lower === "busy" || lower === "occupé" || lower === "occupied" || lower === "blocked") {
+    if (rawDescription && rawDescription.trim().length > 0) {
+      return rawDescription.trim();
+    }
+    return "Training";
+  }
+
+  return t;
+}
+
 function expandEvents(parsed, windowStart, windowEnd) {
   const out = [];
 
@@ -46,7 +67,7 @@ function expandEvents(parsed, windowStart, windowEnd) {
 
     const base = {
       uid: item.uid || null,
-      title: item.summary || "",
+      title: cleanTitle(item.summary || "", item.description || ""),
       description: item.description || "",
       location: item.location || "",
       status: (item.status || "CONFIRMED").toUpperCase(),
@@ -135,7 +156,8 @@ async function syncTeam(teamId) {
   const instances = expandEvents(parsed, windowStart, windowEnd);
 
   let seen = 0, created = 0, updated = 0, cancelled = 0;
-  const evCol = tRef.collection("events");
+  // Use 'trainings' collection instead of 'events' (matching the app structure)
+  const evCol = tRef.collection("trainings");
   const batch = db.batch();
 
   for (const ev of instances) {
@@ -143,20 +165,34 @@ async function syncTeam(teamId) {
     const id = eventDocId(ev.uid, ev.start);
     const ref = evCol.doc(id);
 
+    // Format compatible with app's training structure
+    const startTimestamp = admin.firestore.Timestamp.fromDate(ev.start);
+    const endTimestamp = admin.firestore.Timestamp.fromDate(ev.end);
+    const startUtcMillis = ev.start.getTime();
+    const endUtcMillis = ev.end.getTime();
+
+    const cleanedTitle = cleanTitle(ev.title, ev.description || "");
     const payload = {
-      title: ev.title,
+      teamId: teamId,
+      title: cleanedTitle,
+      summary: cleanedTitle, // Alias for compatibility
       description: ev.description || "",
       location: ev.location || "",
-      start: admin.firestore.Timestamp.fromDate(ev.start),
-      end: admin.firestore.Timestamp.fromDate(ev.end),
+      startUtc: startTimestamp, // For Firestore queries
+      endUtc: endTimestamp, // For Firestore queries
+      startUTC: startUtcMillis, // Milliseconds UTC for app
+      endUTC: endUtcMillis, // Milliseconds UTC for app
       allDay: !!ev.allDay,
       uid: ev.uid || null,
       status: ev.status || "CONFIRMED",
       source: "ics",
       cancelled: !!ev.cancelled,
       hash: makeHash(ev),
+      timeZone: t.timeZone || "Europe/Paris",
+      displayTz: t.timeZone || "Europe/Paris",
       lastSeenAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      questionnaireNotified: false, // For notification system
     };
 
     const cur = await ref.get();
@@ -182,15 +218,76 @@ async function syncTeam(teamId) {
   return { seen: seen, created: created, updated: updated, cancelled: cancelled };
 }
 
-exports.syncIcsNow = functions.region(REGION).https.onCall(async (data, context) => {
-  const teamId = data && data.teamId ? data.teamId : null;
-  if (!teamId) {
-    throw new functions.https.HttpsError("invalid-argument", "teamId requis");
-  }
-  // TODO: vérifier context.auth + rôle (admin/coach)
-  const result = await syncTeam(teamId);
-  return result;
-});
+// Callable function (preferred method with automatic CORS)
+exports.syncIcsNow = functions
+  .region(REGION)
+  .runWith({
+    timeoutSeconds: 540,
+    memory: '256MB'
+  })
+  .https.onCall(async (data, context) => {
+    // CORS is automatically handled by onCall functions
+    const teamId = data && data.teamId ? data.teamId : null;
+    if (!teamId) {
+      throw new functions.https.HttpsError("invalid-argument", "teamId requis");
+    }
+    
+    try {
+      const result = await syncTeam(teamId);
+      return result;
+    } catch (error) {
+      console.error("[SYNC_ICS] Error:", error);
+      throw new functions.https.HttpsError("internal", error.message || "Internal error during sync");
+    }
+  });
+
+// HTTP function with explicit CORS (fallback if onCall has CORS issues)
+exports.syncIcsNowHttp = functions
+  .region(REGION)
+  .runWith({
+    timeoutSeconds: 540,
+    memory: '256MB'
+  })
+  .https.onRequest((req, res) => {
+    // Use cors middleware to handle CORS properly
+    cors(req, res, async () => {
+      // Only allow POST
+      if (req.method !== 'POST') {
+        res.status(405).json({ error: 'Method not allowed' });
+        return;
+      }
+      
+      try {
+        // Parse JSON body
+        let body = req.body;
+        if (typeof body === 'string') {
+          try {
+            body = JSON.parse(body);
+          } catch (e) {
+            console.error("[SYNC_ICS][HTTP] Error parsing body:", e);
+            res.status(400).json({ error: 'Invalid JSON body' });
+            return;
+          }
+        }
+        
+        const { teamId } = body || {};
+        
+        if (!teamId) {
+          res.status(400).json({ error: 'teamId requis' });
+          return;
+        }
+        
+        console.log("[SYNC_ICS][HTTP] Syncing team:", teamId);
+        const result = await syncTeam(teamId);
+        console.log("[SYNC_ICS][HTTP] Sync result:", result);
+        
+        res.status(200).json(result);
+      } catch (error) {
+        console.error("[SYNC_ICS][HTTP] Error:", error);
+        res.status(500).json({ error: error.message || "Internal error during sync" });
+      }
+    });
+  });
 
 exports.syncIcsEvery10min = functions
   .region(REGION)
@@ -211,6 +308,268 @@ exports.syncIcsEvery10min = functions
     }
     console.log("ICS sync done:", totals);
     return null;
+  });
+
+async function importTeamCalendarCore(teamId, icsUrl) {
+  if (!teamId || !icsUrl) {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "teamId and icsUrl are required"
+    );
+  }
+
+  let normalizedUrl = icsUrl.trim();
+  try {
+    new URL(normalizedUrl);
+  } catch (e) {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "Invalid ICS URL format"
+    );
+  }
+
+  if (normalizedUrl.includes("calendar.google.com") && !normalizedUrl.includes("/public/basic.ics")) {
+    const match = normalizedUrl.match(/calendar\.google\.com\/calendar\/ical\/([^\/\?]+)/);
+    if (match && match[1]) {
+      const calendarId = match[1];
+      normalizedUrl = `https://calendar.google.com/calendar/ical/${calendarId}/public/basic.ics`;
+      console.log("[IMPORT_ICS] Normalized Google Calendar URL:", normalizedUrl);
+    }
+  }
+
+  // Verify team exists
+  const teamRef = db.collection("teams").doc(teamId);
+  const teamSnap = await teamRef.get();
+  if (!teamSnap.exists) {
+    throw new functions.https.HttpsError("not-found", "Team not found");
+  }
+  const team = teamSnap.data() || {};
+
+  console.log("[IMPORT_ICS] Downloading ICS from:", normalizedUrl);
+  const response = await fetch(normalizedUrl, {
+    method: "GET",
+    headers: {
+      Accept: "text/calendar, text/plain, */*",
+      "User-Agent": "ChampionTrackPro-CloudFunction/1.0",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  }
+
+  const icsText = await response.text();
+  if (!icsText || !icsText.includes("BEGIN:VCALENDAR")) {
+    throw new Error("Invalid ICS content: missing BEGIN:VCALENDAR");
+  }
+
+  const teamTimeZone =
+    team.timeZone ||
+    team.tzid ||
+    (team.settings && team.settings.timeZone) ||
+    "Europe/Paris";
+
+  const parsed = ical.sync.parseICS(icsText);
+  const windowStart = new Date();
+  const windowEnd = new Date();
+  windowEnd.setDate(windowEnd.getDate() + EXPANSION_DAYS);
+
+  const instances = expandEvents(parsed, windowStart, windowEnd);
+  console.log("[IMPORT_ICS] Expanded", instances.length, "event instances");
+
+  const trainingsCol = teamRef.collection("trainings");
+  let seen = 0;
+  let created = 0;
+  let updated = 0;
+  let cancelled = 0;
+  let batch = db.batch();
+  const batchSize = 500;
+  let batchCount = 0;
+
+  const existingDocs = new Map();
+  const existingSnap = await trainingsCol.get();
+  existingSnap.docs.forEach((doc) => {
+    existingDocs.set(doc.id, true);
+  });
+
+  for (const ev of instances) {
+    seen++;
+    const eventId = eventDocId(ev.uid, ev.start);
+    const trainingRef = trainingsCol.doc(eventId);
+
+    const startTimestamp = admin.firestore.Timestamp.fromDate(ev.start);
+    const endTimestamp = admin.firestore.Timestamp.fromDate(ev.end);
+    const startUtcMillis = ev.start.getTime();
+    const endUtcMillis = ev.end.getTime();
+
+    const trainingData = {
+      teamId,
+      title: ev.title || "Training",
+      summary: ev.title || "Training",
+      description: ev.description || "",
+      location: ev.location || "",
+      startUtc: startTimestamp,
+      endUtc: endTimestamp,
+      startUTC: startUtcMillis,
+      endUTC: endUtcMillis,
+      timeZone: teamTimeZone,
+      displayTz: teamTimeZone,
+      uid: ev.uid || null,
+      status: ev.status || "CONFIRMED",
+      source: "ics",
+      cancelled: !!ev.cancelled,
+      questionnaireNotified: false,
+      hash: makeHash(ev),
+      lastSeenAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    const exists = existingDocs.has(eventId);
+    if (exists) {
+      batch.update(trainingRef, trainingData);
+      updated++;
+    } else {
+      batch.set(
+        trainingRef,
+        {
+          ...trainingData,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: false }
+      );
+      created++;
+      existingDocs.set(eventId, true);
+    }
+
+    if (ev.cancelled) cancelled++;
+
+    batchCount++;
+    if (batchCount >= batchSize) {
+      await batch.commit();
+      batchCount = 0;
+      batch = db.batch();
+    }
+  }
+
+  if (batchCount > 0) {
+    await batch.commit();
+  }
+
+  await teamRef.update({
+    icsUrl: normalizedUrl,
+    calendarImported: true,
+    calendarImportedAt: admin.firestore.FieldValue.serverTimestamp(),
+    lastCalendarImport: {
+      at: admin.firestore.FieldValue.serverTimestamp(),
+      seen,
+      created,
+      updated,
+      cancelled,
+      source: "url",
+    },
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  return {
+    success: true,
+    seen,
+    created,
+    updated,
+    cancelled,
+    message: `Calendar imported successfully: ${created} created, ${updated} updated`,
+  };
+}
+
+// NOTE: Deploying these functions (HTTP, callable, Pub/Sub) requires the Firebase project
+// to run on the Blaze plan because Cloud Build + Artifact Registry must be enabled.
+// On the free Spark plan they will work in local emulators but cannot be deployed.
+exports.importTeamCalendarFromUrlCallable = functions
+  .region(REGION)
+  .runWith({
+    timeoutSeconds: 540,
+    memory: "256MB",
+  })
+  .https.onCall(async (data, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError("unauthenticated", "Authentication required");
+    }
+    const { teamId, icsUrl } = data || {};
+    try {
+      return await importTeamCalendarCore(teamId, icsUrl);
+    } catch (error) {
+      console.error("[IMPORT_ICS][CALLABLE] Error:", error);
+      throw error;
+    }
+  });
+
+exports.importTeamCalendarFromUrl = functions
+  .region(REGION)
+  .runWith({
+    timeoutSeconds: 540,
+    memory: "256MB",
+  })
+  .https.onRequest((req, res) => {
+    cors(req, res, async () => {
+      res.set("Access-Control-Allow-Origin", "*");
+      res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+      res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+      if (req.method === "OPTIONS") {
+        res.status(204).send("");
+        return;
+      }
+
+      if (req.method !== "POST") {
+        res.status(405).json({ error: "Method not allowed" });
+        return;
+      }
+
+      let body = req.body;
+      if (typeof body === "string") {
+        try {
+          body = JSON.parse(body);
+        } catch (err) {
+          res.status(400).json({ error: "Invalid JSON body" });
+          return;
+        }
+      }
+
+      const { teamId, icsUrl } = body || {};
+
+      const authHeader = req.headers.authorization || "";
+      if (!authHeader.startsWith("Bearer ")) {
+        res.status(401).json({ error: "Missing Authorization header" });
+        return;
+      }
+
+      const idToken = authHeader.replace("Bearer ", "").trim();
+      try {
+        await admin.auth().verifyIdToken(idToken);
+      } catch (err) {
+        console.error("[IMPORT_ICS][HTTP] Invalid token:", err);
+        res.status(401).json({ error: "Invalid auth token" });
+        return;
+      }
+
+      try {
+        const result = await importTeamCalendarCore(teamId, icsUrl);
+        res.status(200).json(result);
+      } catch (error) {
+        console.error("[IMPORT_ICS][HTTP] Error:", error);
+        if (error instanceof functions.https.HttpsError) {
+          const statusMap = {
+            "invalid-argument": 400,
+            "unauthenticated": 401,
+            "not-found": 404,
+            "permission-denied": 403,
+          };
+          const status = statusMap[error.code] || 500;
+          res.status(status).json({ error: error.message });
+        } else {
+          res.status(500).json({ error: error.message || "Internal error" });
+        }
+      }
+    });
   });
 
 /**

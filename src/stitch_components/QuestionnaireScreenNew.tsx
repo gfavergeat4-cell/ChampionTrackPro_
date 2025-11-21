@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { View, Text, Pressable, StyleSheet, Dimensions, Platform, ScrollView, TextInput, Alert } from "react-native";
+import { View, Text, Pressable, StyleSheet, Platform, ScrollView, Alert, SafeAreaView } from "react-native";
 import { LinearGradient } from 'expo-linear-gradient';
 import { tokens } from "../theme/tokens";
 import { DateTime } from "luxon";
@@ -58,54 +58,6 @@ const Slider: React.FC<SliderProps> = ({ title, description, value, onValueChang
   );
 };
 
-interface BinaryChoiceProps {
-  title: string;
-  description: string;
-  value: boolean | null;
-  onValueChange: (value: boolean) => void;
-}
-
-const BinaryChoice: React.FC<BinaryChoiceProps> = ({ title, description, value, onValueChange }) => {
-  return (
-    <View style={styles.binaryContainer}>
-      <Text style={styles.binaryTitle}>{title}</Text>
-      <Text style={styles.binaryDescription}>{description}</Text>
-      
-      <View style={styles.binaryButtons}>
-        <Pressable
-          style={[
-            styles.binaryButton,
-            value === false && styles.binaryButtonSelected
-          ]}
-          onPress={() => onValueChange(false)}
-        >
-          <Text style={[
-            styles.binaryButtonText,
-            value === false && styles.binaryButtonTextSelected
-          ]}>
-            No
-          </Text>
-        </Pressable>
-        
-        <Pressable
-          style={[
-            styles.binaryButton,
-            value === true && styles.binaryButtonSelected
-          ]}
-          onPress={() => onValueChange(true)}
-        >
-          <Text style={[
-            styles.binaryButtonText,
-            value === true && styles.binaryButtonTextSelected
-          ]}>
-            Yes
-          </Text>
-        </Pressable>
-      </View>
-    </View>
-  );
-};
-
 export default function QuestionnaireScreen({ 
   eventData, 
   onSubmit, 
@@ -124,14 +76,11 @@ export default function QuestionnaireScreen({
     concentration: 50,
     confidence: 50,
     wellBeing: 50,
-    sleepQuality: 50,
-    physicalPain: null as boolean | null,
-    painIntensity: 50,
-    painFrequency: null as string | null,
-    discomfort: 50
+    sleepQuality: 50
   });
 
-  const [showSubmitButton, setShowSubmitButton] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
 
   // Vérifier l'accès au questionnaire
@@ -184,15 +133,9 @@ export default function QuestionnaireScreen({
     setResponses(prev => ({ ...prev, [key]: value }));
   };
 
-  const handleBinaryChange = (key: string, value: boolean) => {
-    setResponses(prev => ({ ...prev, [key]: value }));
-  };
+  const handleSubmit = async () => {
+    if (isSubmitting) return;
 
-  const handleFrequencyChange = (value: string) => {
-    setResponses(prev => ({ ...prev, painFrequency: value }));
-  };
-
-  const handleSubmit = () => {
     // Vérifier à nouveau avant de soumettre
     if (!canAccess) {
       Alert.alert(
@@ -203,7 +146,19 @@ export default function QuestionnaireScreen({
       return;
     }
     
-    onSubmit?.(responses);
+    try {
+      setIsSubmitting(true);
+      await Promise.resolve(onSubmit?.(responses));
+      setShowConfirmation(true);
+    } catch (submitError) {
+      console.error("[QUESTIONNAIRE][SUBMIT][ERROR]", submitError);
+      Alert.alert(
+        "Erreur",
+        "Impossible d'enregistrer vos réponses. Veuillez réessayer."
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Afficher un message si le questionnaire n'est pas accessible
@@ -234,43 +189,45 @@ export default function QuestionnaireScreen({
     }
   }, [canAccess, eventData]);
 
-  const handleScroll = (event: any) => {
-    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
-    const isAtBottom = contentOffset.y + layoutMeasurement.height >= contentSize.height - 100;
-    setShowSubmitButton(isAtBottom);
-  };
+  useEffect(() => {
+    if (!showConfirmation) return;
+
+    const timeout = setTimeout(() => {
+      setShowConfirmation(false);
+      onBack?.();
+    }, 2000);
+
+    return () => clearTimeout(timeout);
+  }, [showConfirmation, onBack]);
 
   return (
-    <LinearGradient
-      colors={[tokens.colors.bg, tokens.colors.bgSecondary]}
-      style={styles.container}
-    >
-      {/* Header */}
-      <View style={styles.header}>
-        <Pressable style={styles.backButton} onPress={onBack}>
-          <Text style={styles.backArrow}>←</Text>
-        </Pressable>
-        <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>{eventData?.title || 'Practice'}</Text>
-          <Text style={styles.headerTime}>{formatTimeRange()}</Text>
+    <SafeAreaView style={styles.screen}>
+      <LinearGradient colors={[tokens.colors.bg, tokens.colors.bgSecondary]} style={styles.gradient}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Pressable style={styles.backButton} onPress={onBack}>
+            <Text style={styles.backArrow}>←</Text>
+          </Pressable>
+          <View style={styles.headerContent}>
+            <Text style={styles.headerTitle}>{eventData?.title || 'Practice'}</Text>
+            <Text style={styles.headerTime}>{formatTimeRange()}</Text>
+          </View>
         </View>
-      </View>
 
-      {!canAccess ? (
-        <View style={styles.disabledContainer}>
-          <Text style={styles.disabledText}>
-            Le questionnaire n'est pas encore disponible ou a expiré.
-          </Text>
-        </View>
-      ) : (
-        <ScrollView
-          ref={scrollViewRef}
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          onScroll={handleScroll}
-          scrollEventThrottle={16}
-          showsVerticalScrollIndicator={false}
-        >
+        {!canAccess ? (
+          <View style={styles.disabledContainer}>
+            <Text style={styles.disabledText}>
+              Le questionnaire n'est pas encore disponible ou a expiré.
+            </Text>
+          </View>
+        ) : (
+          <ScrollView
+            ref={scrollViewRef}
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollContent}
+            scrollEventThrottle={16}
+            showsVerticalScrollIndicator={false}
+          >
         {/* Intensity Sliders */}
         <Slider
           title="Average Intensity"
@@ -306,50 +263,6 @@ export default function QuestionnaireScreen({
           value={responses.fatigue}
           onValueChange={(value) => handleSliderChange('fatigue', value)}
         />
-
-        {/* Pain Assessment */}
-        <BinaryChoice
-          title="Did you feel any physical pain?"
-          description="Any discomfort or pain during the session."
-          value={responses.physicalPain}
-          onValueChange={(value) => handleBinaryChange('physicalPain', value)}
-        />
-
-        {responses.physicalPain === true && (
-          <>
-            <Slider
-              title="Level of Pain Intensity"
-              description="How intense was the pain?"
-              value={responses.painIntensity}
-              onValueChange={(value) => handleSliderChange('painIntensity', value)}
-            />
-
-            <View style={styles.frequencyContainer}>
-              <Text style={styles.frequencyTitle}>Frequency of Appearance</Text>
-              <Text style={styles.frequencyDescription}>How often does this pain appear?</Text>
-              
-              <View style={styles.frequencyGrid}>
-                {['First time', 'Rarely', 'Often', 'Always'].map((option) => (
-                  <Pressable
-                    key={option}
-                    style={[
-                      styles.frequencyButton,
-                      responses.painFrequency === option && styles.frequencyButtonSelected
-                    ]}
-                    onPress={() => handleFrequencyChange(option)}
-                  >
-                    <Text style={[
-                      styles.frequencyButtonText,
-                      responses.painFrequency === option && styles.frequencyButtonTextSelected
-                    ]}>
-                      {option}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            </View>
-          </>
-        )}
 
         {/* Technical Aspects */}
         <Slider
@@ -410,41 +323,69 @@ export default function QuestionnaireScreen({
           onValueChange={(value) => handleSliderChange('sleepQuality', value)}
         />
 
-        <Slider
-          title="Level of Discomfort"
-          description="General discomfort or unease."
-          value={responses.discomfort}
-          onValueChange={(value) => handleSliderChange('discomfort', value)}
-        />
-
-        {/* Submit Button - Only visible when scrolled to bottom */}
-        {showSubmitButton && (
-          <Pressable style={styles.submitButton} onPress={handleSubmit}>
-            <LinearGradient
-              colors={tokens.gradients.primary}
-              style={styles.submitButtonGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-            >
-              <Text style={styles.submitButtonText}>Submit</Text>
-            </LinearGradient>
-          </Pressable>
+            {/* Submit button as final block */}
+            <View style={styles.submitContainer}>
+              <Pressable
+                style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
+                onPress={handleSubmit}
+                disabled={isSubmitting}
+              >
+                <LinearGradient
+                  colors={tokens.gradients.primary}
+                  style={styles.submitButtonGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                >
+                  <Text style={styles.submitButtonText}>
+                    {isSubmitting ? "Sending..." : "Submit"}
+                  </Text>
+                </LinearGradient>
+              </Pressable>
+            </View>
+          </ScrollView>
         )}
 
-        {/* Spacer to ensure submit button is visible */}
-        <View style={styles.bottomSpacer} />
-        </ScrollView>
+        {showConfirmation && (
+          <View style={styles.confirmationOverlay}>
+            <View style={styles.confirmationCard}>
+              <View style={styles.confirmationIconContainer}>
+                <LinearGradient
+                  colors={['#00FFC2', '#00C16A']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.confirmationCheckmark}
+                >
+                  <Text style={styles.confirmationCheckmarkText}>✓</Text>
+                </LinearGradient>
+              </View>
+              <Text style={styles.confirmationTitle}>Réponses validées</Text>
+              <Text style={styles.confirmationSubtitle}>Redirection vers votre tableau de bord...</Text>
+            </View>
+          </View>
+        )}
+      </LinearGradient>
+    </SafeAreaView>
+  );
+}
+
+        <View style={styles.confirmationOverlay}>
+          <View style={styles.confirmationCard}>
+            <Text style={styles.confirmationTitle}>Réponses validées</Text>
+            <Text style={styles.confirmationSubtitle}>Merci, ton feedback est enregistré.</Text>
+          </View>
+        </View>
       )}
     </LinearGradient>
   );
 }
 
-const { width, height } = Dimensions.get('window');
-
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
     backgroundColor: tokens.colors.bg,
+  },
+  gradient: {
+    flex: 1,
     paddingTop: Platform.OS === 'web' ? 60 : 0,
   },
   
@@ -491,7 +432,9 @@ const styles = StyleSheet.create({
   
   scrollContent: {
     paddingHorizontal: tokens.spacing.xl,
-    paddingBottom: tokens.spacing.xxxl,
+    paddingBottom: 140,
+    paddingTop: tokens.spacing.xl,
+    flexGrow: 1,
   },
   
   // Slider Styles
@@ -566,128 +509,15 @@ const styles = StyleSheet.create({
     fontWeight: tokens.fontWeights.bold,
   },
   
-  // Binary Choice Styles
-  binaryContainer: {
-    backgroundColor: tokens.colors.surface,
-    borderRadius: tokens.radii.lg,
-    padding: tokens.spacing.xl,
-    marginBottom: tokens.spacing.lg,
-    borderWidth: 1,
-    borderColor: tokens.colors.surfaceHover,
-    ...tokens.shadows.card,
-  },
-  
-  binaryTitle: {
-    fontSize: tokens.fontSizes.lg,
-    fontWeight: tokens.fontWeights.semibold,
-    color: tokens.colors.text,
-    fontFamily: tokens.typography.ui,
-    marginBottom: tokens.spacing.xs,
-  },
-  
-  binaryDescription: {
-    fontSize: tokens.fontSizes.sm,
-    color: tokens.colors.textSecondary,
-    fontFamily: tokens.typography.ui,
-    marginBottom: tokens.spacing.lg,
-  },
-  
-  binaryButtons: {
-    flexDirection: 'row',
-    gap: tokens.spacing.md,
-  },
-  
-  binaryButton: {
-    flex: 1,
-    paddingVertical: tokens.spacing.md,
-    paddingHorizontal: tokens.spacing.lg,
-    borderRadius: tokens.radii.md,
-    backgroundColor: tokens.colors.surfaceHover,
-    alignItems: 'center',
-  },
-  
-  binaryButtonSelected: {
-    backgroundColor: tokens.colors.accentCyan,
-    ...tokens.shadows.glow,
-  },
-  
-  binaryButtonText: {
-    fontSize: tokens.fontSizes.md,
-    fontWeight: tokens.fontWeights.medium,
-    color: tokens.colors.text,
-    fontFamily: tokens.typography.ui,
-  },
-  
-  binaryButtonTextSelected: {
-    color: tokens.colors.text,
-    fontWeight: tokens.fontWeights.semibold,
-  },
-  
-  // Frequency Styles
-  frequencyContainer: {
-    backgroundColor: tokens.colors.surface,
-    borderRadius: tokens.radii.lg,
-    padding: tokens.spacing.xl,
-    marginBottom: tokens.spacing.lg,
-    borderWidth: 1,
-    borderColor: tokens.colors.surfaceHover,
-    ...tokens.shadows.card,
-  },
-  
-  frequencyTitle: {
-    fontSize: tokens.fontSizes.lg,
-    fontWeight: tokens.fontWeights.semibold,
-    color: tokens.colors.text,
-    fontFamily: tokens.typography.ui,
-    marginBottom: tokens.spacing.xs,
-  },
-  
-  frequencyDescription: {
-    fontSize: tokens.fontSizes.sm,
-    color: tokens.colors.textSecondary,
-    fontFamily: tokens.typography.ui,
-    marginBottom: tokens.spacing.lg,
-  },
-  
-  frequencyGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: tokens.spacing.sm,
-  },
-  
-  frequencyButton: {
-    flex: 1,
-    minWidth: '45%',
-    paddingVertical: tokens.spacing.md,
-    paddingHorizontal: tokens.spacing.lg,
-    borderRadius: tokens.radii.md,
-    backgroundColor: tokens.colors.surfaceHover,
-    alignItems: 'center',
-  },
-  
-  frequencyButtonSelected: {
-    backgroundColor: tokens.colors.accentCyan,
-    ...tokens.shadows.glow,
-  },
-  
-  frequencyButtonText: {
-    fontSize: tokens.fontSizes.sm,
-    fontWeight: tokens.fontWeights.medium,
-    color: tokens.colors.text,
-    fontFamily: tokens.typography.ui,
-  },
-  
-  frequencyButtonTextSelected: {
-    color: tokens.colors.text,
-    fontWeight: tokens.fontWeights.semibold,
-  },
-  
   // Submit Button
   submitButton: {
     borderRadius: tokens.radii.lg,
     overflow: 'hidden',
     marginTop: tokens.spacing.xl,
     ...tokens.shadows.button,
+  },
+  submitButtonDisabled: {
+    opacity: 0.7,
   },
   
   submitButtonGradient: {
@@ -704,8 +534,11 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   
-  bottomSpacer: {
-    height: 100,
+  submitContainer: {
+    marginTop: -16,
+    marginBottom: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   disabledContainer: {
     flex: 1,
@@ -718,6 +551,66 @@ const styles = StyleSheet.create({
     color: tokens.colors.textSecondary,
     textAlign: 'center',
     fontFamily: tokens.typography.ui,
+  },
+  confirmationOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(10, 15, 27, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: tokens.spacing.xl,
+  },
+  confirmationCard: {
+    backgroundColor: tokens.colors.surface,
+    borderRadius: tokens.radii.xl,
+    padding: tokens.spacing.xxl,
+    width: '100%',
+    maxWidth: 420,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 255, 194, 0.35)',
+    ...tokens.shadows.card,
+  },
+  confirmationIconContainer: {
+    marginBottom: tokens.spacing.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  confirmationCheckmark: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#00FFC2',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.55,
+    shadowRadius: 40,
+    elevation: 15,
+    overflow: 'hidden',
+  },
+  confirmationCheckmarkText: {
+    color: '#FFFFFF',
+    fontSize: 40,
+    fontWeight: '900',
+    lineHeight: 48,
+  },
+  confirmationTitle: {
+    fontSize: tokens.fontSizes.xxl,
+    fontWeight: tokens.fontWeights.bold,
+    color: tokens.colors.text,
+    fontFamily: tokens.typography.ui,
+    marginBottom: tokens.spacing.sm,
+    textAlign: 'center',
+  },
+  confirmationSubtitle: {
+    fontSize: tokens.fontSizes.md,
+    color: tokens.colors.textSecondary,
+    fontFamily: tokens.typography.ui,
+    textAlign: 'center',
   },
 });
 

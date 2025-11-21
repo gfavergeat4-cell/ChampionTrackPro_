@@ -120,7 +120,7 @@ export default function StitchCreateAccountScreen() {
                 teamId: teamId,
                 email: formData.email.trim(),
                 name: formData.fullName.trim(),
-              });
+        });
               console.log("[CREATE] membership created via Cloud Function (server)");
             } catch (serverError) {
               console.error("[CREATE] membership error (server)", serverError);
