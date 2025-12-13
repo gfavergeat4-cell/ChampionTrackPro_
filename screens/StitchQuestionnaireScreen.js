@@ -182,7 +182,7 @@ export default function StitchQuestionnaireScreen() {
 
   const handleSubmit = async () => {
     if (isSubmitting) return;
-
+      
     setSubmitError(null);
     setIsSubmitting(true);
 
@@ -1157,47 +1157,47 @@ export default function StitchQuestionnaireScreen() {
                   {submitError}
                 </div>
               )}
-              <button 
-                onClick={handleSubmit}
+                  <button 
+                    onClick={handleSubmit}
                 disabled={isSubmitting}
-                style={{
-                  width: "100%",
-                  padding: "16px 0",
-                  borderRadius: "12px",
-                  fontSize: "16px",
-                  fontWeight: "600",
+                    style={{
+                      width: "100%",
+                      padding: "16px 0",
+                      borderRadius: "12px",
+                      fontSize: "16px",
+                      fontWeight: "600",
                   cursor: isSubmitting ? "not-allowed" : "pointer",
-                  background: "linear-gradient(90deg, #00E0FF, #4A67FF)",
-                  color: "white",
-                  border: "none",
-                  boxShadow: "0 0 20px 5px rgba(0, 224, 255, 0.25)",
-                  transition: "all 0.2s ease-out",
-                  textTransform: "uppercase",
-                  letterSpacing: "1px",
+                      background: "linear-gradient(90deg, #00E0FF, #4A67FF)",
+                      color: "white",
+                      border: "none",
+                      boxShadow: "0 0 20px 5px rgba(0, 224, 255, 0.25)",
+                      transition: "all 0.2s ease-out",
+                      textTransform: "uppercase",
+                      letterSpacing: "1px",
                   opacity: isSubmitting ? 0.65 : 1,
-                }}
-                onMouseEnter={(e) => {
+                    }}
+                    onMouseEnter={(e) => {
                   if (isSubmitting) return;
-                  e.target.style.filter = "brightness(1.25)";
-                  e.target.style.transform = "translateY(-2px)";
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.filter = "brightness(1)";
-                  e.target.style.transform = "translateY(0)";
-                }}
-                onMouseDown={(e) => {
+                      e.target.style.filter = "brightness(1.25)";
+                      e.target.style.transform = "translateY(-2px)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.filter = "brightness(1)";
+                      e.target.style.transform = "translateY(0)";
+                    }}
+                    onMouseDown={(e) => {
                   if (isSubmitting) return;
-                  e.target.style.transform = "translateY(2px)";
-                  e.target.style.boxShadow = "0 0 10px 2px rgba(0, 224, 255, 0.15)";
-                }}
-                onMouseUp={(e) => {
-                  e.target.style.transform = "translateY(0)";
-                  e.target.style.boxShadow = "0 0 20px 5px rgba(0, 224, 255, 0.25)";
-                }}
-              >
+                      e.target.style.transform = "translateY(2px)";
+                      e.target.style.boxShadow = "0 0 10px 2px rgba(0, 224, 255, 0.15)";
+                    }}
+                    onMouseUp={(e) => {
+                      e.target.style.transform = "translateY(0)";
+                      e.target.style.boxShadow = "0 0 20px 5px rgba(0, 224, 255, 0.25)";
+                    }}
+                  >
                 {isSubmitting ? "Sending..." : "Submit"}
-              </button>
-            </div>
+                  </button>
+                </div>
           </div>
           {showConfirmation && Platform.OS === 'web' && (
             <div
