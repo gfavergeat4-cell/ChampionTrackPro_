@@ -24,5 +24,6 @@ serviceAccountKey*.json
 cursor_context/
 cursor_prompts/
 Design/
-public/
+# NOTE: public/ est nécessaire pour firebase-messaging-sw.js
+# Ne pas exclure public/ car le service worker doit être accessible
 
