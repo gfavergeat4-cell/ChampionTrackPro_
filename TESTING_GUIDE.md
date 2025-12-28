@@ -233,3 +233,4 @@ console.log('Week events:', weekSnap.docs.map(d => d.data()));
 
 
 
+
