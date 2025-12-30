@@ -106,17 +106,32 @@ if (fs.existsSync(distSwPath)) {
   const finalStats = fs.statSync(distSwPath);
   const finalContent = fs.readFileSync(distSwPath, 'utf8');
   if (finalContent.includes('importScripts') && finalContent.includes('firebase')) {
-    console.log('[POST-BUILD] OK: Present in dist');
+    console.log('[POST-BUILD] ✅ OK: Service worker present in web/dist/');
+    console.log('[POST-BUILD] ✅ File path:', distSwPath);
     console.log('[POST-BUILD] ✅ File size:', finalStats.size, 'bytes');
     console.log('[POST-BUILD] ✅ Valid JavaScript service worker');
+    console.log('[POST-BUILD] ✅ File will be served at: /firebase-messaging-sw.js');
+    
+    // Lister les fichiers dans web/dist pour vérification
+    try {
+      const distFiles = fs.readdirSync(distDir);
+      const swInList = distFiles.includes('firebase-messaging-sw.js');
+      console.log('[POST-BUILD] ✅ Service worker found in dist directory listing:', swInList);
+      console.log('[POST-BUILD] Total files in web/dist:', distFiles.length);
+    } catch (listErr) {
+      console.warn('[POST-BUILD] ⚠️ Could not list dist directory:', listErr.message);
+    }
   } else {
     console.error('[POST-BUILD] ❌ ERROR: File exists but content is invalid');
     process.exit(1);
   }
 } else {
   console.error('[POST-BUILD] ❌ ERROR: Missing in dist');
+  console.error('[POST-BUILD] ❌ Expected path:', distSwPath);
+  console.error('[POST-BUILD] ❌ This will cause 404 errors in production!');
   process.exit(1);
 }
 
 console.log('[POST-BUILD] ===== Service Worker Copy Complete =====');
+console.log('[POST-BUILD] ✅ BUILD SUCCESS: Service worker ready for Vercel deployment');
 

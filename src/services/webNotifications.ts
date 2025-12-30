@@ -87,9 +87,24 @@ export async function registerWebPushTokenForCurrentUser(): Promise<void> {
     
     console.log('[WEB PUSH] ===== Service Worker Registration =====');
     console.log('[WEB PUSH] Environment:', isProduction ? 'PRODUCTION (HTTPS)' : 'DEVELOPMENT');
+    console.log('[WEB PUSH] Location origin:', typeof window !== 'undefined' ? window.location.origin : 'N/A');
     console.log('[WEB PUSH] Current URL:', typeof window !== 'undefined' ? window.location.href : 'N/A');
+    console.log('[WEB PUSH] Is secure context:', typeof window !== 'undefined' ? window.isSecureContext : 'N/A');
+    console.log('[WEB PUSH] Protocol:', typeof window !== 'undefined' ? window.location.protocol : 'N/A');
     console.log('[WEB PUSH] Registering service worker at:', swPath);
     console.log('[WEB PUSH] Notification permission:', Notification.permission);
+    
+    // Lister les service workers existants AVANT l'enregistrement
+    const existingRegs = await navigator.serviceWorker.getRegistrations();
+    console.log('[WEB PUSH] Existing service worker registrations (before):', existingRegs.length);
+    existingRegs.forEach((reg, idx) => {
+      console.log(`[WEB PUSH] Existing SW #${idx + 1}:`, {
+        scope: reg.scope,
+        active: !!reg.active,
+        waiting: !!reg.waiting,
+        installing: !!reg.installing,
+      });
+    });
     
     // Vérifier que nous sommes en HTTPS en production
     if (isProduction && window.location.protocol !== 'https:') {
@@ -97,17 +112,30 @@ export async function registerWebPushTokenForCurrentUser(): Promise<void> {
       throw new Error('Service workers require HTTPS in production');
     }
     
+    // FORCER l'enregistrement explicite du service worker
+    console.log('[WEB PUSH] 🔵 FORCING SERVICE WORKER REGISTRATION...');
+    console.log('[WEB PUSH] 🔵 Path:', swPath);
+    console.log('[WEB PUSH] 🔵 Scope:', '/');
+    console.log('[WEB PUSH] 🔵 Calling navigator.serviceWorker.register()...');
+    
     const registration = await navigator.serviceWorker.register(swPath, {
       scope: '/',
     });
     
-    console.log('[WEB PUSH] ✅ Service worker registered successfully:', {
+    console.log('[WEB PUSH] ✅✅✅ SERVICE WORKER REGISTERED SUCCESSFULLY ✅✅✅');
+    console.log('[WEB PUSH] 🔵 Registration result:', {
       scope: registration.scope,
       active: !!registration.active,
+      activeState: registration.active?.state,
       installing: !!registration.installing,
+      installingState: registration.installing?.state,
       waiting: !!registration.waiting,
+      waitingState: registration.waiting?.state,
       updateViaCache: registration.updateViaCache,
     });
+    console.log('[WEB PUSH] 🔵 Registration scope matches origin:', registration.scope === window.location.origin + '/');
+    console.log('[WEB PUSH] 🔵 Registration scope:', registration.scope);
+    console.log('[WEB PUSH] 🔵 Expected scope:', window.location.origin + '/');
 
     // Attendre que le service worker soit actif
     // En production, cela peut prendre un peu plus de temps
@@ -116,21 +144,40 @@ export async function registerWebPushTokenForCurrentUser(): Promise<void> {
       registration.waiting.postMessage({ type: 'SKIP_WAITING' });
     }
     
-    // Attendre que le service worker soit prêt (active)
+    // FORCER l'attente que le service worker soit prêt (active)
     // navigator.serviceWorker.ready retourne la registration avec un worker actif
+    console.log('[WEB PUSH] 🔵 WAITING FOR navigator.serviceWorker.ready...');
     const readyRegistration = await navigator.serviceWorker.ready;
-    console.log('[WEB PUSH] ✅ Service worker is ready and active');
-    console.log('[WEB PUSH] Ready registration details:', {
+    console.log('[WEB PUSH] ✅✅✅ SERVICE WORKER IS READY AND ACTIVE ✅✅✅');
+    console.log('[WEB PUSH] 🔵 Ready registration details:', {
       scope: readyRegistration.scope,
       active: !!readyRegistration.active,
       activeState: readyRegistration.active?.state,
+      activeScriptURL: readyRegistration.active?.scriptURL,
     });
     
     // Vérification finale: s'assurer qu'un service worker est bien actif
     if (!readyRegistration.active) {
+      console.error('[WEB PUSH] ❌❌❌ CRITICAL: Service worker registered but NOT active after ready ❌❌❌');
       throw new Error('Service worker registered but not active after ready');
     }
-    console.log('[WEB PUSH] ✅ Verified active service worker exists');
+    console.log('[WEB PUSH] ✅✅✅ VERIFIED ACTIVE SERVICE WORKER EXISTS ✅✅✅');
+    console.log('[WEB PUSH] 🔵 Active worker state:', readyRegistration.active.state);
+    console.log('[WEB PUSH] 🔵 Active worker scriptURL:', readyRegistration.active.scriptURL);
+    
+    // Lister TOUS les service workers après l'enregistrement
+    const allRegsAfter = await navigator.serviceWorker.getRegistrations();
+    console.log('[WEB PUSH] All service worker registrations (after):', allRegsAfter.length);
+    allRegsAfter.forEach((reg, idx) => {
+      console.log(`[WEB PUSH] SW #${idx + 1}:`, {
+        scope: reg.scope,
+        active: !!reg.active,
+        activeState: reg.active?.state,
+        activeScriptURL: reg.active?.scriptURL,
+        waiting: !!reg.waiting,
+        installing: !!reg.installing,
+      });
+    });
 
     // Vérifier que le navigateur supporte les notifications avant d'initialiser messaging
     const supported = await isSupported();
@@ -166,11 +213,13 @@ export async function registerWebPushTokenForCurrentUser(): Promise<void> {
       return;
     }
 
-    // Log le token (tronqué pour la sécurité)
+    // Log le token (tronqué pour la sécurité) - LOGS TRÈS VISIBLES EN PROD
     const tokenPreview = token.substring(0, 20) + '...' + token.substring(token.length - 10);
-    console.log('[WEB PUSH] ✅ FCM token obtained successfully');
-    console.log('[WEB PUSH] Token preview:', tokenPreview);
-    console.log('[WEB PUSH] Full token length:', token.length);
+    console.log('[WEB PUSH] ✅✅✅ FCM TOKEN OBTAINED SUCCESSFULLY ✅✅✅');
+    console.log('[WEB PUSH] 🔵 Token preview:', tokenPreview);
+    console.log('[WEB PUSH] 🔵 Full token length:', token.length);
+    console.log('[WEB PUSH] 🔵 Token first 50 chars:', token.substring(0, 50));
+    console.log('[WEB PUSH] 🔵 Token last 20 chars:', token.substring(token.length - 20));
 
     // Vérifier si le token existe déjà
     const userDoc = await getDoc(doc(db, "users", user.uid));

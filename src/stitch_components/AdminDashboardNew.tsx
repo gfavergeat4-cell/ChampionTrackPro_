@@ -6,6 +6,7 @@ import { db, functions } from "../lib/firebase";
 import { getApp } from "firebase/app";
 import { httpsCallable } from "firebase/functions";
 import { tokens } from "../theme/tokens";
+import FCMDebugPanel from "../components/FCMDebugPanel";
 
 interface Team {
   id: string;
@@ -27,6 +28,7 @@ export default function AdminDashboardNew() {
   const [calendarUrl, setCalendarUrl] = useState('');
   const [isImporting, setIsImporting] = useState(false);
   const [newTeamName, setNewTeamName] = useState('');
+  const [showDebugPanel, setShowDebugPanel] = useState(false);
 
   // Load teams
   useEffect(() => {
@@ -661,6 +663,16 @@ const styles = StyleSheet.create({
   modalButtonTextPrimary: {
     color: tokens.colors.text,
     fontWeight: tokens.fontWeights.semibold,
+  },
+  
+  debugPanelContainer: {
+    marginTop: tokens.spacing.lg,
+    marginBottom: tokens.spacing.lg,
+    maxHeight: 600,
+    borderRadius: tokens.radii.md,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: tokens.colors.surfaceHover,
   },
 });
 
