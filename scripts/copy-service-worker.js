@@ -107,7 +107,7 @@ console.log('[POST-BUILD] ===== Final Verification =====');
 if (fs.existsSync(distSwPath)) {
   const finalStats = fs.statSync(distSwPath);
   const finalContent = fs.readFileSync(distSwPath, 'utf8');
-  if (finalContent.includes('importScripts') && finalContent.includes('firebase')) {
+  if ((finalContent.includes('import') || finalContent.includes('importScripts')) && finalContent.includes('firebase')) {
     console.log('[POST-BUILD] ✅ OK: Service worker present in web/dist/');
     console.log('[POST-BUILD] ✅ File path:', distSwPath);
     console.log('[POST-BUILD] ✅ File size:', finalStats.size, 'bytes');
@@ -146,17 +146,17 @@ if (!fs.existsSync(publicFirebaseDir)) {
   process.exit(1);
 }
 
-// Vérifier que les fichiers Firebase existent
-const firebaseAppPath = path.join(publicFirebaseDir, 'firebase-app-compat.js');
-const firebaseMessagingPath = path.join(publicFirebaseDir, 'firebase-messaging-compat.js');
+// Vérifier que les fichiers Firebase compat existent
+const firebaseAppCompatPath = path.join(publicFirebaseDir, 'firebase-app-compat.js');
+const firebaseMessagingCompatPath = path.join(publicFirebaseDir, 'firebase-messaging-compat.js');
 
-if (!fs.existsSync(firebaseAppPath)) {
-  console.error('[POST-BUILD] ❌ ERROR: firebase-app-compat.js not found:', firebaseAppPath);
+if (!fs.existsSync(firebaseAppCompatPath)) {
+  console.error('[POST-BUILD] ❌ ERROR: firebase-app-compat.js not found:', firebaseAppCompatPath);
   process.exit(1);
 }
 
-if (!fs.existsSync(firebaseMessagingPath)) {
-  console.error('[POST-BUILD] ❌ ERROR: firebase-messaging-compat.js not found:', firebaseMessagingPath);
+if (!fs.existsSync(firebaseMessagingCompatPath)) {
+  console.error('[POST-BUILD] ❌ ERROR: firebase-messaging-compat.js not found:', firebaseMessagingCompatPath);
   process.exit(1);
 }
 
@@ -168,25 +168,25 @@ if (!fs.existsSync(distFirebaseDir)) {
   console.log('[POST-BUILD] ✅ Created destination directory:', distFirebaseDir);
 }
 
-// Copier les fichiers Firebase
+// Copier les fichiers Firebase compat
 try {
-  const firebaseFiles = ['firebase-app-compat.js', 'firebase-messaging-compat.js'];
+  const firebaseFiles = [
+    { src: firebaseAppCompatPath, dest: path.join(distFirebaseDir, 'firebase-app-compat.js'), name: 'firebase-app-compat.js' },
+    { src: firebaseMessagingCompatPath, dest: path.join(distFirebaseDir, 'firebase-messaging-compat.js'), name: 'firebase-messaging-compat.js' }
+  ];
   
-  for (const fileName of firebaseFiles) {
-    const sourcePath = path.join(publicFirebaseDir, fileName);
-    const destPath = path.join(distFirebaseDir, fileName);
-    
-    console.log('[POST-BUILD] Copying', fileName, '...');
-    fs.copyFileSync(sourcePath, destPath);
+  for (const file of firebaseFiles) {
+    console.log('[POST-BUILD] Copying', file.name, '...');
+    fs.copyFileSync(file.src, file.dest);
     
     // Vérifier que le fichier a bien été copié
-    if (!fs.existsSync(destPath)) {
-      console.error('[POST-BUILD] ❌ ERROR: Failed to copy', fileName);
+    if (!fs.existsSync(file.dest)) {
+      console.error('[POST-BUILD] ❌ ERROR: Failed to copy', file.name);
       process.exit(1);
     }
     
-    const stats = fs.statSync(destPath);
-    console.log('[POST-BUILD] ✅ Copied', fileName, '-', stats.size, 'bytes');
+    const stats = fs.statSync(file.dest);
+    console.log('[POST-BUILD] ✅ Copied', file.name, '-', stats.size, 'bytes');
   }
   
   // Vérification finale: tous les fichiers doivent être présents
