@@ -1,9 +1,25 @@
 ﻿/* public/firebase-messaging-sw.js */
 /* global importScripts, firebase */
 
-// Charger les scripts Firebase
-importScripts('https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/10.12.5/firebase-messaging-compat.js');
+// Charger les scripts Firebase depuis le serveur local (priorité)
+// Fallback vers CDN si les fichiers locaux ne sont pas disponibles
+try {
+  console.log('[SW] Loading Firebase scripts from local server...');
+  importScripts('/firebase/firebase-app-compat.js');
+  importScripts('/firebase/firebase-messaging-compat.js');
+  console.log('[SW] ✅ Firebase scripts loaded successfully from local server');
+} catch (localError) {
+  console.error('[SW] ❌ Failed to load Firebase scripts from local server:', localError);
+  console.log('[SW] Falling back to CDN...');
+  try {
+    importScripts('https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js');
+    importScripts('https://www.gstatic.com/firebasejs/10.12.5/firebase-messaging-compat.js');
+    console.log('[SW] ✅ Firebase scripts loaded from CDN (fallback)');
+  } catch (cdnError) {
+    console.error('[SW] ❌ CRITICAL: Failed to load Firebase scripts from both local and CDN:', cdnError);
+    throw new Error('ServiceWorker script evaluation failed: Cannot load Firebase scripts');
+  }
+}
 
 // Configuration Firebase (doit correspondre à celle de l'app)
 firebase.initializeApp({

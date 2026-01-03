@@ -14,6 +14,8 @@ const path = require('path');
 
 const publicSwPath = path.join(__dirname, '..', 'public', 'firebase-messaging-sw.js');
 const distSwPath = path.join(__dirname, '..', 'web', 'dist', 'firebase-messaging-sw.js');
+const publicFirebaseDir = path.join(__dirname, '..', 'public', 'firebase');
+const distFirebaseDir = path.join(__dirname, '..', 'web', 'dist', 'firebase');
 
 console.log('[POST-BUILD] ===== Copying Firebase Service Worker =====');
 console.log('[POST-BUILD] Source path:', publicSwPath);
@@ -132,6 +134,84 @@ if (fs.existsSync(distSwPath)) {
   process.exit(1);
 }
 
+// Copier le dossier firebase/ avec les fichiers Firebase locaux
+console.log('[POST-BUILD] ===== Copying Firebase Local Files =====');
+console.log('[POST-BUILD] Source directory:', publicFirebaseDir);
+console.log('[POST-BUILD] Destination directory:', distFirebaseDir);
+
+if (!fs.existsSync(publicFirebaseDir)) {
+  console.error('[POST-BUILD] ❌ ERROR: Firebase directory not found:', publicFirebaseDir);
+  console.error('[POST-BUILD] ❌ This directory is required for service worker to work in production.');
+  console.error('[POST-BUILD] ❌ Make sure public/firebase/ exists with firebase-app-compat.js and firebase-messaging-compat.js');
+  process.exit(1);
+}
+
+// Vérifier que les fichiers Firebase existent
+const firebaseAppPath = path.join(publicFirebaseDir, 'firebase-app-compat.js');
+const firebaseMessagingPath = path.join(publicFirebaseDir, 'firebase-messaging-compat.js');
+
+if (!fs.existsSync(firebaseAppPath)) {
+  console.error('[POST-BUILD] ❌ ERROR: firebase-app-compat.js not found:', firebaseAppPath);
+  process.exit(1);
+}
+
+if (!fs.existsSync(firebaseMessagingPath)) {
+  console.error('[POST-BUILD] ❌ ERROR: firebase-messaging-compat.js not found:', firebaseMessagingPath);
+  process.exit(1);
+}
+
+console.log('[POST-BUILD] ✅ Firebase source files found');
+
+// Créer le dossier de destination s'il n'existe pas
+if (!fs.existsSync(distFirebaseDir)) {
+  fs.mkdirSync(distFirebaseDir, { recursive: true });
+  console.log('[POST-BUILD] ✅ Created destination directory:', distFirebaseDir);
+}
+
+// Copier les fichiers Firebase
+try {
+  const firebaseFiles = ['firebase-app-compat.js', 'firebase-messaging-compat.js'];
+  
+  for (const fileName of firebaseFiles) {
+    const sourcePath = path.join(publicFirebaseDir, fileName);
+    const destPath = path.join(distFirebaseDir, fileName);
+    
+    console.log('[POST-BUILD] Copying', fileName, '...');
+    fs.copyFileSync(sourcePath, destPath);
+    
+    // Vérifier que le fichier a bien été copié
+    if (!fs.existsSync(destPath)) {
+      console.error('[POST-BUILD] ❌ ERROR: Failed to copy', fileName);
+      process.exit(1);
+    }
+    
+    const stats = fs.statSync(destPath);
+    console.log('[POST-BUILD] ✅ Copied', fileName, '-', stats.size, 'bytes');
+  }
+  
+  // Vérification finale: tous les fichiers doivent être présents
+  const requiredFiles = [
+    path.join(distFirebaseDir, 'firebase-app-compat.js'),
+    path.join(distFirebaseDir, 'firebase-messaging-compat.js')
+  ];
+  
+  for (const filePath of requiredFiles) {
+    if (!fs.existsSync(filePath)) {
+      console.error('[POST-BUILD] ❌ ERROR: Required file missing in dist:', filePath);
+      process.exit(1);
+    }
+  }
+  
+  console.log('[POST-BUILD] ✅ All Firebase files copied successfully');
+} catch (error) {
+  console.error('[POST-BUILD] ❌ ERROR copying Firebase files:', error.message);
+  process.exit(1);
+}
+
 console.log('[POST-BUILD] ===== Service Worker Copy Complete =====');
 console.log('[POST-BUILD] ✅ BUILD SUCCESS: Service worker ready for Vercel deployment');
+console.log('[POST-BUILD] ✅ Files in web/dist/:');
+console.log('[POST-BUILD]   - firebase-messaging-sw.js');
+console.log('[POST-BUILD]   - firebase/firebase-app-compat.js');
+console.log('[POST-BUILD]   - firebase/firebase-messaging-compat.js');
 
