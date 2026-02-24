@@ -19,8 +19,8 @@ const STORAGE_KEY = 'ctp_scheduled_questionnaire_notifications';
 type Stored = Record<string, boolean>; // trainingId -> scheduled
 
 /**
- * Planifie une notification locale pour rappeler à l'athlète de remplir le questionnaire
- * 30 minutes après la fin du training
+ * Planifie une notification locale à la fin du training (pas de délai artificiel).
+ * Même texte que déjà défini.
  */
 export async function scheduleQuestionnaireNotification(event: EventWithResponse) {
   // Ne pas planifier de notifications sur le web
@@ -40,26 +40,20 @@ export async function scheduleQuestionnaireNotification(event: EventWithResponse
   }
 
   try {
-    // Charger le cache des notifications déjà planifiées
     const raw = await AsyncStorage.getItem(STORAGE_KEY);
     const cache: Stored = raw ? JSON.parse(raw) : {};
-    
     if (cache[event.id]) {
       console.log('[NOTIF] Already scheduled for training', event.id);
-      return; // Déjà planifiée
+      return;
     }
 
-    // Calculer l'heure d'ouverture (30 min après la fin)
-    const openAt = DateTime.fromMillis(event.endMillis, { zone: 'utc' })
-      .plus({ minutes: 30 });
-
-    // Vérifier que la date n'est pas passée
+    // Déclencher à la fin du training (pas de délai 30 min)
+    const openAt = DateTime.fromMillis(event.endMillis, { zone: 'utc' });
     if (openAt < DateTime.utc()) {
       console.log('[NOTIF] Too late to schedule for training', event.id);
-      return; // Trop tard
+      return;
     }
 
-    // Planifier la notification
     await Notifications.scheduleNotificationAsync({
       content: {
         title: "Time to fill your questionnaire",
@@ -70,10 +64,8 @@ export async function scheduleQuestionnaireNotification(event: EventWithResponse
       trigger: openAt.toJSDate(),
     });
 
-    // Mettre à jour le cache
     cache[event.id] = true;
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(cache));
-
     console.log('[NOTIF] Scheduled notification for training', event.id, 'at', openAt.toISO());
   } catch (error) {
     console.error('[NOTIF] Error scheduling notification', error);

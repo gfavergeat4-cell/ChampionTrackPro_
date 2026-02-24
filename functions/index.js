@@ -636,23 +636,22 @@ exports.createMembership = functions.region(REGION).https.onCall(async (data, co
 
 /**
  * Cloud Function planifiée : envoie une notification "questionnaire disponible"
- * pour les trainings qui viennent de se terminer et qui n'ont pas encore envoyé de notification.
- * 
- * S'exécute toutes les 5 minutes et vérifie les trainings terminés dans les 30 dernières minutes.
+ * immédiatement à la fin du training (pas de délai artificiel).
+ * S'exécute toutes les 1 minute et vérifie les trainings terminés dans les 2 dernières minutes.
  */
 exports.sendQuestionnaireAvailableNotifications = functions
   .region(REGION)
-  .pubsub.schedule("every 5 minutes")
+  .pubsub.schedule("every 1 minutes")
   .timeZone("Europe/Paris")
   .onRun(async () => {
     const now = admin.firestore.Timestamp.now();
     const nowMs = now.toMillis();
 
-    // Fenêtre : trainings terminés il y a 0-30 minutes
-    const minEnd = admin.firestore.Timestamp.fromMillis(nowMs - 30 * 60 * 1000);
-    const maxEnd = admin.firestore.Timestamp.fromMillis(nowMs + 2 * 60 * 1000);
+    // Fenêtre : trainings qui viennent de se terminer (0 à 2 min après endUtc) — pas de délai 30 min
+    const minEnd = admin.firestore.Timestamp.fromMillis(nowMs - 2 * 60 * 1000);
+    const maxEnd = now;
 
-    console.log("[NOTIF][CRON] Checking trainings between", minEnd.toDate(), "and", maxEnd.toDate());
+    console.log("[NOTIF][CRON] Checking trainings ended between", minEnd.toDate(), "and", maxEnd.toDate());
 
     // Les trainings sont dans teams/{teamId}/trainings
     // On doit itérer sur toutes les équipes ou utiliser une collection group query
@@ -725,8 +724,12 @@ exports.sendQuestionnaireAvailableNotifications = functions
 
       // URL de deep-link vers l'app web + questionnaire
       const clickAction = `https://championtrackpro.vercel.app/?sessionId=${trainingId}&openQuestionnaire=1`;
+      const notifTitle = "Questionnaire available";
+      const notifBody = `Rate your session: ${title}`;
+      const REMINDER_HOURS = 2;
+      const dueAtReminder = admin.firestore.Timestamp.fromMillis(nowMs + REMINDER_HOURS * 60 * 60 * 1000);
 
-      // Envoyer une notification à chaque athlète
+      // Envoyer une notification à chaque athlète + planifier rappel 2h si non répondu
       for (const memberDoc of membersSnap.docs) {
         const uid = memberDoc.id;
         const userDoc = await db.collection("users").doc(uid).get();
@@ -747,20 +750,26 @@ exports.sendQuestionnaireAvailableNotifications = functions
         const message = {
           tokens,
           data: {
-            title: "Questionnaire available",
-            body: `Rate your session: ${title}`,
+            title: notifTitle,
+            body: notifBody,
             url: clickAction,
             clickAction,
             trainingId,
             teamId,
+            tag: "ctpro-questionnaire",
           },
           notification: {
-            title: "Questionnaire available",
-            body: `Rate your session: ${title}`,
+            title: notifTitle,
+            body: notifBody,
           },
           webpush: {
-            fcmOptions: {
-              link: clickAction,
+            fcmOptions: { link: clickAction },
+            notification: {
+              icon: "https://championtrackpro.vercel.app/icons/icon-192.png",
+              badge: "https://championtrackpro.vercel.app/icons/icon-192.png",
+              tag: "ctpro-questionnaire",
+              requireInteraction: true,
+              renotify: true,
             },
           },
         };
@@ -793,13 +802,27 @@ exports.sendQuestionnaireAvailableNotifications = functions
           }
           
           notificationsSent += resp.successCount;
+
+          // Planifier rappel 2h plus tard si questionnaire non rempli (idempotent)
+          const reminderId = `${teamId}_${trainingId}_${uid}`;
+          const reminderRef = db.collection("pendingQuestionnaireReminders").doc(reminderId);
+          await reminderRef.set({
+            userId: uid,
+            teamId,
+            trainingId,
+            dueAt: dueAtReminder,
+            status: "pending",
+            notificationTitle: notifTitle,
+            notificationBody: notifBody,
+            clickAction,
+            createdAt: now,
+          }, { merge: true });
         } catch (err) {
           console.error("[NOTIF][FCM] Error sending notification", err);
         }
       }
 
       // Marquer le training comme notifié
-      // Utiliser la référence correcte avec le teamId
       const trainingRef = db
         .collection("teams")
         .doc(teamId)
@@ -814,5 +837,85 @@ exports.sendQuestionnaireAvailableNotifications = functions
 
     await batch.commit();
     console.log("[NOTIF][CRON] Sent", notificationsSent, "notifications total");
+    return null;
+  });
+
+/**
+ * Envoie les rappels "questionnaire disponible" 2h après la notification initiale,
+ * uniquement si le questionnaire n'est pas encore complété.
+ * S'exécute toutes les 5 minutes.
+ */
+exports.sendQuestionnaireReminders = functions
+  .region(REGION)
+  .pubsub.schedule("every 5 minutes")
+  .timeZone("Europe/Paris")
+  .onRun(async () => {
+    const now = admin.firestore.Timestamp.now();
+    const remindersSnap = await db
+      .collection("pendingQuestionnaireReminders")
+      .where("dueAt", "<=", now)
+      .where("status", "==", "pending")
+      .get();
+
+    for (const docSnap of remindersSnap.docs) {
+      const d = docSnap.data() || {};
+      const { userId, teamId, trainingId, notificationTitle, notificationBody, clickAction } = d;
+      const reminderRef = docSnap.ref;
+
+      try {
+        // Vérifier si le questionnaire est déjà complété (éviter rappel en double)
+        const responseRef = db
+          .collection("teams").doc(teamId)
+          .collection("trainings").doc(trainingId)
+          .collection("responses").doc(userId);
+        const responseSnap = await responseRef.get();
+        if (responseSnap.exists && (responseSnap.data()?.status === "completed")) {
+          await reminderRef.update({ status: "completed", completedAt: admin.firestore.FieldValue.serverTimestamp() });
+          continue;
+        }
+
+        const userDoc = await db.collection("users").doc(userId).get();
+        if (!userDoc.exists) {
+          await reminderRef.update({ status: "skipped", reason: "user_not_found" });
+          continue;
+        }
+        const tokens = (userDoc.data() || {}).fcmWebTokens || [];
+        if (tokens.length === 0) {
+          await reminderRef.update({ status: "skipped", reason: "no_tokens" });
+          continue;
+        }
+
+        const message = {
+          tokens,
+          data: {
+            title: notificationTitle,
+            body: notificationBody,
+            url: clickAction,
+            clickAction,
+            trainingId,
+            teamId,
+            tag: "ctpro-questionnaire-reminder",
+          },
+          notification: {
+            title: notificationTitle,
+            body: notificationBody,
+          },
+          webpush: {
+            fcmOptions: { link: clickAction },
+            notification: {
+              icon: "https://championtrackpro.vercel.app/icons/icon-192.png",
+              badge: "https://championtrackpro.vercel.app/icons/icon-192.png",
+              tag: "ctpro-questionnaire-reminder",
+              requireInteraction: true,
+              renotify: true,
+            },
+          },
+        };
+        await admin.messaging().sendMulticast(message);
+        await reminderRef.update({ status: "reminded", remindedAt: admin.firestore.FieldValue.serverTimestamp() });
+      } catch (err) {
+        console.error("[NOTIF][REMINDER] Error for", docSnap.id, err);
+      }
+    }
     return null;
   });

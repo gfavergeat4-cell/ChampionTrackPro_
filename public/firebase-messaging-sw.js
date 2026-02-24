@@ -18,12 +18,24 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const messaging = getMessaging(app);
 
+// Professional notification options (same title/body text; improved look & attention)
+const NOTIFICATION_ICON = "/icons/icon-192.png";
+const NOTIFICATION_BADGE = "/icons/icon-192.png"; // or /icons/badge-72.png if you add one
+const DEFAULT_TAG = "ctpro-questionnaire";
+
 onBackgroundMessage(messaging, (payload) => {
   const title = payload?.notification?.title || payload?.data?.title || "Questionnaire available";
+  const body = payload?.notification?.body || payload?.data?.body || "Tap to open your questionnaire.";
+  const data = payload?.data || {};
   const options = {
-    body: payload?.notification?.body || payload?.data?.body || "Tap to open your questionnaire.",
-    icon: "/assets/icon-192.png",
-    data: payload?.data || {}
+    body,
+    icon: data.icon || NOTIFICATION_ICON,
+    badge: data.badge || NOTIFICATION_BADGE,
+    vibrate: [200, 100, 200],
+    requireInteraction: true,
+    renotify: true,
+    tag: data.tag || DEFAULT_TAG,
+    data: { ...data, url: data.url || data.clickAction || "/" },
   };
   self.registration.showNotification(title, options);
 });
