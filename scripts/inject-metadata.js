@@ -11,37 +11,47 @@ const path = require('path');
 const HTML_FILE = path.join(__dirname, '../web/dist/index.html');
 const OG_IMAGE_SOURCE = path.join(__dirname, '../web/og-image.jpg');
 const OG_IMAGE_DEST = path.join(__dirname, '../web/dist/og-image.jpg');
+const APP_NAME = "ChampionTrackPro";
 const METADATA = `
     <!-- Primary Meta Tags -->
-    <meta name="title" content="ChampionTrackPRO" />
+    <meta name="title" content="${APP_NAME}" />
     <meta name="description" content="The Training Intelligence" />
     <meta name="keywords" content="sport, entraînement, planning, questionnaire, performance, athlète, coach" />
-    <meta name="author" content="ChampionTrackPRO" />
-    <meta name="theme-color" content="#0E1528" />
+    <meta name="author" content="${APP_NAME}" />
+    <meta name="theme-color" content="#0A1F3C" />
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    
+    <!-- iOS PWA -->
+    <meta name="apple-mobile-web-app-title" content="${APP_NAME}" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="apple-touch-icon" href="/icons/icon-512.png" />
     
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://champion-track-pro.vercel.app/" />
-    <meta property="og:title" content="ChampionTrackPRO" />
+    <meta property="og:title" content="${APP_NAME}" />
     <meta property="og:description" content="The Training Intelligence" />
     <meta property="og:image" content="https://champion-track-pro.vercel.app/og-image.jpg" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="ChampionTrackPRO - The Training Intelligence" />
-    <meta property="og:site_name" content="ChampionTrackPRO" />
+    <meta property="og:image:alt" content="${APP_NAME} - The Training Intelligence" />
+    <meta property="og:site_name" content="${APP_NAME}" />
     <meta property="og:locale" content="en_US" />
     
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:url" content="https://champion-track-pro.vercel.app/" />
-    <meta name="twitter:title" content="ChampionTrackPRO" />
+    <meta name="twitter:title" content="${APP_NAME}" />
     <meta name="twitter:description" content="The Training Intelligence" />
     <meta name="twitter:image" content="https://champion-track-pro.vercel.app/og-image.jpg" />
-    <meta name="twitter:image:alt" content="ChampionTrackPRO - The Training Intelligence" />
+    <meta name="twitter:image:alt" content="${APP_NAME} - The Training Intelligence" />
     
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="apple-touch-icon" href="/icon.png" />
+    <link rel="apple-touch-icon" href="/icons/icon-512.png" />
 `;
 
 function injectMetadata() {
@@ -74,11 +84,20 @@ function injectMetadata() {
   // Insérer les métadonnées avant </head>
   html = html.slice(0, headEndIndex) + METADATA + html.slice(headEndIndex);
 
-  // Mettre à jour le titre si nécessaire
+  // Force document title (fixes "undefined" when Expo leaves it unset)
   html = html.replace(
-    /<title>.*?<\/title>/,
-    '<title>ChampionTrackPRO - The Training Intelligence</title>'
+    /<title>.*?<\/title>/i,
+    `<title>${APP_NAME}</title>`
   );
+  // Ensure manifest link exists (in case not in METADATA insert point)
+  if (!html.includes('rel="manifest"')) {
+    html = html.replace('</head>', `  <link rel="manifest" href="/manifest.json" />\n</head>`);
+  }
+  // Ensure iOS PWA meta if missing
+  if (!html.includes('apple-mobile-web-app-title')) {
+    const iosMeta = `  <meta name="apple-mobile-web-app-title" content="${APP_NAME}" />\n  <meta name="apple-mobile-web-app-capable" content="yes" />\n  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />\n  <link rel="apple-touch-icon" href="/icons/icon-512.png" />\n`;
+    html = html.replace('</head>', iosMeta + '</head>');
+  }
 
   fs.writeFileSync(HTML_FILE, html, 'utf8');
   console.log('✅ Métadonnées injectées avec succès dans le HTML');

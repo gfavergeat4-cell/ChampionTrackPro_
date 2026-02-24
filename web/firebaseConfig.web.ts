@@ -64,17 +64,14 @@ export async function initAuth() {
   
   await new Promise<void>((resolve) => {
     const unsub = onAuthStateChanged(auth, async (user) => {
-      // Enregistrer le token FCM pour les notifications push web
-      // IMPORTANT: Uniquement sur le web, pas sur iOS/Android
       if (user && typeof window !== 'undefined') {
         try {
-          const { registerWebPushTokenForCurrentUser, setupForegroundMessageHandler } = await import('../src/services/webNotifications');
-          // Enregistrer le service worker et obtenir le token
-          await registerWebPushTokenForCurrentUser();
-          // Configurer le handler pour les messages en foreground
+          const { setupForegroundMessageHandler } = await import('../src/services/webNotifications');
           setupForegroundMessageHandler();
+          // FCM registration (SW + getToken) must be triggered by a user gesture (e.g. "Enable notifications" button).
+          // Call registerWebPushTokenForCurrentUser() from a button click, not on page load.
         } catch (err) {
-          console.error('[WEB PUSH] Error initializing push notifications:', err);
+          console.error('[WEB PUSH] Error setting up foreground handler:', err);
         }
       }
       unsub();

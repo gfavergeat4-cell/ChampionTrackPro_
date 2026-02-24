@@ -40,9 +40,10 @@ export function debugWebPushStatus(): void {
 }
 
 /**
- * Enregistre le service worker et récupère le token FCM pour l'utilisateur actuel
- * Demande la permission de notification si nécessaire
- * IMPORTANT: Uniquement pour le web, pas pour iOS/Android
+ * Enregistre le service worker (ESM, type: "module") et récupère le token FCM.
+ * Demande la permission de notification si nécessaire.
+ * MUST be called from a user gesture (e.g. button click); do not call on page load (iOS/browser may block).
+ * Web only, not iOS/Android native.
  */
 export async function registerWebPushTokenForCurrentUser(): Promise<void> {
   // Vérifier que nous sommes sur le web
@@ -119,10 +120,15 @@ export async function registerWebPushTokenForCurrentUser(): Promise<void> {
     console.log('[WEB PUSH] 🔵 Calling navigator.serviceWorker.register()...');
     
     const registration = await navigator.serviceWorker.register(swPath, {
-      scope: '/',
+      type: "module",
+      scope: "/",
     });
-    
-    console.log('[WEB PUSH] ✅✅✅ SERVICE WORKER REGISTERED SUCCESSFULLY ✅✅✅');
+
+    console.log('[WEB PUSH] isSecureContext:', window.isSecureContext);
+    console.log('[WEB PUSH] registration.scope:', registration.scope);
+    console.log('[WEB PUSH] registration.active?.scriptURL:', registration.active?.scriptURL);
+
+    console.log('[WEB PUSH] ✅ SERVICE WORKER REGISTERED');
     console.log('[WEB PUSH] 🔵 Registration result:', {
       scope: registration.scope,
       active: !!registration.active,
@@ -133,22 +139,27 @@ export async function registerWebPushTokenForCurrentUser(): Promise<void> {
       waitingState: registration.waiting?.state,
       updateViaCache: registration.updateViaCache,
     });
-    console.log('[WEB PUSH] 🔵 Registration scope matches origin:', registration.scope === window.location.origin + '/');
-    console.log('[WEB PUSH] 🔵 Registration scope:', registration.scope);
-    console.log('[WEB PUSH] 🔵 Expected scope:', window.location.origin + '/');
 
-    // Attendre que le service worker soit actif
-    // En production, cela peut prendre un peu plus de temps
     if (registration.waiting) {
       console.log('[WEB PUSH] Service worker is waiting, activating...');
       registration.waiting.postMessage({ type: 'SKIP_WAITING' });
     }
-    
-    // FORCER l'attente que le service worker soit prêt (active)
-    // navigator.serviceWorker.ready retourne la registration avec un worker actif
-    console.log('[WEB PUSH] 🔵 WAITING FOR navigator.serviceWorker.ready...');
-    const readyRegistration = await navigator.serviceWorker.ready;
-    console.log('[WEB PUSH] ✅✅✅ SERVICE WORKER IS READY AND ACTIVE ✅✅✅');
+
+    const SW_READY_MS = 8000;
+    const readyPromise = navigator.serviceWorker.ready;
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('SW ready timeout')), SW_READY_MS)
+    );
+    let readyRegistration;
+    try {
+      readyRegistration = await Promise.race([readyPromise, timeoutPromise]);
+    } catch (e) {
+      throw new Error(
+        'Service worker did not become ready in time. Unregister SW + Clear site data (Chrome: DevTools > Application > Storage > Clear site data), then reload.'
+      );
+    }
+    console.log('[WEB PUSH] navigator.serviceWorker.controller?.scriptURL:', navigator.serviceWorker.controller?.scriptURL);
+    console.log('[WEB PUSH] ✅ SERVICE WORKER IS READY AND ACTIVE');
     console.log('[WEB PUSH] 🔵 Ready registration details:', {
       scope: readyRegistration.scope,
       active: !!readyRegistration.active,
@@ -295,20 +306,18 @@ export function setupForegroundMessageHandler(): (() => void) | null {
       const notificationTitle = payload.notification?.title || payload.data?.title || "ChampionTrackPro";
       const notificationBody = payload.notification?.body || payload.data?.body || "Questionnaire available";
       const icon = payload.notification?.icon || payload.data?.icon || "/icons/icon-192.png";
-      const clickAction = payload.data?.clickAction;
-      
-      // Afficher une notification même en foreground
+      const clickUrl = payload.data?.url || payload.data?.clickAction;
+
       if ("Notification" in window && Notification.permission === "granted") {
         const notification = new Notification(notificationTitle, {
           body: notificationBody,
           icon: icon,
-          data: { clickAction },
+          data: { url: clickUrl },
         });
 
-        notification.onclick = (event) => {
-          event.preventDefault();
-          if (clickAction) {
-            window.open(clickAction, "_blank");
+        notification.onclick = () => {
+          if (clickUrl) {
+            window.open(clickUrl, "_blank");
           }
           notification.close();
         };

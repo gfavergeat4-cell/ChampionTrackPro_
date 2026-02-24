@@ -1,217 +1,50 @@
-const fs = require('fs');
-const path = require('path');
+const fs = require("fs");
+const path = require("path");
 
-/**
- * Script pour copier le service worker Firebase depuis public/ vers web/dist/
- * Ce script est exécuté après le build web pour s'assurer que le service worker
- * est accessible à /firebase-messaging-sw.js sur Vercel
- * 
- * IMPORTANT: Ce fichier doit être présent dans web/dist/ AVANT que Vercel serve l'application,
- * sinon Vercel réécrira la route vers index.html
- * 
- * Ce script échoue clairement si le fichier source est absent.
- */
-
-const publicSwPath = path.join(__dirname, '..', 'public', 'firebase-messaging-sw.js');
-const distSwPath = path.join(__dirname, '..', 'web', 'dist', 'firebase-messaging-sw.js');
-const publicFirebaseDir = path.join(__dirname, '..', 'public', 'firebase');
-const distFirebaseDir = path.join(__dirname, '..', 'web', 'dist', 'firebase');
-
-console.log('[POST-BUILD] ===== Copying Firebase Service Worker =====');
-console.log('[POST-BUILD] Source path:', publicSwPath);
-console.log('[POST-BUILD] Destination path:', distSwPath);
-console.log('[POST-BUILD] Current working directory:', process.cwd());
-
-// Vérifier que le fichier source existe - ÉCHOUER si absent
-if (!fs.existsSync(publicSwPath)) {
-  console.error('[POST-BUILD] ❌ ERROR: Service worker source file not found:', publicSwPath);
-  console.error('[POST-BUILD] ❌ This file is required for web push notifications to work.');
-  console.error('[POST-BUILD] ❌ Make sure public/firebase-messaging-sw.js exists and is tracked by git.');
-  console.error('[POST-BUILD] ❌ Check that .vercelignore does not exclude public/');
-  process.exit(1);
-}
-
-// Lire le contenu du fichier source pour vérifier qu'il contient bien du JS
-let sourceContent;
-try {
-  sourceContent = fs.readFileSync(publicSwPath, 'utf8');
-} catch (error) {
-  console.error('[POST-BUILD] ❌ ERROR: Could not read source file:', error.message);
-  console.error('[POST-BUILD] ❌ Path:', publicSwPath);
-  process.exit(1);
-}
-
-if (!sourceContent.includes('importScripts') || !sourceContent.includes('firebase')) {
-  console.error('[POST-BUILD] ❌ ERROR: Source file does not appear to be a valid Firebase service worker');
-  console.error('[POST-BUILD] ❌ First 200 chars:', sourceContent.substring(0, 200));
-  process.exit(1);
-}
-
-console.log('[POST-BUILD] ✅ Source file validated (contains importScripts and firebase)');
-console.log('[POST-BUILD] Source file size:', sourceContent.length, 'bytes');
-
-// Vérifier que le dossier dist existe (il devrait exister après expo export)
-const distDir = path.dirname(distSwPath);
-if (!fs.existsSync(distDir)) {
-  console.error('[POST-BUILD] ❌ ERROR: Dist directory does not exist:', distDir);
-  console.error('[POST-BUILD] ❌ This means expo export did not create web/dist/');
-  console.error('[POST-BUILD] ❌ Check that expo export completed successfully.');
-  process.exit(1);
-}
-
-console.log('[POST-BUILD] ✅ Dist directory exists:', distDir);
-
-// Copier le fichier de manière synchrone
-try {
-  console.log('[POST-BUILD] Copying file...');
-  fs.copyFileSync(publicSwPath, distSwPath);
-  console.log('[POST-BUILD] OK: Copied firebase-messaging-sw.js');
-  
-  // Vérifier que le fichier a bien été copié
-  if (!fs.existsSync(distSwPath)) {
-    console.error('[POST-BUILD] ❌ ERROR: Destination file does not exist after copy');
+function copy(src, dst) {
+  if (!fs.existsSync(src)) {
+    console.error("❌ Missing:", src);
     process.exit(1);
   }
-  
-  // Vérifier le contenu du fichier copié
-  const copiedContent = fs.readFileSync(distSwPath, 'utf8');
-  if (copiedContent !== sourceContent) {
-    console.error('[POST-BUILD] ❌ ERROR: Copied file content does not match source');
-    process.exit(1);
-  }
-  
-  // Vérifier que le fichier n'est pas du HTML (problème courant sur Vercel)
-  if (copiedContent.trim().startsWith('<!DOCTYPE') || copiedContent.includes('<html>')) {
-    console.error('[POST-BUILD] ❌ ERROR: Destination file contains HTML instead of JavaScript!');
-    console.error('[POST-BUILD] ❌ This means the file is being served from index.html instead of the SW file');
-    console.error('[POST-BUILD] ❌ First 200 chars of destination:', copiedContent.substring(0, 200));
-    process.exit(1);
-  }
-  
-  const stats = fs.statSync(distSwPath);
-  console.log('[POST-BUILD] ✅ Service worker file verified');
-  console.log('[POST-BUILD] ✅ File size:', stats.size, 'bytes');
-  console.log('[POST-BUILD] ✅ File contains JavaScript (not HTML)');
-} catch (error) {
-  console.error('[POST-BUILD] ❌ ERROR copying service worker:', error.message);
-  console.error('[POST-BUILD] Error details:', {
-    message: error.message,
-    code: error.code,
-    path: error.path,
+  fs.mkdirSync(path.dirname(dst), { recursive: true });
+  fs.copyFileSync(src, dst);
+  console.log("✅ Copied:", src, "->", dst);
+}
+
+// Vercel serves web/dist (outputDirectory)
+const distRoot = path.join(process.cwd(), "web", "dist");
+
+// Service worker
+const srcSw = path.join(process.cwd(), "public", "firebase-messaging-sw.js");
+const dstSw = path.join(distRoot, "firebase-messaging-sw.js");
+copy(srcSw, dstSw);
+
+// PWA manifest and icons (so /manifest.json and /icons/* are served)
+const srcManifest = path.join(process.cwd(), "public", "manifest.json");
+const dstManifest = path.join(distRoot, "manifest.json");
+if (fs.existsSync(srcManifest)) {
+  fs.mkdirSync(path.dirname(dstManifest), { recursive: true });
+  fs.copyFileSync(srcManifest, dstManifest);
+  console.log("✅ Copied:", srcManifest, "->", dstManifest);
+}
+const srcIcons = path.join(process.cwd(), "public", "icons");
+const dstIcons = path.join(distRoot, "icons");
+if (fs.existsSync(srcIcons)) {
+  fs.mkdirSync(dstIcons, { recursive: true });
+  fs.readdirSync(srcIcons).forEach((f) => {
+    const s = path.join(srcIcons, f);
+    const d = path.join(dstIcons, f);
+    if (fs.statSync(s).isFile()) {
+      fs.copyFileSync(s, d);
+      console.log("✅ Copied:", s, "->", d);
+    }
   });
+}
+
+// Quick sanity check: ensure SW is ESM (no importScripts)
+const swTxt = fs.readFileSync(dstSw, "utf8");
+if (swTxt.includes("importScripts")) {
+  console.error("❌ SW in dist still contains importScripts (should be ESM).");
   process.exit(1);
 }
-
-// Vérification finale : est-ce que le fichier est présent dans dist ?
-console.log('[POST-BUILD] ===== Final Verification =====');
-if (fs.existsSync(distSwPath)) {
-  const finalStats = fs.statSync(distSwPath);
-  const finalContent = fs.readFileSync(distSwPath, 'utf8');
-  if ((finalContent.includes('import') || finalContent.includes('importScripts')) && finalContent.includes('firebase')) {
-    console.log('[POST-BUILD] ✅ OK: Service worker present in web/dist/');
-    console.log('[POST-BUILD] ✅ File path:', distSwPath);
-    console.log('[POST-BUILD] ✅ File size:', finalStats.size, 'bytes');
-    console.log('[POST-BUILD] ✅ Valid JavaScript service worker');
-    console.log('[POST-BUILD] ✅ File will be served at: /firebase-messaging-sw.js');
-    
-    // Lister les fichiers dans web/dist pour vérification
-    try {
-      const distFiles = fs.readdirSync(distDir);
-      const swInList = distFiles.includes('firebase-messaging-sw.js');
-      console.log('[POST-BUILD] ✅ Service worker found in dist directory listing:', swInList);
-      console.log('[POST-BUILD] Total files in web/dist:', distFiles.length);
-    } catch (listErr) {
-      console.warn('[POST-BUILD] ⚠️ Could not list dist directory:', listErr.message);
-    }
-  } else {
-    console.error('[POST-BUILD] ❌ ERROR: File exists but content is invalid');
-    process.exit(1);
-  }
-} else {
-  console.error('[POST-BUILD] ❌ ERROR: Missing in dist');
-  console.error('[POST-BUILD] ❌ Expected path:', distSwPath);
-  console.error('[POST-BUILD] ❌ This will cause 404 errors in production!');
-  process.exit(1);
-}
-
-// Copier le dossier firebase/ avec les fichiers Firebase locaux
-console.log('[POST-BUILD] ===== Copying Firebase Local Files =====');
-console.log('[POST-BUILD] Source directory:', publicFirebaseDir);
-console.log('[POST-BUILD] Destination directory:', distFirebaseDir);
-
-if (!fs.existsSync(publicFirebaseDir)) {
-  console.error('[POST-BUILD] ❌ ERROR: Firebase directory not found:', publicFirebaseDir);
-  console.error('[POST-BUILD] ❌ This directory is required for service worker to work in production.');
-  console.error('[POST-BUILD] ❌ Make sure public/firebase/ exists with firebase-app-compat.js and firebase-messaging-compat.js');
-  process.exit(1);
-}
-
-// Vérifier que les fichiers Firebase compat existent
-const firebaseAppCompatPath = path.join(publicFirebaseDir, 'firebase-app-compat.js');
-const firebaseMessagingCompatPath = path.join(publicFirebaseDir, 'firebase-messaging-compat.js');
-
-if (!fs.existsSync(firebaseAppCompatPath)) {
-  console.error('[POST-BUILD] ❌ ERROR: firebase-app-compat.js not found:', firebaseAppCompatPath);
-  process.exit(1);
-}
-
-if (!fs.existsSync(firebaseMessagingCompatPath)) {
-  console.error('[POST-BUILD] ❌ ERROR: firebase-messaging-compat.js not found:', firebaseMessagingCompatPath);
-  process.exit(1);
-}
-
-console.log('[POST-BUILD] ✅ Firebase source files found');
-
-// Créer le dossier de destination s'il n'existe pas
-if (!fs.existsSync(distFirebaseDir)) {
-  fs.mkdirSync(distFirebaseDir, { recursive: true });
-  console.log('[POST-BUILD] ✅ Created destination directory:', distFirebaseDir);
-}
-
-// Copier les fichiers Firebase compat
-try {
-  const firebaseFiles = [
-    { src: firebaseAppCompatPath, dest: path.join(distFirebaseDir, 'firebase-app-compat.js'), name: 'firebase-app-compat.js' },
-    { src: firebaseMessagingCompatPath, dest: path.join(distFirebaseDir, 'firebase-messaging-compat.js'), name: 'firebase-messaging-compat.js' }
-  ];
-  
-  for (const file of firebaseFiles) {
-    console.log('[POST-BUILD] Copying', file.name, '...');
-    fs.copyFileSync(file.src, file.dest);
-    
-    // Vérifier que le fichier a bien été copié
-    if (!fs.existsSync(file.dest)) {
-      console.error('[POST-BUILD] ❌ ERROR: Failed to copy', file.name);
-      process.exit(1);
-    }
-    
-    const stats = fs.statSync(file.dest);
-    console.log('[POST-BUILD] ✅ Copied', file.name, '-', stats.size, 'bytes');
-  }
-  
-  // Vérification finale: tous les fichiers doivent être présents
-  const requiredFiles = [
-    path.join(distFirebaseDir, 'firebase-app-compat.js'),
-    path.join(distFirebaseDir, 'firebase-messaging-compat.js')
-  ];
-  
-  for (const filePath of requiredFiles) {
-    if (!fs.existsSync(filePath)) {
-      console.error('[POST-BUILD] ❌ ERROR: Required file missing in dist:', filePath);
-      process.exit(1);
-    }
-  }
-  
-  console.log('[POST-BUILD] ✅ All Firebase files copied successfully');
-} catch (error) {
-  console.error('[POST-BUILD] ❌ ERROR copying Firebase files:', error.message);
-  process.exit(1);
-}
-
-console.log('[POST-BUILD] ===== Service Worker Copy Complete =====');
-console.log('[POST-BUILD] ✅ BUILD SUCCESS: Service worker ready for Vercel deployment');
-console.log('[POST-BUILD] ✅ Files in web/dist/:');
-console.log('[POST-BUILD]   - firebase-messaging-sw.js');
-console.log('[POST-BUILD]   - firebase/firebase-app-compat.js');
-console.log('[POST-BUILD]   - firebase/firebase-messaging-compat.js');
-
+console.log("✅ SW in dist is ESM (no importScripts).");

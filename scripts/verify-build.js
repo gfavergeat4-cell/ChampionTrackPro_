@@ -1,92 +1,54 @@
-// scripts/verify-build.js
-const fs = require('fs');
-const path = require('path');
+const fs = require("fs");
+const path = require("path");
 
-/**
- * Script de vérification post-build pour s'assurer que tous les fichiers
- * nécessaires au service worker FCM sont présents dans web/dist/
- */
+function ok(msg) { console.log("[VERIFY] ✅ " + msg); }
+function fail(msg) { console.error("[VERIFY] ❌ " + msg); process.exitCode = 1; }
 
-const requiredFiles = [
-  'web/dist/firebase-messaging-sw.js',
-  'web/dist/firebase/firebase-app-compat.js',
-  'web/dist/firebase/firebase-messaging-compat.js',
+function mustExist(p) {
+  if (!fs.existsSync(p)) fail("Missing file: " + p);
+  else ok(p + " - " + fs.statSync(p).size + " bytes");
+}
+
+console.log("[VERIFY] ===== Verifying Build Artifacts (ESM ONLY) =====");
+
+const distRoot = path.join(process.cwd(), "web", "dist");
+
+// Required files for Vercel static hosting (no local Firebase SDK; SW uses gstatic)
+const required = [
+  path.join(distRoot, "index.html"),
+  path.join(distRoot, "firebase-messaging-sw.js"),
+  path.join(distRoot, "manifest.json"),
 ];
 
-console.log('[VERIFY] ===== Verifying Build Artifacts =====');
+required.forEach(mustExist);
 
-let allPresent = true;
-
-for (const filePath of requiredFiles) {
-  const fullPath = path.join(__dirname, '..', filePath);
-  
-  if (fs.existsSync(fullPath)) {
-    const stats = fs.statSync(fullPath);
-    console.log('[VERIFY] ✅', filePath, '-', stats.size, 'bytes');
-    
-    // Vérifier que ce n'est pas du HTML
-    const content = fs.readFileSync(fullPath, 'utf8');
-    if (content.trim().startsWith('<!DOCTYPE') || content.includes('<html>')) {
-      console.error('[VERIFY] ❌ ERROR:', filePath, 'contains HTML instead of JavaScript!');
-      allPresent = false;
-    }
-    
-    // Vérifier que le service worker principal ne contient pas 'window.'
-    if (filePath.includes('firebase-messaging-sw.js') && !filePath.includes('firebase/') && content.includes('window.')) {
-      console.error('[VERIFY] ❌ ERROR:', filePath, 'contains "window." which is not available in Service Workers!');
-      allPresent = false;
-    }
-    
-    // Vérifier que le service worker principal ne contient pas d'import() dynamique
-    if (filePath.includes('firebase-messaging-sw.js') && !filePath.includes('firebase/') && content.includes('import(')) {
-      console.error('[VERIFY] ❌ ERROR:', filePath, 'contains dynamic import() which is not supported in classic Service Workers!');
-      allPresent = false;
-    }
-    
-    // Vérifier que le service worker principal ne contient pas d'export
-    if (filePath.includes('firebase-messaging-sw.js') && !filePath.includes('firebase/') && content.includes('export ')) {
-      console.error('[VERIFY] ❌ ERROR:', filePath, 'contains export which is not supported in classic Service Workers!');
-      allPresent = false;
-    }
-    
-    // Vérifier qu'aucun fichier ne contient d'import vers le CDN gstatic
-    if (content.includes('https://www.gstatic.com/firebasejs/')) {
-      console.error('[VERIFY] ❌ ERROR:', filePath, 'contains CDN import! All imports must be local.');
-      allPresent = false;
-    }
-  } else {
-    console.error('[VERIFY] ❌ ERROR: Missing file:', filePath);
-    allPresent = false;
-  }
-}
-
-// Vérifier que le service worker principal utilise importScripts (pas import())
-const swPath = path.join(__dirname, '..', 'web', 'dist', 'firebase-messaging-sw.js');
+// Validate SW content (must be ESM, must not be compat/importScripts)
+const swPath = path.join(distRoot, "firebase-messaging-sw.js");
 if (fs.existsSync(swPath)) {
-  const swContent = fs.readFileSync(swPath, 'utf8');
-  if (!swContent.includes('importScripts(')) {
-    console.error('[VERIFY] ❌ ERROR: Service worker must use importScripts() not import()');
-    allPresent = false;
-  }
-  if (swContent.includes('import(')) {
-    console.error('[VERIFY] ❌ ERROR: Service worker contains dynamic import() which is not supported!');
-    allPresent = false;
-  }
-  if (swContent.includes('export ')) {
-    console.error('[VERIFY] ❌ ERROR: Service worker contains export which is not supported!');
-    allPresent = false;
-  }
+  const sw = fs.readFileSync(swPath, "utf8");
+
+  if (sw.includes("importScripts")) fail("Service worker must NOT use importScripts (ESM only).");
+  else ok("SW has no importScripts");
+
+  if (sw.includes("compat")) fail("Service worker must NOT reference compat.");
+  else ok("SW has no compat references");
+
+  if (sw.includes("import {") || sw.includes('type: "module"')) ok("SW uses ESM (import { or type: module)");
+  else fail("Service worker SHOULD use ESM imports (e.g. import {).");
 }
 
-if (!allPresent) {
-  console.error('[VERIFY] ❌ BUILD VERIFICATION FAILED');
-  console.error('[VERIFY] ❌ Some required files are missing or invalid');
+// Ensure no compat script files exist (we use ESM-only; SDK bundles may contain "compat" in package names)
+const firebaseDir = path.join(distRoot, "firebase");
+if (fs.existsSync(firebaseDir)) {
+  const files = fs.readdirSync(firebaseDir);
+  const compatFiles = files.filter((f) => f.endsWith("-compat.js"));
+  if (compatFiles.length > 0) fail("No *-compat.js files allowed in web/dist/firebase: " + compatFiles.join(", "));
+  else ok("No compat script files in firebase/ (ESM only)");
+}
+
+if (process.exitCode) {
+  console.error("[VERIFY] ❌ BUILD VERIFICATION FAILED");
   process.exit(1);
+} else {
+  console.log("[VERIFY] ✅ BUILD VERIFICATION PASSED");
 }
-
-console.log('[VERIFY] ✅ All required files present and valid');
-console.log('[VERIFY] ✅ No compat files found');
-console.log('[VERIFY] ✅ No "window." references found');
-console.log('[VERIFY] ✅ No CDN imports found');
-console.log('[VERIFY] ===== Build Verification Complete =====');
-

@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, Platform } from 'react-native';
 import { tokens } from '../theme/tokens';
+import { registerWebPushTokenForCurrentUser } from '../services/webNotifications';
 
 interface ServiceWorkerRegistration {
   scope: string;
@@ -30,6 +31,21 @@ export default function FCMDebugPanel() {
   const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [registering, setRegistering] = useState(false);
+
+  const handleEnableNotifications = async () => {
+    if (Platform.OS !== 'web') return;
+    setRegistering(true);
+    setError(null);
+    try {
+      await registerWebPushTokenForCurrentUser();
+      await fetchDebugInfo();
+    } catch (e: any) {
+      setError(e?.message || 'Registration failed');
+    } finally {
+      setRegistering(false);
+    }
+  };
 
   const fetchDebugInfo = async () => {
     if (Platform.OS !== 'web' || typeof window === 'undefined') {
@@ -115,9 +131,18 @@ export default function FCMDebugPanel() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>🔔 FCM Service Worker Debug</Text>
-        <Pressable onPress={fetchDebugInfo} style={styles.refreshButton}>
-          <Text style={styles.refreshText}>🔄 Refresh</Text>
-        </Pressable>
+        <View style={styles.headerButtons}>
+          <Pressable
+            onPress={handleEnableNotifications}
+            style={[styles.refreshButton, registering && styles.buttonDisabled]}
+            disabled={registering}
+          >
+            <Text style={styles.refreshText}>{registering ? '…' : '🔔 Enable notifications'}</Text>
+          </Pressable>
+          <Pressable onPress={fetchDebugInfo} style={styles.refreshButton}>
+            <Text style={styles.refreshText}>🔄 Refresh</Text>
+          </Pressable>
+        </View>
       </View>
 
       {loading && (
@@ -288,11 +313,18 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: tokens.colors.text,
   },
+  headerButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
   refreshButton: {
     backgroundColor: tokens.colors.accent,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: tokens.radii.md,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
   refreshText: {
     color: '#FFFFFF',

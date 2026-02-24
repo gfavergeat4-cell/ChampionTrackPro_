@@ -749,6 +749,7 @@ exports.sendQuestionnaireAvailableNotifications = functions
           data: {
             title: "Questionnaire available",
             body: `Rate your session: ${title}`,
+            url: clickAction,
             clickAction,
             trainingId,
             teamId,

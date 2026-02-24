@@ -1,6 +1,6 @@
-﻿export default {
+export default {
   expo: {
-    name: "ChampionTrackPRO",
+    name: "ChampionTrackPro",
     slug: "championtrackpro",
     version: "1.0.0",
     orientation: "portrait",
@@ -14,11 +14,11 @@
       bundler: "metro",
       output: "single",
       entryPoint: "./index.web.js",
-      name: "ChampionTrackPRO",
-      shortName: "CTP",
+      name: "ChampionTrackPro",
+      shortName: "ChampionTrackPro",
       description: "The Training Intelligence",
-      themeColor: "#0E1528",
-      backgroundColor: "#0E1528",
+      themeColor: "#0A1F3C",
+      backgroundColor: "#0A1F3C",
       lang: "en",
       scope: "/",
       startUrl: "/",
