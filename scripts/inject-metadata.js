@@ -99,6 +99,23 @@ function injectMetadata() {
     html = html.replace('</head>', iosMeta + '</head>');
   }
 
+  // Ensure FCM SW is registered on load (before </body>)
+  const swRegisterScript = `<script>
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", async () => {
+      try {
+        const reg = await navigator.serviceWorker.register("/firebase-messaging-sw.js", { scope: "/", type: "module" });
+        console.log("[SW] registered", reg.scope);
+      } catch (e) {
+        console.error("[SW] registration failed", e);
+      }
+    });
+  }
+</script>`;
+  if (!html.includes('[SW] registered')) {
+    html = html.replace('</body>', swRegisterScript + '\n</body>');
+  }
+
   fs.writeFileSync(HTML_FILE, html, 'utf8');
   console.log('✅ Métadonnées injectées avec succès dans le HTML');
   
