@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { useNavigation } from "@react-navigation/native";
-import { Platform, StyleSheet, View, Text, Pressable, ScrollView, ActivityIndicator } from "react-native";
+import { Platform, StyleSheet, View, Text, Pressable, ScrollView, ActivityIndicator, Alert } from "react-native";
 import MobileViewport from "../src/components/MobileViewport";
 import { signOut } from "firebase/auth";
 import { auth, db } from "../services/firebaseConfig";
 import { CommonActions } from "@react-navigation/native";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import UnifiedAthleteNavigation from "../src/stitch_components/UnifiedAthleteNavigation";
+
+// Set to true to show "Test Push Notification (Debug)" button (verification only).
+const DEBUG_PUSH_TEST = true;
 
 export default function StitchProfileScreen() {
   const navigation = useNavigation();
@@ -222,6 +225,37 @@ export default function StitchProfileScreen() {
     } catch (error) {
       console.error("Error during logout:", error);
       alert("Logout failed.");
+    }
+  };
+
+  // Debug: trigger a local test notification and deep-link to /debug/test-questionnaire
+  const handleTestPushNotification = async () => {
+    if (typeof window === "undefined" || !("Notification" in window) || !("serviceWorker" in navigator)) {
+      Alert.alert("Not supported", "Notifications or Service Worker not available.");
+      return;
+    }
+    let permission = Notification.permission;
+    if (permission !== "granted") {
+      permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        Alert.alert("Permission needed", "Please allow notifications to test. You can enable them in your browser settings.");
+        return;
+      }
+    }
+    try {
+      let reg = await navigator.serviceWorker.getRegistration();
+      if (!reg) {
+        reg = await navigator.serviceWorker.register("/firebase-messaging-sw.js", { scope: "/", type: "module" });
+      }
+      await navigator.serviceWorker.ready;
+      reg.showNotification("ChampionTrackPro Test", {
+        body: "Tap to open test questionnaire",
+        tag: "ctpro-test",
+        data: { url: "/debug/test-questionnaire" },
+      });
+    } catch (e) {
+      console.error("[SW] test notification failed", e);
+      Alert.alert("Error", "Could not show test notification. Check console.");
     }
   };
 
@@ -598,6 +632,28 @@ export default function StitchProfileScreen() {
                       >
                         Edit Profile
                       </button>
+
+                      {DEBUG_PUSH_TEST && (
+                        <button
+                          onClick={handleTestPushNotification}
+                          style={{
+                            width: "100%",
+                            padding: "14px 20px",
+                            borderRadius: "20px",
+                            background: "rgba(156, 163, 175, 0.12)",
+                            border: "1px solid rgba(156, 163, 175, 0.35)",
+                            color: "#9CA3AF",
+                            fontSize: "14px",
+                            fontWeight: "600",
+                            cursor: "pointer",
+                            transition: "all 0.3s ease",
+                            pointerEvents: "auto",
+                            letterSpacing: "0.3px"
+                          }}
+                        >
+                          Test Push Notification (Debug)
+                        </button>
+                      )}
 
                       <button
                         onClick={handleLogout}

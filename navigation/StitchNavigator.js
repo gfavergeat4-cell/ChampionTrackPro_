@@ -23,6 +23,7 @@ import QuestionnaireScreen from "../screens/StitchQuestionnaireScreen";
 import AdminDashboard from "../screens/StitchAdminDashboard";
 import TeamDetails from "../screens/StitchTeamDetails";
 import DevEventsProbe from "../screens/DevEventsProbe";
+import DebugTestQuestionnaireScreen from "../screens/DebugTestQuestionnaireScreen";
 
 const AuthStack = createNativeStackNavigator();
 const RootStack = createNativeStackNavigator();
@@ -261,6 +262,7 @@ function RootStackNavigator({ role, user }) {
         <RootStack.Screen name="AdminMain" component={AdminTabs} />
         <RootStack.Screen name="TeamDetails" component={TeamDetails} />
         <RootStack.Screen name="DevEventsProbe" component={DevEventsProbe} />
+        <RootStack.Screen name="DebugTestQuestionnaire" component={DebugTestQuestionnaireScreen} />
         <RootStack.Screen 
           name="Questionnaire" 
           component={QuestionnaireScreen}
@@ -278,6 +280,7 @@ function RootStackNavigator({ role, user }) {
     return (
       <RootStack.Navigator screenOptions={{ headerShown: false }}>
         <RootStack.Screen name="CoachMain" component={CoachTabs} />
+        <RootStack.Screen name="DebugTestQuestionnaire" component={DebugTestQuestionnaireScreen} />
         <RootStack.Screen 
           name="Questionnaire" 
           component={QuestionnaireScreen}
@@ -295,6 +298,7 @@ function RootStackNavigator({ role, user }) {
     return (
       <RootStack.Navigator screenOptions={{ headerShown: false }}>
         <RootStack.Screen name="AthleteMain" component={AthleteTabs} />
+        <RootStack.Screen name="DebugTestQuestionnaire" component={DebugTestQuestionnaireScreen} />
         <RootStack.Screen 
           name="Questionnaire" 
           component={QuestionnaireScreen}
@@ -311,6 +315,7 @@ function RootStackNavigator({ role, user }) {
   return (
     <RootStack.Navigator screenOptions={{ headerShown: false }}>
       <RootStack.Screen name="Auth" component={AuthStackNavigator} />
+      <RootStack.Screen name="DebugTestQuestionnaire" component={DebugTestQuestionnaireScreen} />
       <RootStack.Screen 
         name="Questionnaire" 
         component={QuestionnaireScreen}
@@ -429,9 +434,19 @@ export default function StitchNavigator() {
     if (typeof window === "undefined") return;
 
     const handleDeepLink = () => {
+      const pathname = window.location.pathname || "";
       const url = new URL(window.location.href);
       const sessionId = url.searchParams.get("sessionId");
       const openQuestionnaire = url.searchParams.get("openQuestionnaire");
+
+      // Debug route: /debug/test-questionnaire (notification deep-link)
+      if (pathname === "/debug/test-questionnaire") {
+        if (navigationRef.current?.isReady()) {
+          navigationRef.current.navigate("DebugTestQuestionnaire");
+          window.history.replaceState({}, "", pathname);
+        }
+        return;
+      }
 
       if (sessionId && openQuestionnaire === "1" && navigationRef.current) {
         // Attendre que la navigation soit prête
