@@ -6,8 +6,6 @@ import { signOut } from "firebase/auth";
 import { auth, db } from "../services/firebaseConfig";
 import { CommonActions } from "@react-navigation/native";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
-import { getFunctions, httpsCallable } from "firebase/functions";
-import { app } from "../services/firebaseConfig";
 import UnifiedAthleteNavigation from "../src/stitch_components/UnifiedAthleteNavigation";
 import { normalizePhoneE164, isValidPhoneE164 } from "../src/utils/phoneE164";
 
@@ -292,25 +290,39 @@ export default function StitchProfileScreen() {
     }
   };
 
+  const SEND_TEST_SMS_HTTP_URL = "https://us-central1-championtrackpro.cloudfunctions.net/sendTestSmsHttp";
+
   const handleSendTestSms = async () => {
     if (!userData?.smsOptIn || !userData?.phoneE164) {
       notify("SMS opt-in required", "Enable SMS and add your phone number in Personal Info first.");
       return;
     }
     try {
-      console.log("[SMS] calling callable sendTestSms");
-      const functions = getFunctions(app, "us-central1");
-      const fn = httpsCallable(functions, "sendTestSms");
-      const res = await fn({});
-      const data = res.data;
+      console.log("[SMS] calling sendTestSmsHttp");
+      const token = await auth.currentUser.getIdToken(true);
+      const res = await fetch(SEND_TEST_SMS_HTTP_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({}),
+      });
+      console.log("[SMS] http status", res.status);
+      let data = null;
+      try {
+        data = await res.json();
+      } catch {
+        data = { success: false, reason: "non_json_response" };
+      }
       console.log("[SMS] callable response", data);
 
-      if (data.success) {
+      if (data.success && res.ok) {
         notify("Test SMS sent", `Twilio SID: ${data.twilioSid || "n/a"}`);
       } else {
-        notify("SMS not sent", `Reason: ${data.reason || "unknown"}`);
+        const reason = data && data.reason ? data.reason : "unknown";
+        notify("SMS not sent", `HTTP ${res.status} - ${reason}`);
       }
-      console.log("[SMS][sendTestSms] callable sendTestSms completed");
     } catch (e) {
       console.error("[SMS] test failed", e);
       notify("Error", e?.message || "Failed to send test SMS.");

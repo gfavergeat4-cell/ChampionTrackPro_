@@ -1136,6 +1136,113 @@ exports.sendTestSms = functions
     }
   });
 
+const corsSendTestSmsHttp = require("cors")({
+  origin: ["https://champion-track-pro.vercel.app"],
+  methods: ["POST", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+});
+
+/**
+ * HTTP endpoint for Send Test SMS (Profile). CORS + Bearer token. Same logic as sendTestSms.
+ */
+exports.sendTestSmsHttp = functions
+  .region("us-central1")
+  .https.onRequest((req, res) => {
+    corsSendTestSmsHttp(req, res, async () => {
+      if (req.method === "OPTIONS") {
+        res.status(204).send();
+        return;
+      }
+      if (req.method !== "POST") {
+        res.status(405).json({ success: false, reason: "method_not_allowed" });
+        return;
+      }
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        res.status(401).json({ success: false, reason: "unauthorized" });
+        return;
+      }
+      const token = authHeader.slice(7);
+      let uid;
+      try {
+        const decoded = await admin.auth().verifyIdToken(token);
+        uid = decoded.uid;
+      } catch (e) {
+        res.status(401).json({ success: false, reason: "invalid_token" });
+        return;
+      }
+      const userRef = db.collection("users").doc(uid);
+      const userDoc = await userRef.get();
+      if (!userDoc.exists) {
+        res.status(404).json({ success: false, reason: "user_not_found", twilioSid: null });
+        return;
+      }
+      const userData = userDoc.data() || {};
+      const phoneE164 = userData.phoneE164;
+      const smsOptIn = !!userData.smsOptIn;
+      if (smsOptIn !== true) {
+        res.status(400).json({ success: false, reason: "not_opted_in", twilioSid: null });
+        return;
+      }
+      const phoneValid = /^\+[0-9]{8,15}$/.test(String(phoneE164 || "").trim());
+      if (!phoneValid) {
+        res.status(400).json({ success: false, reason: "invalid_phone_format", twilioSid: null });
+        return;
+      }
+      const sidEnv = process.env.TWILIO_ACCOUNT_SID;
+      const tokenEnv = process.env.TWILIO_AUTH_TOKEN;
+      const fromEnv = process.env.TWILIO_FROM_NUMBER;
+      if (!sidEnv || !tokenEnv || !fromEnv) {
+        res.status(503).json({ success: false, reason: "missing_env", twilioSid: null });
+        return;
+      }
+      const now = admin.firestore.Timestamp.now();
+      const startOfDay = admin.firestore.Timestamp.fromMillis(
+        new Date(new Date().setUTCHours(0, 0, 0, 0)).getTime()
+      );
+      const todayTestSendsSnap = await userRef
+        .collection("smsSends")
+        .where("trainingId", "==", "test")
+        .where("createdAt", ">=", startOfDay)
+        .get();
+      if (todayTestSendsSnap.size >= SMS_DAILY_LIMIT) {
+        res.status(429).json({ success: false, reason: "rate_limited", twilioSid: null });
+        return;
+      }
+      const testLink = QUESTIONNAIRE_LINK_BASE + "/debug/test-questionnaire";
+      const body = `ChampionTrackPro test: ${testLink} Reply STOP to opt out.`;
+      const logRef = userRef.collection("smsSends").doc();
+      try {
+        const { sid, error } = await sendSms(phoneE164, body);
+        await logRef.set({
+          userId: uid,
+          trainingId: "test",
+          createdAt: now,
+          status: error ? "failure" : "success",
+          providerMessageId: sid || null,
+          errorMessage: error || null,
+        });
+        if (error) {
+          res.status(502).json({ success: false, reason: "twilio_error", twilioSid: null });
+          return;
+        }
+        res.status(200).json({ success: true, reason: null, twilioSid: sid || null });
+      } catch (err) {
+        try {
+          await logRef.set({
+            userId: uid,
+            trainingId: "test",
+            createdAt: now,
+            status: "failure",
+            providerMessageId: null,
+            errorMessage: err?.message || String(err),
+          }, { merge: true });
+        } catch (logErr) {}
+        res.status(500).json({ success: false, reason: "unexpected_error", twilioSid: null });
+      }
+    });
+  });
+
 /**
  * Twilio webhook: on STOP reply, set smsOptIn=false for the user with that phone.
  * Store STOP event for manual handling if user not found.
