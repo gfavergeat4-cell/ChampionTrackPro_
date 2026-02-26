@@ -6,7 +6,10 @@ import { signOut } from "firebase/auth";
 import { auth, db } from "../services/firebaseConfig";
 import { CommonActions } from "@react-navigation/native";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { getFunctions, httpsCallable } from "firebase/functions";
+import { app } from "../services/firebaseConfig";
 import UnifiedAthleteNavigation from "../src/stitch_components/UnifiedAthleteNavigation";
+import { normalizePhoneE164, isValidPhoneE164 } from "../src/utils/phoneE164";
 
 // Set to true to show "Test Push Notification (Debug)" button (verification only).
 const DEBUG_PUSH_TEST = true;
@@ -16,11 +19,14 @@ export default function StitchProfileScreen() {
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
+  const SMS_CONSENT_TEXT = "I agree to receive SMS links for training questionnaires. Msg&data rates may apply. Reply STOP to opt out.";
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
     jerseyNumber: "",
-    position: ""
+    position: "",
+    phoneE164: "",
+    smsOptIn: false,
   });
   const [profileImage, setProfileImage] = useState(null);
 
@@ -86,7 +92,9 @@ export default function StitchProfileScreen() {
           firstName: data.firstName || "",
           lastName: data.lastName || "",
           jerseyNumber: data.jerseyNumber || "",
-          position: data.position || ""
+          position: data.position || "",
+          phoneE164: data.phoneE164 || "",
+          smsOptIn: !!data.smsOptIn,
         });
         setProfileImage(data.profileImage || null);
       }
@@ -121,18 +129,34 @@ export default function StitchProfileScreen() {
         console.log("⚠️ Image too large, compressing...");
         alert("Image is being compressed to fit the size limit...");
       }
-
+      if (formData.smsOptIn) {
+        if (!formData.phoneE164) {
+          alert("Phone number is required when SMS opt-in is on.");
+          return;
+        }
+        const normalized = normalizePhoneE164(formData.phoneE164);
+        if (!normalized || !isValidPhoneE164(normalized)) {
+          alert("Invalid phone number. Use E.164 format (e.g. +33612345678).");
+          return;
+        }
+      }
       const updateData = {
-        ...formData,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        jerseyNumber: formData.jerseyNumber,
+        position: formData.position,
         profileImage: profileImage,
-        updatedAt: new Date()
+        phoneE164: formData.smsOptIn ? (normalizePhoneE164(formData.phoneE164) || formData.phoneE164) : null,
+        smsOptIn: !!formData.smsOptIn,
+        ...(formData.smsOptIn && !userData?.smsOptIn && { smsOptInAt: new Date() }),
+        updatedAt: new Date(),
       };
       console.log("🔍 Update data:", updateData);
 
       await updateDoc(doc(db, "users", auth.currentUser.uid), updateData);
 
       console.log("✅ Profile updated successfully");
-      setUserData(prev => ({ ...prev, ...formData }));
+      setUserData(prev => ({ ...prev, ...formData, phoneE164: updateData.phoneE164, smsOptIn: updateData.smsOptIn }));
       setEditing(false);
       alert("Profile updated successfully!");
     } catch (error) {
@@ -256,6 +280,21 @@ export default function StitchProfileScreen() {
     } catch (e) {
       console.error("[SW] test notification failed", e);
       Alert.alert("Error", "Could not show test notification. Check console.");
+    }
+  };
+
+  const handleSendTestSms = async () => {
+    if (!userData?.smsOptIn || !userData?.phoneE164) {
+      Alert.alert("SMS opt-in required", "Enable SMS and add your phone number in Personal Info first.");
+      return;
+    }
+    try {
+      const fn = httpsCallable(getFunctions(app), "sendTestSms");
+      await fn({});
+      alert("Test SMS sent to " + userData.phoneE164);
+    } catch (e) {
+      console.error("[SMS] test failed", e);
+      Alert.alert("Error", e?.message || "Failed to send test SMS.");
     }
   };
 
@@ -587,7 +626,49 @@ export default function StitchProfileScreen() {
                       <option value="Midfielder">Midfielder</option>
                       <option value="Forward">Forward</option>
                     </select>
-              </div>
+                  </div>
+
+                  {/* Phone (Personal Info) */}
+                  <div>
+                    <label style={{
+                      display: "block",
+                      fontSize: "14px",
+                      fontWeight: "600",
+                      marginBottom: "8px",
+                      color: "#9AA3B2"
+                    }}>
+                      Phone (E.164)
+                    </label>
+                    <input
+                      type="tel"
+                      value={formData.phoneE164}
+                      onChange={(e) => handleInputChange("phoneE164", e.target.value)}
+                      disabled={!editing}
+                      placeholder="+33612345678"
+                      style={{
+                        width: "100%",
+                        padding: "14px 18px",
+                        borderRadius: "12px",
+                        background: editing ? "rgba(255, 255, 255, 0.08)" : "rgba(255, 255, 255, 0.04)",
+                        border: editing ? `1px solid ${outlineColor}` : "1px solid rgba(255, 255, 255, 0.08)",
+                        color: "#F7FBFF",
+                        fontSize: "15px",
+                        boxSizing: "border-box",
+                      }}
+                    />
+                  </div>
+
+                  {/* SMS opt-in */}
+                  <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: editing ? "pointer" : "default", color: "#9AA3B2", fontSize: 13 }}>
+                    <input
+                      type="checkbox"
+                      checked={!!formData.smsOptIn}
+                      onChange={(e) => handleInputChange("smsOptIn", e.target.checked)}
+                      disabled={!editing}
+                      style={{ marginTop: 2 }}
+                    />
+                    <span>{SMS_CONSENT_TEXT}</span>
+                  </label>
             </div>
 
                 {/* Action Buttons */}
@@ -652,6 +733,25 @@ export default function StitchProfileScreen() {
                           }}
                         >
                           Test Push Notification (Debug)
+                        </button>
+                      )}
+
+                      {userData?.smsOptIn && userData?.phoneE164 && (
+                        <button
+                          onClick={handleSendTestSms}
+                          style={{
+                            width: "100%",
+                            padding: "14px 20px",
+                            borderRadius: "20px",
+                            background: "rgba(156, 163, 175, 0.12)",
+                            border: "1px solid rgba(156, 163, 175, 0.35)",
+                            color: "#9CA3AF",
+                            fontSize: "14px",
+                            fontWeight: "600",
+                            cursor: "pointer",
+                          }}
+                        >
+                          Send Test SMS (Debug)
                         </button>
                       )}
 
@@ -728,7 +828,9 @@ export default function StitchProfileScreen() {
                               firstName: userData?.firstName || "",
                               lastName: userData?.lastName || "",
                               jerseyNumber: userData?.jerseyNumber || "",
-                              position: userData?.position || ""
+                              position: userData?.position || "",
+                              phoneE164: userData?.phoneE164 || "",
+                              smsOptIn: !!userData?.smsOptIn,
                             });
                           }}
                           style={{

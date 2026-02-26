@@ -11,9 +11,32 @@ const ical = require("node-ical");
 const fetch = require("node-fetch"); // v2 CJS
 const crypto = require("crypto");
 const cors = require("cors")({ origin: true });
+const twilio = require("twilio");
 
 try { admin.app(); } catch { admin.initializeApp(); }
 const db = admin.firestore();
+
+const SMS_DAILY_LIMIT = 3;
+const QUESTIONNAIRE_LINK_BASE = "https://championtrackpro.vercel.app";
+
+function getTwilioClient() {
+  const sid = process.env.TWILIO_ACCOUNT_SID;
+  const token = process.env.TWILIO_AUTH_TOKEN;
+  if (!sid || !token) return null;
+  return twilio(sid, token);
+}
+
+async function sendSms(phoneE164, body) {
+  const client = getTwilioClient();
+  const from = process.env.TWILIO_FROM_NUMBER;
+  if (!client || !from) return { sid: null, error: "Twilio not configured" };
+  try {
+    const msg = await client.messages.create({ body, from, to: phoneE164 });
+    return { sid: msg.sid, error: null };
+  } catch (e) {
+    return { sid: null, error: e.message || String(e) };
+  }
+}
 
 const REGION = "us-central1";   // adapte si besoin
 const CRON   = "every 10 minutes";
@@ -817,6 +840,39 @@ exports.sendQuestionnaireAvailableNotifications = functions
             clickAction,
             createdAt: now,
           }, { merge: true });
+
+          // SMS fallback (opt-in only): max 1 per training per user, max 3 per day per user
+          if (userData.smsOptIn === true && userData.phoneE164) {
+            const smsDedupId = `${uid}_${trainingId}`;
+            const smsDedupRef = db.collection("smsDedup").doc(smsDedupId);
+            const smsDedupSnap = await smsDedupRef.get();
+            if (smsDedupSnap.exists) {
+              console.log("[SMS] Skip (already sent for this training)", uid, trainingId);
+            } else {
+              const startOfDay = admin.firestore.Timestamp.fromMillis(new Date(new Date().setUTCHours(0, 0, 0, 0)).getTime());
+              const todaySends = await db.collection("users").doc(uid).collection("smsSends")
+                .where("createdAt", ">=", startOfDay)
+                .get();
+              if (todaySends.size >= SMS_DAILY_LIMIT) {
+                console.log("[SMS] Skip (daily limit reached)", uid, todaySends.size);
+              } else {
+                const smsBody = `ChampionTrackPro: Your questionnaire is ready. ${clickAction} Reply STOP to opt out.`;
+                const { sid, error } = await sendSms(userData.phoneE164, smsBody);
+                const logRef = db.collection("users").doc(uid).collection("smsSends").doc();
+                await logRef.set({
+                  userId: uid,
+                  trainingId,
+                  createdAt: now,
+                  status: error ? "failure" : "success",
+                  providerMessageId: sid || null,
+                  errorMessage: error || null,
+                });
+                if (!error) {
+                  await smsDedupRef.set({ userId: uid, trainingId, sentAt: now }, { merge: true });
+                }
+              }
+            }
+          }
         } catch (err) {
           console.error("[NOTIF][FCM] Error sending notification", err);
         }
@@ -918,4 +974,89 @@ exports.sendQuestionnaireReminders = functions
       }
     }
     return null;
+  });
+
+/**
+ * Callable: send a test SMS to the current user (Profile debug button).
+ * Only if smsOptIn=true and phoneE164 set. Link points to /debug/test-questionnaire.
+ */
+exports.sendTestSms = functions
+  .region(REGION)
+  .https.onCall(async (data, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError("unauthenticated", "Auth required");
+    }
+    const uid = context.auth.uid;
+    const userDoc = await db.collection("users").doc(uid).get();
+    if (!userDoc.exists) {
+      throw new functions.https.HttpsError("not-found", "User not found");
+    }
+    const userData = userDoc.data() || {};
+    if (!userData.smsOptIn || !userData.phoneE164) {
+      throw new functions.https.HttpsError("failed-precondition", "SMS opt-in and phone required");
+    }
+    const testLink = QUESTIONNAIRE_LINK_BASE + "/debug/test-questionnaire";
+    const body = `ChampionTrackPro test: ${testLink} Reply STOP to opt out.`;
+    const { sid, error } = await sendSms(userData.phoneE164, body);
+    const now = admin.firestore.Timestamp.now();
+    const logRef = db.collection("users").doc(uid).collection("smsSends").doc();
+    await logRef.set({
+      userId: uid,
+      trainingId: "test",
+      createdAt: now,
+      status: error ? "failure" : "success",
+      providerMessageId: sid || null,
+      errorMessage: error || null,
+    });
+    if (error) {
+      throw new functions.https.HttpsError("internal", error);
+    }
+    return { ok: true, sid };
+  });
+
+/**
+ * Twilio webhook: on STOP reply, set smsOptIn=false for the user with that phone.
+ * Store STOP event for manual handling if user not found.
+ */
+exports.twilioWebhookStop = functions
+  .region(REGION)
+  .https.onRequest((req, res) => {
+    cors(req, res, async () => {
+      if (req.method !== "POST") {
+        res.status(405).send("Method Not Allowed");
+        return;
+      }
+      const from = req.body?.From || req.body?.from;
+      const body = (req.body?.Body || req.body?.body || "").trim().toUpperCase();
+      if (body !== "STOP" && !body.includes("STOP")) {
+        res.status(200).send("");
+        return;
+      }
+      if (!from) {
+        await db.collection("smsStopEvents").add({
+          rawBody: req.body,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          reason: "no_from",
+        });
+        res.status(200).send("");
+        return;
+      }
+      const usersSnap = await db.collection("users").where("phoneE164", "==", from).limit(1).get();
+      if (usersSnap.empty) {
+        await db.collection("smsStopEvents").add({
+          phone: from,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          reason: "user_not_found",
+        });
+        res.status(200).send("");
+        return;
+      }
+      const userDoc = usersSnap.docs[0];
+      await userDoc.ref.update({
+        smsOptIn: false,
+        smsStoppedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      res.status(200).send("");
+    });
   });

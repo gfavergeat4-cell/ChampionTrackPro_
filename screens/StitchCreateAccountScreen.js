@@ -15,6 +15,9 @@ import {
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { auth, db, app } from "../services/firebaseConfig";
 import { createMembershipClientOnly } from "../src/services/membership";
+import { normalizePhoneE164, isValidPhoneE164 } from "../src/utils/phoneE164";
+
+const SMS_CONSENT_TEXT = "I agree to receive SMS links for training questionnaires. Msg&data rates may apply. Reply STOP to opt out.";
 
 export default function StitchCreateAccountScreen() {
   const navigation = useNavigation();
@@ -23,7 +26,9 @@ export default function StitchCreateAccountScreen() {
     teamCode: "",
     fullName: "",
     email: "",
-    password: ""
+    password: "",
+    phone: "",
+    smsOptIn: false,
   });
   const [loading, setLoading] = useState(false);
 
@@ -40,6 +45,13 @@ export default function StitchCreateAccountScreen() {
       if (formData.password.length < 6) {
         Alert.alert("Erreur", "Le mot de passe doit contenir au moins 6 caractères");
         return;
+      }
+      if (formData.smsOptIn) {
+        const e164 = normalizePhoneE164(formData.phone);
+        if (!e164 || !isValidPhoneE164(e164)) {
+          Alert.alert("Erreur", "Veuillez entrer un numéro de téléphone valide (ex: +33612345678)");
+          return;
+        }
       }
 
       setLoading(true);
@@ -80,14 +92,18 @@ export default function StitchCreateAccountScreen() {
       const cred = await createUserWithEmailAndPassword(auth, formData.email.trim(), formData.password);
       console.log("[CREATE] auth ok", cred.user.uid);
 
-      // Créer le document utilisateur dans Firestore (champs de base)
+      // Créer le document utilisateur dans Firestore (champs de base + SMS opt-in)
       const normalizedRole = role.toLowerCase();
+      const phoneE164 = formData.smsOptIn ? normalizePhoneE164(formData.phone) : null;
       const userData = {
         role: normalizedRole,
         email: formData.email.trim(),
         fullName: formData.fullName.trim(),
         teamCode: formData.teamCode,
         teamId: teamId,
+        smsOptIn: !!formData.smsOptIn,
+        ...(phoneE164 && { phoneE164 }),
+        ...(formData.smsOptIn && { smsOptInAt: serverTimestamp() }),
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
@@ -497,6 +513,25 @@ export default function StitchCreateAccountScreen() {
                   </svg>
                 </div>
               </div>
+
+              <input
+                type="tel"
+                placeholder="Phone (e.g. +33612345678)"
+                value={formData.phone}
+                onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                className="input"
+                autoComplete="tel"
+              />
+
+              <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", color: "#9CA3AF", fontSize: 13 }}>
+                <input
+                  type="checkbox"
+                  checked={!!formData.smsOptIn}
+                  onChange={(e) => setFormData({...formData, smsOptIn: e.target.checked})}
+                  style={{ marginTop: 2 }}
+                />
+                <span>{SMS_CONSENT_TEXT}</span>
+              </label>
 
               <button
                 type="submit"
