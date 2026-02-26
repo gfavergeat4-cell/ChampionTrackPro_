@@ -979,39 +979,161 @@ exports.sendQuestionnaireReminders = functions
 /**
  * Callable: send a test SMS to the current user (Profile debug button).
  * Only if smsOptIn=true and phoneE164 set. Link points to /debug/test-questionnaire.
+ * Adds explicit logging + structured JSON result for easier debugging.
  */
 exports.sendTestSms = functions
   .region(REGION)
   .https.onCall(async (data, context) => {
+    console.log("[sendTestSms] invoked", {
+      hasAuth: !!context.auth,
+      uid: context.auth?.uid || null,
+    });
+
     if (!context.auth) {
+      console.log("[sendTestSms] unauthenticated call");
       throw new functions.https.HttpsError("unauthenticated", "Auth required");
     }
+
     const uid = context.auth.uid;
-    const userDoc = await db.collection("users").doc(uid).get();
+    const userRef = db.collection("users").doc(uid);
+    const userDoc = await userRef.get();
+
     if (!userDoc.exists) {
-      throw new functions.https.HttpsError("not-found", "User not found");
+      console.log("[sendTestSms] user not found", { uid });
+      return { success: false, reason: "user_not_found", twilioSid: null };
     }
+
     const userData = userDoc.data() || {};
-    if (!userData.smsOptIn || !userData.phoneE164) {
-      throw new functions.https.HttpsError("failed-precondition", "SMS opt-in and phone required");
+    const phoneE164 = userData.phoneE164;
+    const smsOptIn = !!userData.smsOptIn;
+
+    console.log("[sendTestSms] user data", {
+      uid,
+      phoneE164,
+      smsOptIn,
+    });
+
+    if (smsOptIn !== true) {
+      console.log("[sendTestSms] user not opted in", { uid });
+      return { success: false, reason: "not_opted_in", twilioSid: null };
     }
+
+    const phoneValid = /^\+[0-9]{8,15}$/.test(String(phoneE164 || "").trim());
+    if (!phoneValid) {
+      console.log("[sendTestSms] invalid phone format", { uid, phoneE164 });
+      return { success: false, reason: "invalid_phone_format", twilioSid: null };
+    }
+
+    const sidEnv = process.env.TWILIO_ACCOUNT_SID;
+    const tokenEnv = process.env.TWILIO_AUTH_TOKEN;
+    const fromEnv = process.env.TWILIO_FROM_NUMBER;
+    if (!sidEnv || !tokenEnv || !fromEnv) {
+      console.log("[sendTestSms] missing Twilio env vars", {
+        hasSid: !!sidEnv,
+        hasToken: !!tokenEnv,
+        hasFrom: !!fromEnv,
+      });
+      return { success: false, reason: "missing_env", twilioSid: null };
+    }
+
+    const now = admin.firestore.Timestamp.now();
+
+    // Optional rate limiting for test SMS: respect same daily limit as training SMS
+    const startOfDay = admin.firestore.Timestamp.fromMillis(
+      new Date(new Date().setUTCHours(0, 0, 0, 0)).getTime()
+    );
+    const todayTestSendsSnap = await userRef
+      .collection("smsSends")
+      .where("trainingId", "==", "test")
+      .where("createdAt", ">=", startOfDay)
+      .get();
+
+    if (todayTestSendsSnap.size >= SMS_DAILY_LIMIT) {
+      console.log("[sendTestSms] rate limited for test SMS", {
+        uid,
+        count: todayTestSendsSnap.size,
+      });
+      return { success: false, reason: "rate_limited", twilioSid: null };
+    }
+
+    console.log("[sendTestSms] about to send via Twilio", {
+      uid,
+      to: phoneE164,
+    });
+
     const testLink = QUESTIONNAIRE_LINK_BASE + "/debug/test-questionnaire";
     const body = `ChampionTrackPro test: ${testLink} Reply STOP to opt out.`;
-    const { sid, error } = await sendSms(userData.phoneE164, body);
-    const now = admin.firestore.Timestamp.now();
-    const logRef = db.collection("users").doc(uid).collection("smsSends").doc();
-    await logRef.set({
-      userId: uid,
-      trainingId: "test",
-      createdAt: now,
-      status: error ? "failure" : "success",
-      providerMessageId: sid || null,
-      errorMessage: error || null,
-    });
-    if (error) {
-      throw new functions.https.HttpsError("internal", error);
+
+    let logRef = userRef.collection("smsSends").doc();
+
+    try {
+      const { sid, error } = await sendSms(phoneE164, body);
+
+      await logRef.set({
+        userId: uid,
+        trainingId: "test",
+        createdAt: now,
+        status: error ? "failure" : "success",
+        providerMessageId: sid || null,
+        errorMessage: error || null,
+      });
+
+      if (error) {
+        console.error("[sendTestSms] Twilio send failed", {
+          uid,
+          to: phoneE164,
+          error,
+        });
+        return {
+          success: false,
+          reason: "twilio_error",
+          twilioSid: null,
+        };
+      }
+
+      console.log("[sendTestSms] Twilio send success", {
+        uid,
+        to: phoneE164,
+        twilioSid: sid,
+      });
+
+      return {
+        success: true,
+        reason: null,
+        twilioSid: sid || null,
+      };
+    } catch (err) {
+      console.error("[sendTestSms] unexpected error", {
+        uid,
+        to: phoneE164,
+        error: err?.message || String(err),
+        stack: err?.stack,
+      });
+
+      try {
+        await logRef.set(
+          {
+            userId: uid,
+            trainingId: "test",
+            createdAt: now,
+            status: "failure",
+            providerMessageId: null,
+            errorMessage: err?.message || String(err),
+          },
+          { merge: true }
+        );
+      } catch (logErr) {
+        console.error("[sendTestSms] failed to log error", {
+          logError: logErr?.message || String(logErr),
+        });
+      }
+
+      return {
+        success: false,
+        reason: "unexpected_error",
+        twilioSid: null,
+      };
     }
-    return { ok: true, sid };
   });
 
 /**

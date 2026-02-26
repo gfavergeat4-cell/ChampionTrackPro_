@@ -290,8 +290,21 @@ export default function StitchProfileScreen() {
     }
     try {
       const fn = httpsCallable(getFunctions(app), "sendTestSms");
-      await fn({});
-      alert("Test SMS sent to " + userData.phoneE164);
+      const res = await fn({});
+      const data = res?.data || {};
+      console.log("[SMS][sendTestSms] response", data);
+
+      if (data.success) {
+        Alert.alert(
+          "Test SMS sent",
+          `Twilio SID: ${data.twilioSid || "n/a"}`
+        );
+      } else {
+        Alert.alert(
+          "SMS not sent",
+          `Reason: ${data.reason || "unknown"}`
+        );
+      }
     } catch (e) {
       console.error("[SMS] test failed", e);
       Alert.alert("Error", e?.message || "Failed to send test SMS.");
