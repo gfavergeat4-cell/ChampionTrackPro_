@@ -982,7 +982,7 @@ exports.sendQuestionnaireReminders = functions
  * Adds explicit logging + structured JSON result for easier debugging.
  */
 exports.sendTestSms = functions
-  .region(REGION)
+  .region("us-central1")
   .https.onCall(async (data, context) => {
     console.log("[sendTestSms] invoked", {
       hasAuth: !!context.auth,

@@ -298,12 +298,12 @@ export default function StitchProfileScreen() {
       return;
     }
     try {
-      console.log("[SMS][sendTestSms] about to call callable sendTestSms");
+      console.log("[SMS] calling callable sendTestSms");
       const functions = getFunctions(app, "us-central1");
       const fn = httpsCallable(functions, "sendTestSms");
       const res = await fn({});
-      const data = res?.data || {};
-      console.log("[SMS][sendTestSms] response", data);
+      const data = res.data;
+      console.log("[SMS] callable response", data);
 
       if (data.success) {
         notify("Test SMS sent", `Twilio SID: ${data.twilioSid || "n/a"}`);
