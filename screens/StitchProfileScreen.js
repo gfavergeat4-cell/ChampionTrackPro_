@@ -30,6 +30,15 @@ export default function StitchProfileScreen() {
   });
   const [profileImage, setProfileImage] = useState(null);
 
+  const notify = (title, message) => {
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      const text = message ? `${title}\n\n${message}` : title;
+      window.alert(text);
+    } else {
+      Alert.alert(title, message);
+    }
+  };
+
   const accentBlue = "#2BC9FF";
   const mutedSurface = "rgba(10, 15, 26, 0.85)";
   const formSurface = "rgba(12, 18, 30, 0.85)";
@@ -285,29 +294,26 @@ export default function StitchProfileScreen() {
 
   const handleSendTestSms = async () => {
     if (!userData?.smsOptIn || !userData?.phoneE164) {
-      Alert.alert("SMS opt-in required", "Enable SMS and add your phone number in Personal Info first.");
+      notify("SMS opt-in required", "Enable SMS and add your phone number in Personal Info first.");
       return;
     }
     try {
-      const fn = httpsCallable(getFunctions(app), "sendTestSms");
+      console.log("[SMS][sendTestSms] about to call callable sendTestSms");
+      const functions = getFunctions(app, "us-central1");
+      const fn = httpsCallable(functions, "sendTestSms");
       const res = await fn({});
       const data = res?.data || {};
       console.log("[SMS][sendTestSms] response", data);
 
       if (data.success) {
-        Alert.alert(
-          "Test SMS sent",
-          `Twilio SID: ${data.twilioSid || "n/a"}`
-        );
+        notify("Test SMS sent", `Twilio SID: ${data.twilioSid || "n/a"}`);
       } else {
-        Alert.alert(
-          "SMS not sent",
-          `Reason: ${data.reason || "unknown"}`
-        );
+        notify("SMS not sent", `Reason: ${data.reason || "unknown"}`);
       }
+      console.log("[SMS][sendTestSms] callable sendTestSms completed");
     } catch (e) {
       console.error("[SMS] test failed", e);
-      Alert.alert("Error", e?.message || "Failed to send test SMS.");
+      notify("Error", e?.message || "Failed to send test SMS.");
     }
   };
 
