@@ -1,54 +1,53 @@
-const fs = require("fs");
+﻿const fs = require("fs");
 const path = require("path");
 
-function ok(msg) { console.log("[VERIFY] ✅ " + msg); }
-function fail(msg) { console.error("[VERIFY] ❌ " + msg); process.exitCode = 1; }
-
+function ok(msg) { console.log("[VERIFY] OK " + msg); }
+function fail(msg) { console.error("[VERIFY] FAIL " + msg); process.exitCode = 1; }
 function mustExist(p) {
   if (!fs.existsSync(p)) fail("Missing file: " + p);
   else ok(p + " - " + fs.statSync(p).size + " bytes");
 }
 
-console.log("[VERIFY] ===== Verifying Build Artifacts (ESM ONLY) =====");
+console.log("[VERIFY] ===== Verifying Build Artifacts =====");
 
 const distRoot = path.join(process.cwd(), "web", "dist");
 
-// Required files for Vercel static hosting (no local Firebase SDK; SW uses gstatic)
 const required = [
   path.join(distRoot, "index.html"),
   path.join(distRoot, "firebase-messaging-sw.js"),
   path.join(distRoot, "manifest.json"),
 ];
-
 required.forEach(mustExist);
 
-// Validate SW content (must be ESM, must not be compat/importScripts)
 const swPath = path.join(distRoot, "firebase-messaging-sw.js");
 if (fs.existsSync(swPath)) {
   const sw = fs.readFileSync(swPath, "utf8");
 
-  if (sw.includes("importScripts")) fail("Service worker must NOT use importScripts (ESM only).");
-  else ok("SW has no importScripts");
+  // Le SW doit utiliser importScripts (mode classique) — pas ESM
+  if (sw.includes("importScripts")) {
+    ok("SW uses importScripts (classic mode) - correct for background notifications");
+  } else {
+    fail("SW must use importScripts for background notifications to work on Android/Chrome");
+  }
 
-  if (sw.includes("compat")) fail("Service worker must NOT reference compat.");
-  else ok("SW has no compat references");
+  // Doit utiliser la lib compat
+  if (sw.includes("firebase-app-compat") && sw.includes("firebase-messaging-compat")) {
+    ok("SW uses compat libraries - correct");
+  } else {
+    fail("SW must use firebase-app-compat and firebase-messaging-compat");
+  }
 
-  if (sw.includes("import {") || sw.includes('type: "module"')) ok("SW uses ESM (import { or type: module)");
-  else fail("Service worker SHOULD use ESM imports (e.g. import {).");
-}
-
-// Ensure no compat script files exist (we use ESM-only; SDK bundles may contain "compat" in package names)
-const firebaseDir = path.join(distRoot, "firebase");
-if (fs.existsSync(firebaseDir)) {
-  const files = fs.readdirSync(firebaseDir);
-  const compatFiles = files.filter((f) => f.endsWith("-compat.js"));
-  if (compatFiles.length > 0) fail("No *-compat.js files allowed in web/dist/firebase: " + compatFiles.join(", "));
-  else ok("No compat script files in firebase/ (ESM only)");
+  // Ne doit pas utiliser ESM import (incompatible avec les SW classiques)
+  if (sw.includes("import {")) {
+    fail("SW must NOT use ESM import{} - use importScripts instead");
+  } else {
+    ok("SW has no ESM imports - correct");
+  }
 }
 
 if (process.exitCode) {
-  console.error("[VERIFY] ❌ BUILD VERIFICATION FAILED");
+  console.error("[VERIFY] BUILD VERIFICATION FAILED");
   process.exit(1);
 } else {
-  console.log("[VERIFY] ✅ BUILD VERIFICATION PASSED");
+  console.log("[VERIFY] BUILD VERIFICATION PASSED");
 }
