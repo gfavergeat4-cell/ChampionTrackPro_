@@ -6,7 +6,6 @@ import { onAuthStateChanged, setPersistence, browserLocalPersistence } from "fir
 import { auth, db } from "../services/firebaseConfig";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import SplashScreen from "../src/components/SplashScreen";
-import { registerWebPushTokenForCurrentUser, setupForegroundMessageHandler } from "../src/services/webNotifications";
 
 // Import Stitch screens
 import LandingScreen from "../screens/StitchLandingScreen";
@@ -391,15 +390,6 @@ function AuthGate() {
           }
           
           console.log("👤 User state:", { user: u?.email, role });
-          
-          // Enregistrer le token FCM pour les notifications web
-          if (typeof window !== "undefined") {
-            registerWebPushTokenForCurrentUser().catch((err) => {
-              console.error("[NOTIF] Error registering FCM token", err);
-            });
-            // Configurer le handler pour les messages en foreground
-            setupForegroundMessageHandler();
-          }
           
           setState({ loading: false, user: u, userRole: role, authReady: true });
         } catch (error) {
