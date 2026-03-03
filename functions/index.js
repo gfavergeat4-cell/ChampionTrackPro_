@@ -17,7 +17,7 @@ try { admin.app(); } catch { admin.initializeApp(); }
 const db = admin.firestore();
 
 const SMS_DAILY_LIMIT = 3;
-const QUESTIONNAIRE_LINK_BASE = "https://championtrackpro.vercel.app";
+const QUESTIONNAIRE_LINK_BASE = "https://champion-track-pro.vercel.app";
 
 function getTwilioClient() {
   const sid = process.env.TWILIO_ACCOUNT_SID;
@@ -746,7 +746,7 @@ exports.sendQuestionnaireAvailableNotifications = functions
       }
 
       // URL de deep-link vers l'app web + questionnaire
-      const clickAction = `https://championtrackpro.vercel.app/?sessionId=${trainingId}&openQuestionnaire=1`;
+      const clickAction = `https://champion-track-pro.vercel.app/?sessionId=${trainingId}&openQuestionnaire=1`;
       const notifTitle = "Questionnaire available";
       const notifBody = `Rate your session: ${title}`;
       const REMINDER_HOURS = 2;
@@ -788,8 +788,8 @@ exports.sendQuestionnaireAvailableNotifications = functions
           webpush: {
             fcmOptions: { link: clickAction },
             notification: {
-              icon: "https://championtrackpro.vercel.app/icons/icon-192.png",
-              badge: "https://championtrackpro.vercel.app/icons/icon-192.png",
+              icon: "https://champion-track-pro.vercel.app/icons/icon-192.png",
+              badge: "https://champion-track-pro.vercel.app/icons/icon-192.png",
               tag: "ctpro-questionnaire",
               requireInteraction: true,
               renotify: true,
@@ -959,8 +959,8 @@ exports.sendQuestionnaireReminders = functions
           webpush: {
             fcmOptions: { link: clickAction },
             notification: {
-              icon: "https://championtrackpro.vercel.app/icons/icon-192.png",
-              badge: "https://championtrackpro.vercel.app/icons/icon-192.png",
+              icon: "https://champion-track-pro.vercel.app/icons/icon-192.png",
+              badge: "https://champion-track-pro.vercel.app/icons/icon-192.png",
               tag: "ctpro-questionnaire-reminder",
               requireInteraction: true,
               renotify: true,
@@ -1289,3 +1289,5 @@ exports.twilioWebhookStop = functions
       res.status(200).send("");
     });
   });
+
+

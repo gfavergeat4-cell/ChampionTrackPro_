@@ -26,8 +26,8 @@ type TrainingStatus =
   | "expired"
   | "completed";
 
-const QUESTIONNAIRE_DELAY_MS = 30 * 60 * 1000;
-const QUESTIONNAIRE_WINDOW_MS = 5 * 60 * 60 * 1000;
+const QUESTIONNAIRE_DELAY_MS = 0;
+const QUESTIONNAIRE_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 function toMillis(value: any): number | null {
   if (value === null || value === undefined) return null;

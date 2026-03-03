@@ -423,6 +423,18 @@ export default function StitchNavigator() {
   React.useEffect(() => {
     if (typeof window === "undefined") return;
 
+    const startUrl = new URL(window.location.href);
+    const startSessionId = startUrl.searchParams.get("sessionId");
+    const startOpenQ = startUrl.searchParams.get("openQuestionnaire");
+    if (startSessionId && startOpenQ === "1") {
+      setTimeout(() => {
+        if (navigationRef.current?.isReady()) {
+          navigationRef.current.navigate("Questionnaire", { sessionId: startSessionId });
+          window.history.replaceState({}, "", "/");
+        }
+      }, 2500);
+    }
+
     const handleDeepLink = () => {
       const pathname = window.location.pathname || "";
       const url = new URL(window.location.href);
