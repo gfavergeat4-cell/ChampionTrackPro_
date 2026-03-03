@@ -53,6 +53,9 @@ export async function initializeFCM() {
     }
 
     console.log("[FCM] Token obtenu:", token.substring(0, 20) + "...");
+    if (/Android|iPhone/i.test(navigator.userAgent)) {
+      alert("FCM Token mobile: " + token.substring(0, 40));
+    }
     await saveFCMToken(token);
 
     onMessage(messaging, (payload) => {
