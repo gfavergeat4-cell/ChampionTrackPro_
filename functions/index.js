@@ -1,6 +1,6 @@
-/* Cloud Functions – Sync ICS (CRON + callable)
+﻿/* Cloud Functions â€“ Sync ICS (CRON + callable)
  * - Lit teams/{teamId}.icsUrl
- * - Parse ICS (node-ical), expansion récurrences + EXDATE
+ * - Parse ICS (node-ical), expansion rÃ©currences + EXDATE
  * - Upsert vers teams/{teamId}/events/{eventId}
  * - Champs: cancelled, lastSeenAt, updatedAt, hash (sha256 du payload utile)
  */
@@ -71,7 +71,7 @@ function cleanTitle(rawTitle, rawDescription) {
   const t = String(rawTitle).trim();
   const lower = t.toLowerCase();
 
-  if (lower === "busy" || lower === "occupé" || lower === "occupied" || lower === "blocked") {
+  if (lower === "busy" || lower === "occupÃ©" || lower === "occupied" || lower === "blocked") {
     if (rawDescription && rawDescription.trim().length > 0) {
       return rawDescription.trim();
     }
@@ -596,8 +596,8 @@ exports.importTeamCalendarFromUrl = functions
   });
 
 /**
- * Cloud Function callable pour créer un membership athlète
- * Utilise l'Admin SDK pour contourner les règles Firestore si nécessaire
+ * Cloud Function callable pour crÃ©er un membership athlÃ¨te
+ * Utilise l'Admin SDK pour contourner les rÃ¨gles Firestore si nÃ©cessaire
  */
 exports.createMembership = functions.region(REGION).https.onCall(async (data, context) => {
   if (!context.auth) {
@@ -623,7 +623,7 @@ exports.createMembership = functions.region(REGION).https.onCall(async (data, co
     const userRef = db.doc(`users/${uid}`);
     const displayName = (name && String(name).trim()) || (email ? email.split("@")[0] : uid);
 
-    // 1) Créer/mettre à jour le membership
+    // 1) CrÃ©er/mettre Ã  jour le membership
     tx.set(
       memberRef,
       {
@@ -636,7 +636,7 @@ exports.createMembership = functions.region(REGION).https.onCall(async (data, co
       { merge: true }
     );
 
-    // 2) Mettre à jour l'utilisateur
+    // 2) Mettre Ã  jour l'utilisateur
     tx.set(
       userRef,
       {
@@ -649,7 +649,7 @@ exports.createMembership = functions.region(REGION).https.onCall(async (data, co
       { merge: true }
     );
 
-    // 3) Incrémenter le compteur de membres
+    // 3) IncrÃ©menter le compteur de membres
     const current = (teamSnap.data()?.members ?? 0);
     tx.update(teamRef, { members: current + 1 });
 
@@ -658,9 +658,9 @@ exports.createMembership = functions.region(REGION).https.onCall(async (data, co
 });
 
 /**
- * Cloud Function planifiée : envoie une notification "questionnaire disponible"
- * immédiatement à la fin du training (pas de délai artificiel).
- * S'exécute toutes les 1 minute et vérifie les trainings terminés dans les 2 dernières minutes.
+ * Cloud Function planifiÃ©e : envoie une notification "questionnaire disponible"
+ * immÃ©diatement Ã  la fin du training (pas de dÃ©lai artificiel).
+ * S'exÃ©cute toutes les 1 minute et vÃ©rifie les trainings terminÃ©s dans les 2 derniÃ¨res minutes.
  */
 exports.sendQuestionnaireAvailableNotifications = functions
   .region(REGION)
@@ -670,20 +670,20 @@ exports.sendQuestionnaireAvailableNotifications = functions
     const now = admin.firestore.Timestamp.now();
     const nowMs = now.toMillis();
 
-    // Fenêtre : trainings qui viennent de se terminer (0 à 2 min après endUtc) — pas de délai 30 min
+    // FenÃªtre : trainings qui viennent de se terminer (0 Ã  2 min aprÃ¨s endUtc) â€” pas de dÃ©lai 30 min
     const minEnd = admin.firestore.Timestamp.fromMillis(nowMs - 2 * 60 * 1000);
     const maxEnd = now;
 
     console.log("[NOTIF][CRON] Checking trainings ended between", minEnd.toDate(), "and", maxEnd.toDate());
 
     // Les trainings sont dans teams/{teamId}/trainings
-    // On doit itérer sur toutes les équipes ou utiliser une collection group query
-    // Pour l'instant, on itère sur les équipes qui ont des trainings
+    // On doit itÃ©rer sur toutes les Ã©quipes ou utiliser une collection group query
+    // Pour l'instant, on itÃ¨re sur les Ã©quipes qui ont des trainings
     const teamsSnap = await db.collection("teams").get();
     
     let allTrainings = [];
     
-    // Parcourir toutes les équipes et chercher les trainings
+    // Parcourir toutes les Ã©quipes et chercher les trainings
     for (const teamDoc of teamsSnap.docs) {
       const teamId = teamDoc.id;
       const trainingsSnap = await db
@@ -728,7 +728,7 @@ exports.sendQuestionnaireAvailableNotifications = functions
         continue;
       }
 
-      // Récupérer les membres de l'équipe (athlètes)
+      // RÃ©cupÃ©rer les membres de l'Ã©quipe (athlÃ¨tes)
       const membersSnap = await db
         .collection("teams")
         .doc(teamId)
@@ -752,7 +752,7 @@ exports.sendQuestionnaireAvailableNotifications = functions
       const REMINDER_HOURS = 2;
       const dueAtReminder = admin.firestore.Timestamp.fromMillis(nowMs + REMINDER_HOURS * 60 * 60 * 1000);
 
-      // Envoyer une notification à chaque athlète + planifier rappel 2h si non répondu
+      // Envoyer une notification Ã  chaque athlÃ¨te + planifier rappel 2h si non rÃ©pondu
       for (const memberDoc of membersSnap.docs) {
         const uid = memberDoc.id;
         const userDoc = await db.collection("users").doc(uid).get();
@@ -798,7 +798,7 @@ exports.sendQuestionnaireAvailableNotifications = functions
         };
 
         try {
-          const resp = await admin.messaging().sendMulticast(message);
+          const resp = await admin.messaging().sendEachForMulticast(message);
           console.log(
             `[NOTIF][FCM] training ${trainingId}, user ${uid}, success ${resp.successCount}, failure ${resp.failureCount}`
           );
@@ -878,7 +878,7 @@ exports.sendQuestionnaireAvailableNotifications = functions
         }
       }
 
-      // Marquer le training comme notifié
+      // Marquer le training comme notifiÃ©
       const trainingRef = db
         .collection("teams")
         .doc(teamId)
@@ -897,9 +897,9 @@ exports.sendQuestionnaireAvailableNotifications = functions
   });
 
 /**
- * Envoie les rappels "questionnaire disponible" 2h après la notification initiale,
- * uniquement si le questionnaire n'est pas encore complété.
- * S'exécute toutes les 5 minutes.
+ * Envoie les rappels "questionnaire disponible" 2h aprÃ¨s la notification initiale,
+ * uniquement si le questionnaire n'est pas encore complÃ©tÃ©.
+ * S'exÃ©cute toutes les 5 minutes.
  */
 exports.sendQuestionnaireReminders = functions
   .region(REGION)
@@ -919,7 +919,7 @@ exports.sendQuestionnaireReminders = functions
       const reminderRef = docSnap.ref;
 
       try {
-        // Vérifier si le questionnaire est déjà complété (éviter rappel en double)
+        // VÃ©rifier si le questionnaire est dÃ©jÃ  complÃ©tÃ© (Ã©viter rappel en double)
         const responseRef = db
           .collection("teams").doc(teamId)
           .collection("trainings").doc(trainingId)
@@ -967,7 +967,7 @@ exports.sendQuestionnaireReminders = functions
             },
           },
         };
-        await admin.messaging().sendMulticast(message);
+        await admin.messaging().sendEachForMulticast(message);
         await reminderRef.update({ status: "reminded", remindedAt: admin.firestore.FieldValue.serverTimestamp() });
       } catch (err) {
         console.error("[NOTIF][REMINDER] Error for", docSnap.id, err);
