@@ -17,6 +17,19 @@
         {
           "key": "Cache-Control",
           "value": "public, max-age=0, must-revalidate"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "script-src 'self' https://www.gstatic.com https://*.googleapis.com https://*.firebaseio.com 'unsafe-eval'; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://fcm.googleapis.com wss://*.firebaseio.com;"
+        }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "script-src 'self' https://www.gstatic.com https://*.googleapis.com https://*.firebaseio.com 'unsafe-inline' 'unsafe-eval'; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://fcm.googleapis.com wss://*.firebaseio.com;"
         }
       ]
     },
@@ -40,12 +53,20 @@
       "destination": "/firebase-messaging-sw.js"
     },
     {
+      "source": "/manifest.webmanifest",
+      "destination": "/manifest.webmanifest"
+    },
+    {
       "source": "/manifest.json",
       "destination": "/manifest.json"
     },
     {
       "source": "/favicon.ico",
       "destination": "/favicon.ico"
+    },
+    {
+      "source": "/favicon.png",
+      "destination": "/favicon.png"
     },
     {
       "source": "/icons/(.*)",
@@ -65,3 +86,4 @@
     }
   ]
 }
+
