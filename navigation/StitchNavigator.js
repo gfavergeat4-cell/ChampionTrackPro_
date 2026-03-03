@@ -259,7 +259,7 @@ function RootStackNavigator({ role, user, pendingDeepLink, navigationRef }) {
           navigationRef.current.navigate('Questionnaire', { sessionId });
           pendingDeepLink.current = null;
         }
-      }, 1000);
+      }, 3000);
       return () => clearTimeout(t);
     }
   }, [role, pendingDeepLink, navigationRef]);
