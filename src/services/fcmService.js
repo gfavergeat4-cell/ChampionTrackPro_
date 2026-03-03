@@ -82,7 +82,7 @@ async function saveFCMToken(token) {
     updatedAt: serverTimestamp(),
   };
   await setDoc(
-    doc(db, "users", user.uid, "fcmTokens", "web"),
+    doc(db, "users", user.uid, "fcmTokens", token.substring(0, 20)),
     tokenData,
     { merge: true }
   );
