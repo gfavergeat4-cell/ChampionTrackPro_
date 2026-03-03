@@ -88,7 +88,7 @@ async function saveFCMToken(token) {
   );
   await setDoc(
     doc(db, "users", user.uid),
-    { fcmToken: token, fcmTokenUpdatedAt: serverTimestamp() },
+    { fcmWebTokens: [token], fcmToken: token, fcmTokenUpdatedAt: serverTimestamp() },
     { merge: true }
   );
   console.log("[FCM] Token sauvegarde en Firestore pour", user.uid);
@@ -113,3 +113,4 @@ function showForegroundNotification(payload) {
     };
   }
 }
+
