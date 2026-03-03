@@ -1,6 +1,6 @@
-ï»¿import { initializeApp, getApps } from "firebase/app";
+import { initializeApp, getApps } from "firebase/app";
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
-import { getFirestore, doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { getFirestore, doc, setDoc, serverTimestamp, arrayUnion } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
@@ -48,7 +48,7 @@ export async function initializeFCM() {
     });
 
     if (!token) {
-      console.warn("[FCM] Token vide â€” verifie la VAPID key");
+      console.warn("[FCM] Token vide — verifie la VAPID key");
       return null;
     }
 
@@ -71,7 +71,7 @@ async function saveFCMToken(token) {
   const auth = getAuth(app);
   const user = auth.currentUser;
   if (!user) {
-    console.warn("[FCM] Aucun utilisateur connecte â€” token non sauvegarde");
+    console.warn("[FCM] Aucun utilisateur connecte — token non sauvegarde");
     return;
   }
   const tokenData = {
@@ -88,7 +88,7 @@ async function saveFCMToken(token) {
   );
   await setDoc(
     doc(db, "users", user.uid),
-    { fcmWebTokens: [token], fcmToken: token, fcmTokenUpdatedAt: serverTimestamp() },
+    { fcmWebTokens: arrayUnion(token), fcmToken: token, fcmTokenUpdatedAt: serverTimestamp() },
     { merge: true }
   );
   console.log("[FCM] Token sauvegarde en Firestore pour", user.uid);
@@ -113,4 +113,5 @@ function showForegroundNotification(payload) {
     };
   }
 }
+
 
