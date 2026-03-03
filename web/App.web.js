@@ -1,4 +1,4 @@
-import App from "../App";
+﻿import App from "../App";
 import { initAuth } from "./firebaseConfig.web";
 
 async function registerFcmSw() {
@@ -14,7 +14,7 @@ async function registerFcmSw() {
 
     await navigator.serviceWorker.register("/firebase-messaging-sw.js", {
       scope: "/",
-      type: "module",
+      type: "classic",
     });
 
     const readyRegistration = await navigator.serviceWorker.ready;
@@ -32,4 +32,5 @@ setTimeout(() => {
 }, 0);
 
 export default App;
+
 

@@ -1,4 +1,4 @@
-// src/services/webNotifications.ts
+﻿// src/services/webNotifications.ts
 import { getToken, onMessage } from "firebase/messaging";
 import { doc, setDoc, arrayUnion, getDoc } from "firebase/firestore";
 import { auth, db, app } from "../../web/firebaseConfig.web";
@@ -8,7 +8,7 @@ import { Platform } from "react-native";
 const VAPID_KEY = process.env.EXPO_PUBLIC_FCM_VAPID_KEY || process.env.NEXT_PUBLIC_FCM_VAPID_KEY;
 
 /**
- * Fonction de débogage pour vérifier l'état des notifications et service workers
+ * Fonction de dÃ©bogage pour vÃ©rifier l'Ã©tat des notifications et service workers
  */
 export function debugWebPushStatus(): void {
   if (typeof window === "undefined" || Platform.OS !== "web") {
@@ -40,13 +40,13 @@ export function debugWebPushStatus(): void {
 }
 
 /**
- * Enregistre le service worker (ESM, type: "module") et récupère le token FCM.
- * Demande la permission de notification si nécessaire.
+ * Enregistre le service worker (ESM, type: "classic") et rÃ©cupÃ¨re le token FCM.
+ * Demande la permission de notification si nÃ©cessaire.
  * MUST be called from a user gesture (e.g. button click); do not call on page load (iOS/browser may block).
  * Web only, not iOS/Android native.
  */
 export async function registerWebPushTokenForCurrentUser(): Promise<void> {
-  // Vérifier que nous sommes sur le web
+  // VÃ©rifier que nous sommes sur le web
   if (typeof window === "undefined" || Platform.OS !== "web") {
     console.log("[WEB PUSH] Not on web platform, skipping FCM registration");
     return;
@@ -68,7 +68,7 @@ export async function registerWebPushTokenForCurrentUser(): Promise<void> {
     return;
   }
 
-  // Afficher l'état de débogage
+  // Afficher l'Ã©tat de dÃ©bogage
   debugWebPushStatus();
 
   // Demander la permission
@@ -82,7 +82,7 @@ export async function registerWebPushTokenForCurrentUser(): Promise<void> {
 
   try {
     // Enregistrer le service worker AVANT d'appeler getToken
-    // IMPORTANT: Le path doit être exactement '/firebase-messaging-sw.js' (root)
+    // IMPORTANT: Le path doit Ãªtre exactement '/firebase-messaging-sw.js' (root)
     const swPath = '/firebase-messaging-sw.js';
     const isProduction = typeof window !== 'undefined' && window.location.protocol === 'https:';
     
@@ -107,20 +107,20 @@ export async function registerWebPushTokenForCurrentUser(): Promise<void> {
       });
     });
     
-    // Vérifier que nous sommes en HTTPS en production
+    // VÃ©rifier que nous sommes en HTTPS en production
     if (isProduction && window.location.protocol !== 'https:') {
-      console.error('[WEB PUSH] ❌ Service workers require HTTPS in production');
+      console.error('[WEB PUSH] âŒ Service workers require HTTPS in production');
       throw new Error('Service workers require HTTPS in production');
     }
     
     // FORCER l'enregistrement explicite du service worker
-    console.log('[WEB PUSH] 🔵 FORCING SERVICE WORKER REGISTRATION...');
-    console.log('[WEB PUSH] 🔵 Path:', swPath);
-    console.log('[WEB PUSH] 🔵 Scope:', '/');
-    console.log('[WEB PUSH] 🔵 Calling navigator.serviceWorker.register()...');
+    console.log('[WEB PUSH] ðŸ”µ FORCING SERVICE WORKER REGISTRATION...');
+    console.log('[WEB PUSH] ðŸ”µ Path:', swPath);
+    console.log('[WEB PUSH] ðŸ”µ Scope:', '/');
+    console.log('[WEB PUSH] ðŸ”µ Calling navigator.serviceWorker.register()...');
     
     const registration = await navigator.serviceWorker.register(swPath, {
-      type: "module",
+      type: "classic",
       scope: "/",
     });
 
@@ -128,8 +128,8 @@ export async function registerWebPushTokenForCurrentUser(): Promise<void> {
     console.log('[WEB PUSH] registration.scope:', registration.scope);
     console.log('[WEB PUSH] registration.active?.scriptURL:', registration.active?.scriptURL);
 
-    console.log('[WEB PUSH] ✅ SERVICE WORKER REGISTERED');
-    console.log('[WEB PUSH] 🔵 Registration result:', {
+    console.log('[WEB PUSH] âœ… SERVICE WORKER REGISTERED');
+    console.log('[WEB PUSH] ðŸ”µ Registration result:', {
       scope: registration.scope,
       active: !!registration.active,
       activeState: registration.active?.state,
@@ -159,24 +159,24 @@ export async function registerWebPushTokenForCurrentUser(): Promise<void> {
       );
     }
     console.log('[WEB PUSH] navigator.serviceWorker.controller?.scriptURL:', navigator.serviceWorker.controller?.scriptURL);
-    console.log('[WEB PUSH] ✅ SERVICE WORKER IS READY AND ACTIVE');
-    console.log('[WEB PUSH] 🔵 Ready registration details:', {
+    console.log('[WEB PUSH] âœ… SERVICE WORKER IS READY AND ACTIVE');
+    console.log('[WEB PUSH] ðŸ”µ Ready registration details:', {
       scope: readyRegistration.scope,
       active: !!readyRegistration.active,
       activeState: readyRegistration.active?.state,
       activeScriptURL: readyRegistration.active?.scriptURL,
     });
     
-    // Vérification finale: s'assurer qu'un service worker est bien actif
+    // VÃ©rification finale: s'assurer qu'un service worker est bien actif
     if (!readyRegistration.active) {
-      console.error('[WEB PUSH] ❌❌❌ CRITICAL: Service worker registered but NOT active after ready ❌❌❌');
+      console.error('[WEB PUSH] âŒâŒâŒ CRITICAL: Service worker registered but NOT active after ready âŒâŒâŒ');
       throw new Error('Service worker registered but not active after ready');
     }
-    console.log('[WEB PUSH] ✅✅✅ VERIFIED ACTIVE SERVICE WORKER EXISTS ✅✅✅');
-    console.log('[WEB PUSH] 🔵 Active worker state:', readyRegistration.active.state);
-    console.log('[WEB PUSH] 🔵 Active worker scriptURL:', readyRegistration.active.scriptURL);
+    console.log('[WEB PUSH] âœ…âœ…âœ… VERIFIED ACTIVE SERVICE WORKER EXISTS âœ…âœ…âœ…');
+    console.log('[WEB PUSH] ðŸ”µ Active worker state:', readyRegistration.active.state);
+    console.log('[WEB PUSH] ðŸ”µ Active worker scriptURL:', readyRegistration.active.scriptURL);
     
-    // Lister TOUS les service workers après l'enregistrement
+    // Lister TOUS les service workers aprÃ¨s l'enregistrement
     const allRegsAfter = await navigator.serviceWorker.getRegistrations();
     console.log('[WEB PUSH] All service worker registrations (after):', allRegsAfter.length);
     allRegsAfter.forEach((reg, idx) => {
@@ -190,7 +190,7 @@ export async function registerWebPushTokenForCurrentUser(): Promise<void> {
       });
     });
 
-    // Vérifier que le navigateur supporte les notifications avant d'initialiser messaging
+    // VÃ©rifier que le navigateur supporte les notifications avant d'initialiser messaging
     const supported = await isSupported();
     if (!supported) {
       console.warn('[WEB PUSH] Messaging not supported in this browser');
@@ -216,7 +216,7 @@ export async function registerWebPushTokenForCurrentUser(): Promise<void> {
     });
 
     if (!token) {
-      console.warn("[WEB PUSH] ❌ No FCM token received");
+      console.warn("[WEB PUSH] âŒ No FCM token received");
       console.warn("[WEB PUSH] This usually means:");
       console.warn("[WEB PUSH] 1. Service worker is not active");
       console.warn("[WEB PUSH] 2. VAPID key is incorrect");
@@ -224,15 +224,15 @@ export async function registerWebPushTokenForCurrentUser(): Promise<void> {
       return;
     }
 
-    // Log le token (tronqué pour la sécurité) - LOGS TRÈS VISIBLES EN PROD
+    // Log le token (tronquÃ© pour la sÃ©curitÃ©) - LOGS TRÃˆS VISIBLES EN PROD
     const tokenPreview = token.substring(0, 20) + '...' + token.substring(token.length - 10);
-    console.log('[WEB PUSH] ✅✅✅ FCM TOKEN OBTAINED SUCCESSFULLY ✅✅✅');
-    console.log('[WEB PUSH] 🔵 Token preview:', tokenPreview);
-    console.log('[WEB PUSH] 🔵 Full token length:', token.length);
-    console.log('[WEB PUSH] 🔵 Token first 50 chars:', token.substring(0, 50));
-    console.log('[WEB PUSH] 🔵 Token last 20 chars:', token.substring(token.length - 20));
+    console.log('[WEB PUSH] âœ…âœ…âœ… FCM TOKEN OBTAINED SUCCESSFULLY âœ…âœ…âœ…');
+    console.log('[WEB PUSH] ðŸ”µ Token preview:', tokenPreview);
+    console.log('[WEB PUSH] ðŸ”µ Full token length:', token.length);
+    console.log('[WEB PUSH] ðŸ”µ Token first 50 chars:', token.substring(0, 50));
+    console.log('[WEB PUSH] ðŸ”µ Token last 20 chars:', token.substring(token.length - 20));
 
-    // Vérifier si le token existe déjà
+    // VÃ©rifier si le token existe dÃ©jÃ 
     const userDoc = await getDoc(doc(db, "users", user.uid));
     const userData = userDoc.data();
     const existingTokens: string[] = userData?.fcmWebTokens || [];
@@ -242,7 +242,7 @@ export async function registerWebPushTokenForCurrentUser(): Promise<void> {
       return;
     }
 
-    // Ajouter le token à la liste (append, ne pas overwrite)
+    // Ajouter le token Ã  la liste (append, ne pas overwrite)
     await setDoc(
       doc(db, "users", user.uid),
       {
@@ -255,7 +255,7 @@ export async function registerWebPushTokenForCurrentUser(): Promise<void> {
     console.log("[WEB PUSH] FCM token saved to Firestore for user:", user.uid);
     console.log("[WEB PUSH] Total tokens for user:", existingTokens.length + 1);
   } catch (err: any) {
-    console.error("[WEB PUSH] ❌ Error registering service worker or getting FCM token:", err);
+    console.error("[WEB PUSH] âŒ Error registering service worker or getting FCM token:", err);
     console.error("[WEB PUSH] Error details:", {
       message: err?.message,
       code: err?.code,
@@ -263,7 +263,7 @@ export async function registerWebPushTokenForCurrentUser(): Promise<void> {
       stack: err?.stack?.substring(0, 500), // Limiter la stack trace
     });
     
-    // Log supplémentaire pour le débogage en production
+    // Log supplÃ©mentaire pour le dÃ©bogage en production
     if (typeof window !== 'undefined') {
       console.error("[WEB PUSH] Environment info:", {
         protocol: window.location.protocol,
@@ -274,7 +274,7 @@ export async function registerWebPushTokenForCurrentUser(): Promise<void> {
         notificationPermission: Notification.permission,
       });
       
-      // Vérifier les service workers existants
+      // VÃ©rifier les service workers existants
       navigator.serviceWorker.getRegistrations().then((regs) => {
         console.error("[WEB PUSH] Existing service worker registrations:", regs.length);
         regs.forEach((reg, idx) => {
@@ -329,4 +329,5 @@ export function setupForegroundMessageHandler(): (() => void) | null {
 
   return null;
 }
+
 

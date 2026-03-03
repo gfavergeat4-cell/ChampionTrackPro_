@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { Platform, StyleSheet, View, Text, Pressable, ScrollView, ActivityIndicator, Alert } from "react-native";
 import MobileViewport from "../src/components/MobileViewport";
@@ -42,7 +42,7 @@ export default function StitchProfileScreen() {
   const formSurface = "rgba(12, 18, 30, 0.85)";
   const outlineColor = "rgba(43, 201, 255, 0.3)";
   const formatStat = (value) =>
-    value === null || value === undefined || value === "" ? "—" : value;
+    value === null || value === undefined || value === "" ? "â€”" : value;
   const profileStats = [
     {
       label: "Questionnaires completion",
@@ -75,25 +75,25 @@ export default function StitchProfileScreen() {
     } else if (tab === "Schedule") {
       navigation.navigate("Schedule");
     }
-    // Profile est déjà actif, pas besoin de naviguer
+    // Profile est dÃ©jÃ  actif, pas besoin de naviguer
   };
 
   const loadUserData = async () => {
     try {
-      console.log("🔍 Loading user data...");
+      console.log("ðŸ” Loading user data...");
       if (!auth.currentUser) {
-        console.log("❌ No authenticated user");
+        console.log("âŒ No authenticated user");
         setLoading(false);
         return;
       }
 
-      console.log("👤 Current user:", auth.currentUser.uid);
+      console.log("ðŸ‘¤ Current user:", auth.currentUser.uid);
       const userDoc = await getDoc(doc(db, "users", auth.currentUser.uid));
-      console.log("📄 User document exists:", userDoc.exists());
+      console.log("ðŸ“„ User document exists:", userDoc.exists());
       
       if (userDoc.exists()) {
         const data = userDoc.data();
-        console.log("📊 User data:", data);
+        console.log("ðŸ“Š User data:", data);
         setUserData(data);
         setFormData({
           firstName: data.firstName || "",
@@ -107,13 +107,13 @@ export default function StitchProfileScreen() {
       }
       setLoading(false);
     } catch (error) {
-      console.error("❌ Error loading user data:", error);
+      console.error("âŒ Error loading user data:", error);
       setLoading(false);
     }
   };
 
   const handleInputChange = (field, value) => {
-    console.log(`📝 ${field} changed:`, value);
+    console.log(`ðŸ“ ${field} changed:`, value);
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -122,18 +122,18 @@ export default function StitchProfileScreen() {
 
   const handleSaveChanges = async () => {
     try {
-      console.log("💾 Saving changes...", formData);
+      console.log("ðŸ’¾ Saving changes...", formData);
       if (!auth.currentUser) {
-        console.log("❌ No authenticated user");
+        console.log("âŒ No authenticated user");
         return;
       }
 
-      console.log("🔍 User ID:", auth.currentUser.uid);
-      console.log("🔍 Document path: users/" + auth.currentUser.uid);
+      console.log("ðŸ” User ID:", auth.currentUser.uid);
+      console.log("ðŸ” Document path: users/" + auth.currentUser.uid);
       
       // Check if profileImage is too large
       if (profileImage && profileImage.length > 1000000) { // ~1MB limit
-        console.log("⚠️ Image too large, compressing...");
+        console.log("âš ï¸ Image too large, compressing...");
         alert("Image is being compressed to fit the size limit...");
       }
       if (formData.smsOptIn) {
@@ -158,18 +158,18 @@ export default function StitchProfileScreen() {
         ...(formData.smsOptIn && !userData?.smsOptIn && { smsOptInAt: new Date() }),
         updatedAt: new Date(),
       };
-      console.log("🔍 Update data:", updateData);
+      console.log("ðŸ” Update data:", updateData);
 
       await updateDoc(doc(db, "users", auth.currentUser.uid), updateData);
 
-      console.log("✅ Profile updated successfully");
+      console.log("âœ… Profile updated successfully");
       setUserData(prev => ({ ...prev, ...formData, phoneE164: updateData.phoneE164, smsOptIn: updateData.smsOptIn }));
       setEditing(false);
       alert("Profile updated successfully!");
     } catch (error) {
-      console.error("❌ Error updating profile:", error);
-      console.error("❌ Error code:", error.code);
-      console.error("❌ Error message:", error.message);
+      console.error("âŒ Error updating profile:", error);
+      console.error("âŒ Error code:", error.code);
+      console.error("âŒ Error message:", error.message);
       alert(`Error updating profile: ${error.message}`);
     }
   };
@@ -210,7 +210,7 @@ export default function StitchProfileScreen() {
   };
 
   const handleImageUpload = () => {
-    console.log("📸 Add Photo button clicked");
+    console.log("ðŸ“¸ Add Photo button clicked");
     
     // Create file input element
     const input = document.createElement('input');
@@ -221,18 +221,18 @@ export default function StitchProfileScreen() {
     input.onchange = async (e) => {
       const file = e.target.files[0];
       if (file) {
-        console.log("📸 File selected:", file.name, "Size:", file.size, "bytes");
+        console.log("ðŸ“¸ File selected:", file.name, "Size:", file.size, "bytes");
         
         try {
           // Compress the image
           const compressedBase64 = await compressImage(file);
-          console.log("📸 Image compressed successfully");
+          console.log("ðŸ“¸ Image compressed successfully");
           
           setProfileImage(compressedBase64);
-          console.log("📸 Image uploaded successfully");
+          console.log("ðŸ“¸ Image uploaded successfully");
           alert("Photo uploaded successfully!");
         } catch (error) {
-          console.error("❌ Error compressing image:", error);
+          console.error("âŒ Error compressing image:", error);
           alert("Error processing image. Please try a different image.");
         }
       }
@@ -276,7 +276,7 @@ export default function StitchProfileScreen() {
     try {
       let reg = await navigator.serviceWorker.getRegistration();
       if (!reg) {
-        reg = await navigator.serviceWorker.register("/firebase-messaging-sw.js", { scope: "/", type: "module" });
+        reg = await navigator.serviceWorker.register("/firebase-messaging-sw.js", { scope: "/", type: "classic" });
       }
       await navigator.serviceWorker.ready;
       reg.showNotification("ChampionTrackPro Test", {
@@ -346,7 +346,7 @@ export default function StitchProfileScreen() {
           color: "white",
           pointerEvents: "auto"
         }}>
-          {/* Background Gradient - Futuristic Dark → Deep Navy → Black */}
+          {/* Background Gradient - Futuristic Dark â†’ Deep Navy â†’ Black */}
           <div style={{
             position: "absolute",
             width: "100%",
@@ -713,9 +713,9 @@ export default function StitchProfileScreen() {
                     <>
                       <button
                         onClick={() => {
-                          console.log("✏️ Edit button clicked");
-                          console.log("📊 Current userData:", userData);
-                          console.log("📝 Current formData:", formData);
+                          console.log("âœï¸ Edit button clicked");
+                          console.log("ðŸ“Š Current userData:", userData);
+                          console.log("ðŸ“ Current formData:", formData);
                           setEditing(true);
                         }}
                         style={{
@@ -815,7 +815,7 @@ export default function StitchProfileScreen() {
                           e.currentTarget.style.transform = "scale(1)";
                         }}
                       >
-                        Se déconnecter
+                        Se dÃ©connecter
                       </button>
                     </>
                   ) : (
@@ -922,7 +922,7 @@ export default function StitchProfileScreen() {
                           e.currentTarget.style.transform = "scale(1)";
                         }}
                       >
-                        Se déconnecter
+                        Se dÃ©connecter
                       </button>
                     </>
                   )}
@@ -931,7 +931,7 @@ export default function StitchProfileScreen() {
             )}
           </div>
 
-          {/* Navigation unifiée pour les athlètes */}
+          {/* Navigation unifiÃ©e pour les athlÃ¨tes */}
           <UnifiedAthleteNavigation 
             activeTab="Profile" 
             onNavigate={handleTabNavigation} 
@@ -966,14 +966,14 @@ export default function StitchProfileScreen() {
           <View style={nativeStyles.card}>
             <Text style={nativeStyles.label}>Nom complet</Text>
             <Text style={nativeStyles.value}>
-              {`${formData.firstName || ""} ${formData.lastName || ""}`.trim() || "Non renseigné"}
+              {`${formData.firstName || ""} ${formData.lastName || ""}`.trim() || "Non renseignÃ©"}
             </Text>
 
-            <Text style={nativeStyles.label}>Numéro de maillot</Text>
-            <Text style={nativeStyles.value}>{formData.jerseyNumber || "Non renseigné"}</Text>
+            <Text style={nativeStyles.label}>NumÃ©ro de maillot</Text>
+            <Text style={nativeStyles.value}>{formData.jerseyNumber || "Non renseignÃ©"}</Text>
 
             <Text style={nativeStyles.label}>Poste</Text>
-            <Text style={nativeStyles.value}>{formData.position || "Non renseigné"}</Text>
+            <Text style={nativeStyles.value}>{formData.position || "Non renseignÃ©"}</Text>
           </View>
 
           <Pressable
@@ -983,7 +983,7 @@ export default function StitchProfileScreen() {
               pressed && nativeStyles.logoutButtonPressed,
             ]}
           >
-            <Text style={nativeStyles.logoutText}>Se déconnecter</Text>
+            <Text style={nativeStyles.logoutText}>Se dÃ©connecter</Text>
           </Pressable>
         </ScrollView>
       )}
