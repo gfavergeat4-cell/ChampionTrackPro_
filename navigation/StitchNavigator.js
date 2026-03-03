@@ -246,9 +246,23 @@ function CoachTabs() {
 }
 
 // Root Stack Navigator with role-based routing
-function RootStackNavigator({ role, user }) {
+function RootStackNavigator({ role, user, pendingDeepLink, navigationRef }) {
   console.log("[ROOT] role at render =", role);
   console.log("[ROOT] user =", user?.email);
+
+  // Après auth + rôle athlete, ouvrir le questionnaire si un deep link est en attente
+  React.useEffect(() => {
+    if (pendingDeepLink?.current && String(role || '').trim().toLowerCase() === 'athlete') {
+      const sessionId = pendingDeepLink.current;
+      const t = setTimeout(() => {
+        if (navigationRef?.current?.isReady()) {
+          navigationRef.current.navigate('Questionnaire', { sessionId });
+          pendingDeepLink.current = null;
+        }
+      }, 1000);
+      return () => clearTimeout(t);
+    }
+  }, [role, pendingDeepLink, navigationRef]);
   
   // Normalize role (toLowerCase, trim)
   const normalizedRole = String(role || '').trim().toLowerCase();
@@ -328,7 +342,7 @@ function RootStackNavigator({ role, user }) {
 }
 
 // Auth Gate Component with proper role detection
-function AuthGate() {
+function AuthGate({ pendingDeepLink, navigationRef }) {
   const [state, setState] = React.useState({ 
     loading: true, 
     user: null, 
@@ -413,13 +427,21 @@ function AuthGate() {
     return <SplashScreen />;
   }
 
-  return <RootStackNavigator role={state.userRole} user={state.user} />;
+  return (
+    <RootStackNavigator
+      role={state.userRole}
+      user={state.user}
+      pendingDeepLink={pendingDeepLink}
+      navigationRef={navigationRef}
+    />
+  );
 }
 
 export default function StitchNavigator() {
   const navigationRef = React.useRef(null);
+  const pendingDeepLink = React.useRef(null);
 
-  // Gérer le deep-link pour ouvrir le questionnaire
+  // Deep link : au démarrage stocker sessionId en ref, puis navigation après auth dans RootStackNavigator
   React.useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -427,12 +449,8 @@ export default function StitchNavigator() {
     const startSessionId = startUrl.searchParams.get("sessionId");
     const startOpenQ = startUrl.searchParams.get("openQuestionnaire");
     if (startSessionId && startOpenQ === "1") {
-      setTimeout(() => {
-        if (navigationRef.current?.isReady()) {
-          navigationRef.current.navigate("Questionnaire", { sessionId: startSessionId });
-          window.history.replaceState({}, "", "/");
-        }
-      }, 2500);
+      pendingDeepLink.current = startSessionId;
+      window.history.replaceState({}, "", "/");
     }
 
     const handleDeepLink = () => {
@@ -450,15 +468,17 @@ export default function StitchNavigator() {
         return;
       }
 
-      if (sessionId && openQuestionnaire === "1" && navigationRef.current) {
-        // Attendre que la navigation soit prête
-        setTimeout(() => {
-          if (navigationRef.current?.isReady()) {
-            navigationRef.current.navigate("Questionnaire", { sessionId });
-            // Nettoyer l'URL
-            window.history.replaceState({}, "", window.location.pathname);
-          }
-        }, 1000);
+      if (sessionId && openQuestionnaire === "1") {
+        pendingDeepLink.current = sessionId;
+        window.history.replaceState({}, "", window.location.pathname || "/");
+        if (navigationRef.current?.isReady()) {
+          setTimeout(() => {
+            if (navigationRef.current?.isReady() && pendingDeepLink.current) {
+              navigationRef.current.navigate("Questionnaire", { sessionId: pendingDeepLink.current });
+              pendingDeepLink.current = null;
+            }
+          }, 1000);
+        }
       }
     };
 
@@ -472,7 +492,7 @@ export default function StitchNavigator() {
 
   return (
     <NavigationContainer ref={navigationRef}>
-      <AuthGate />
+      <AuthGate pendingDeepLink={pendingDeepLink} navigationRef={navigationRef} />
     </NavigationContainer>
   );
 }
