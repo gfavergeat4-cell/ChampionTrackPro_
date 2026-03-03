@@ -1,5 +1,5 @@
-﻿importScripts("https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js");
-importScripts("https://www.gstatic.com/firebasejs/10.12.5/firebase-messaging-compat.js");
+﻿importScripts("https://www.gstatic.com/firebasejs/10.12.4/firebase-app-compat.js");
+importScripts("https://www.gstatic.com/firebasejs/10.12.4/firebase-messaging-compat.js");
 
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
@@ -16,26 +16,22 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const messaging = firebase.messaging();
 
-const NOTIFICATION_ICON = "/icons/icon-192.png";
-const NOTIFICATION_BADGE = "/icons/icon-192.png";
-
 messaging.onBackgroundMessage((payload) => {
   console.log("[SW] Background message received:", payload);
   const title = payload?.notification?.title || payload?.data?.title || "Questionnaire disponible";
   const body = payload?.notification?.body || payload?.data?.body || "Appuie pour remplir ton questionnaire.";
   const data = payload?.data || {};
   const url = data.url || data.clickAction || "/";
-  const options = {
+  return self.registration.showNotification(title, {
     body,
-    icon: NOTIFICATION_ICON,
-    badge: NOTIFICATION_BADGE,
+    icon: "/icons/icon-192.png",
+    badge: "/icons/icon-192.png",
     vibrate: [200, 100, 200],
     requireInteraction: true,
     renotify: true,
     tag: data.tag || "ctpro-questionnaire",
     data: { url },
-  };
-  return self.registration.showNotification(title, options);
+  });
 });
 
 self.addEventListener("notificationclick", (event) => {
@@ -50,9 +46,7 @@ self.addEventListener("notificationclick", (event) => {
           return;
         }
       }
-      if (clients.openWindow) {
-        return clients.openWindow(url);
-      }
+      if (clients.openWindow) return clients.openWindow(url);
     })
   );
 });
