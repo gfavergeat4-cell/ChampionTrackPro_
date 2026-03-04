@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, Pressable, StyleSheet, Dimensions, Platform, TextInput, Alert } from "react-native";
+import { View, Text, Pressable, StyleSheet, Dimensions, Platform, TextInput, Alert, Image } from "react-native";
 import { LinearGradient } from 'expo-linear-gradient';
 import { createUserWithEmailAndPassword, getAuth } from "firebase/auth";
 import {
@@ -145,10 +145,12 @@ export default function CreateAccountScreen({
       
       {/* Logo Section */}
       <View style={styles.logoSection}>
-        <Text style={styles.logoText}>
-          <Text style={styles.logoMain}>CHAMPIONTRACK</Text>
-          <Text style={styles.logoPro}>PRO</Text>
-        </Text>
+        <Image
+          source={{ uri: "/logo/logo.jpeg" }}
+          style={styles.logoImage}
+          resizeMode="contain"
+          accessibilityLabel="ChampionTrackPro"
+        />
         <Text style={styles.tagline}>THE TRAINING INTELLIGENCE</Text>
       </View>
 
@@ -302,7 +304,15 @@ const styles = StyleSheet.create({
     paddingTop: tokens.spacing.xxxl * 2,
     paddingBottom: tokens.spacing.xxxl,
   },
-  
+
+  logoImage: {
+    maxWidth: 280,
+    width: '100%',
+    height: undefined,
+    aspectRatio: 2,
+    marginBottom: tokens.spacing.lg,
+  },
+
   logoText: {
     fontSize: tokens.fontSizes.display,
     fontWeight: tokens.fontWeights.bold,

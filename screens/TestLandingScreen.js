@@ -52,7 +52,7 @@ export default function TestLandingScreen() {
                 marginBottom: "16px",
               }}
             >
-              ChampionTrack<span style={{ color: "#00E0FF", textShadow: "0 0 8px rgba(0, 224, 255, 0.7), 0 0 20px rgba(0, 224, 255, 0.5)" }}>Pro</span>
+              <img src="/logo/logo.jpeg" alt="ChampionTrackPro" style={{ maxWidth: 280, width: "100%", display: "block", margin: "0 auto" }} />
             </h1>
             <p style={{ fontSize: "12px", fontWeight: "300", color: "#D1D5DB", letterSpacing: "0.3em", textTransform: "uppercase" }}>
               The Training Intelligence

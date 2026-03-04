@@ -155,31 +155,22 @@ export default function AdminHomeScreen() {
             paddingBottom: 32,
           }}
         >
-          {/* Icône centrale */}
-          <div style={{ marginBottom: 12, display: "flex", justifyContent: "center" }}>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
+            <img
+              src="/logo/logo.jpeg"
+              alt="ChampionTrackPro"
+              style={{ maxWidth: 280, width: "100%", display: "block", margin: "0 auto" }}
+            />
+          </div>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 4 }}>
             <img
               src="/icons/icon-192.png"
-              alt="ChampionTrackPro logo"
+              alt=""
               style={{ width: 48, height: 48, borderRadius: 0 }}
             />
           </div>
-
           <div
             style={{
-              fontFamily: "'Cinzel', serif",
-              fontSize: 28,
-              fontWeight: 700,
-              letterSpacing: "3px",
-            }}
-          >
-            <span style={{ color: "#F9FAFB" }}>CHAMPIONTRACK</span>
-            <span style={{ color: "#00E0FF", textShadow: "0 0 12px #00E0FF" }}>
-              PRO
-            </span>
-          </div>
-          <div
-            style={{
-              marginTop: 4,
               fontSize: 11,
               letterSpacing: "6px",
               textTransform: "uppercase",

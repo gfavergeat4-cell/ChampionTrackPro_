@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, TextInput, Pressable, StyleSheet, Platform } from "react-native";
+import { View, Text, TextInput, Pressable, StyleSheet, Platform, Image } from "react-native";
 import { tokens } from "../theme/tokens";
 import { makePress } from "../utils/press";
 
@@ -28,9 +28,7 @@ export default function Login({
     <View style={styles.container}>
       <View style={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.logo}>
-            ChampionTrack<Text style={styles.logoAccent}>PRO</Text>
-          </Text>
+          <Image source={{ uri: "/logo/logo.jpeg" }} style={styles.logoImage} resizeMode="contain" accessibilityLabel="ChampionTrackPro" />
           <Text style={styles.tagline}>THE TRAINING INTELLIGENCE</Text>
         </View>
 
@@ -129,6 +127,13 @@ const styles = StyleSheet.create({
   header: {
     alignItems: "center",
     marginBottom: tokens.spacing.xxl
+  },
+  logoImage: {
+    maxWidth: 280,
+    width: "100%",
+    height: undefined,
+    aspectRatio: 2,
+    marginBottom: tokens.spacing.lg,
   },
   logo: {
     color: tokens.colors.text,

@@ -103,18 +103,7 @@ export default function StitchLandingScreen() {
                     textShadow: "0 0 10px rgba(255,255,255,0.5), 0 0 20px rgba(255,255,255,0.3)",
                   }}
                 >
-                  ChampionTrack
-                  <span 
-                    className="text-glow-cyan"
-                    style={{
-                      color: "#00E0FF",
-                      textShadow: "0 0 12px rgba(0,224,255,0.8), 0 0 28px rgba(0,224,255,0.4)",
-                      fontWeight: 700,
-                      letterSpacing: "0.06em",
-                    }}
-                  >
-                    Pro
-                  </span>
+                  <img src="/logo/logo.jpeg" alt="ChampionTrackPro" style={{ maxWidth: 280, width: "100%", display: "block", margin: "0 auto" }} />
                 </h1>
 
                 <p

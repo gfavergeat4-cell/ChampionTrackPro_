@@ -418,9 +418,7 @@ export default function StitchCreateAccountScreen() {
           <div className="create-account-card">
             {/* Logo + Tagline */}
             <div className="logo-wrap">
-              <h1 className="logo">
-                ChampionTrack<span className="pro">Pro</span>
-              </h1>
+              <img src="/logo/logo.jpeg" alt="ChampionTrackPro" style={{ maxWidth: 280, width: "100%", display: "block", margin: "0 auto" }} />
               <p className="tagline">THE TRAINING INTELLIGENCE</p>
             </div>
 

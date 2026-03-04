@@ -30,41 +30,18 @@ export default function BrandHeader() {
           pointerEvents: "none",
         }}
       />
-      <h1
+      <img
+        src="/logo/logo.jpeg"
+        alt="ChampionTrackPro"
         style={{
-          fontFamily: "'Cinzel', serif",
-          fontWeight: 600,
-          fontSize: "clamp(1.2rem, 5vw, 1.6rem)",
-          lineHeight: 1.2,
-          margin: 0,
-          textTransform: "uppercase",
-          letterSpacing: "0.04em",
-          display: "inline-flex",
-          alignItems: "baseline",
-          gap: "0",
-          justifyContent: "center",
+          maxWidth: 280,
+          width: "100%",
+          display: "block",
+          margin: "0 auto",
           position: "relative",
           zIndex: 1,
         }}
-      >
-        <span
-          style={{
-            color: "#FFFFFF",
-            textShadow: "0 0 4px rgba(200,220,255,0.3), 0 0 8px rgba(180,200,255,0.2), 0 0 12px rgba(160,180,255,0.15)",
-          }}
-        >
-          <span style={{ fontSize: "1.12em" }}>C</span>HAMPION<span style={{ fontSize: "1.12em" }}>T</span>RACK
-        </span>
-        <span
-          style={{
-            color: "#00E0FF",
-            textShadow: "0 0 5px rgba(0,224,255,0.5), 0 0 10px rgba(0,224,255,0.3), 0 0 15px rgba(0,224,255,0.2)",
-            fontWeight: 600,
-          }}
-        >
-          <span style={{ fontSize: "1.12em" }}>P</span>RO
-        </span>
-      </h1>
+      />
       <p
         style={{
           marginTop: "8px",

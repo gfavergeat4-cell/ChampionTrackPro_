@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, Button } from "react-native";
+import { View, Text, TextInput, Button, Image } from "react-native";
 import { auth } from "../../firebaseConfig";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "firebase/auth";
 
@@ -17,7 +17,7 @@ export default function AuthScreen() {
 
   return (
     <View style={{ flex:1, padding:24, gap:12, justifyContent:"center" }}>
-      <Text style={{ fontSize:22, fontWeight:"600" }}>ChampionTrack Pro</Text>
+      <Image source={{ uri: "/logo/logo.jpeg" }} style={{ maxWidth: 280, width: "100%", marginBottom: 8 }} resizeMode="contain" accessibilityLabel="ChampionTrackPro" />
       <TextInput placeholder="Email" autoCapitalize="none" keyboardType="email-address"
         value={email} onChangeText={setEmail} style={{ borderWidth:1, padding:12, borderRadius:8 }} />
       <TextInput placeholder="Password" secureTextEntry value={pass} onChangeText={setPass}

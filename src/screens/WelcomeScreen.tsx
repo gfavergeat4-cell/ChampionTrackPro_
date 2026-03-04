@@ -1,5 +1,5 @@
-﻿import React from "react";
-import { SafeAreaView, View, Text, Pressable, StyleSheet, Platform } from "react-native";
+import React from "react";
+import { SafeAreaView, View, Text, Pressable, StyleSheet, Platform, Image } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
 import { useFonts, Cinzel_700Bold } from "@expo-google-fonts/cinzel";
@@ -32,7 +32,13 @@ export default function WelcomeScreen() {
       <View style={styles.glow} pointerEvents="none" />
       <View style={styles.container}>
         <View style={styles.centerBlock}>
-          <Text accessibilityRole="header" style={styles.title}>CHAMPIONTRACKPRO</Text>
+          <Image
+            source={{ uri: "/logo/logo.jpeg" }}
+            style={styles.logoImage}
+            resizeMode="contain"
+            accessibilityRole="image"
+            accessibilityLabel="ChampionTrackPro"
+          />
           <Text style={styles.subtitle}>THE TRAINING INTELLIGENCE</Text>
         </View>
         <View style={styles.footer}>
@@ -73,6 +79,13 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#0A0A10" },
   container: { flex: 1, alignItems: "center", paddingHorizontal: 16 },
   centerBlock: { flex: 1, alignItems: "center", justifyContent: "center" },
+  logoImage: {
+    maxWidth: 280,
+    width: "100%",
+    height: undefined,
+    aspectRatio: 2,
+    marginBottom: 8,
+  },
   title: {
     fontFamily: "Cinzel_700Bold",
     fontSize: 32,

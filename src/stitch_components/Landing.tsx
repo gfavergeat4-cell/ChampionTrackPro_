@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, Pressable, StyleSheet, Dimensions, Platform } from "react-native";
+import { View, Text, Pressable, StyleSheet, Dimensions, Platform, Image } from "react-native";
 import { tokens } from "../theme/tokens";
 import { makePress } from "../utils/press";
 
@@ -22,9 +22,7 @@ export default function Landing({
       {/* Main content */}
       <View style={styles.main}>
         <View style={styles.logoContainer}>
-          <Text style={styles.logo}>
-            ChampionTrack<Text style={styles.logoAccent}>Pro</Text>
-          </Text>
+          <Image source={{ uri: "/logo/logo.jpeg" }} style={styles.logoImage} resizeMode="contain" accessibilityLabel="ChampionTrackPro" />
           <Text style={styles.tagline}>THE TRAINING INTELLIGENCE</Text>
         </View>
       </View>
@@ -85,6 +83,13 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     alignItems: "center"
+  },
+  logoImage: {
+    maxWidth: 280,
+    width: "100%",
+    height: undefined,
+    aspectRatio: 2,
+    marginBottom: tokens.spacing.lg,
   },
   logo: {
     color: tokens.colors.text,

@@ -77,40 +77,14 @@ export default function StitchLoginScreenClean() {
           }}
         >
           <div style={{ width: "100%", maxWidth: "384px", margin: "0 auto", textAlign: "center" }}>
-            {/* Header – ChampionTrackPRO */}
+            {/* Header – ChampionTrackPro logo */}
             <header
               style={{
                 marginBottom: "40px",
                 textAlign: "center",
               }}
             >
-              <h1 
-                style={{
-                  fontFamily: "'Cinzel', serif",
-                  fontSize: "28px",
-                  fontWeight: 700,
-                  color: "#FDFEFF",
-                  textTransform: "none",
-                  letterSpacing: "0.06em",
-                  textShadow:
-                    "0 0 6px rgba(255,255,255,0.7), 0 0 14px rgba(0,224,255,0.45)",
-                }}
-              >
-                ChampionTrack
-                <span
-                  style={{
-                    marginLeft: "6px",
-                    color: "#00E0FF",
-                    fontWeight: 700,
-                    fontSize: "1.02em",
-                    letterSpacing: "0.12em",
-                    textShadow:
-                      "0 0 8px rgba(0,224,255,0.9), 0 0 18px rgba(0,224,255,0.85)",
-                  }}
-                >
-                  PRO
-                </span>
-              </h1>
+              <img src="/logo/logo.jpeg" alt="ChampionTrackPro" style={{ maxWidth: 280, width: "100%", display: "block", margin: "0 auto" }} />
 
               <p 
                 style={{

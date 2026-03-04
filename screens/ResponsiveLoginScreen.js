@@ -90,7 +90,7 @@ export default function ResponsiveLoginScreen() {
               marginBottom: "8px",
             }}
           >
-            CHAMPIONTRACK<span style={{ color: "#00E0FF", textShadow: "0 0 15px #00E0FF, 0 0 25px #00E0FF" }}>PRO</span>
+            <img src="/logo/logo.jpeg" alt="ChampionTrackPro" style={{ maxWidth: 280, width: "100%", display: "block", margin: "0 auto" }} />
           </h1>
           <p 
             style={{

@@ -1,10 +1,15 @@
 import React from 'react';
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet, Platform, Image } from 'react-native';
 
 export default function TestScreen() {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>CHAMPIONTRACKPRO</Text>
+      <Image
+        source={{ uri: "/logo/logo.jpeg" }}
+        style={styles.logoImage}
+        resizeMode="contain"
+        accessibilityLabel="ChampionTrackPro"
+      />
       <Text style={styles.subtitle}>THE TRAINING INTELLIGENCE</Text>
       <Text style={styles.status}>✅ Application chargée avec succès</Text>
       <Text style={styles.info}>Plateforme: {Platform.OS}</Text>
@@ -19,6 +24,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
+  },
+  logoImage: {
+    maxWidth: 280,
+    width: '100%',
+    height: undefined,
+    aspectRatio: 2,
+    marginBottom: 16,
   },
   title: {
     fontSize: 32,

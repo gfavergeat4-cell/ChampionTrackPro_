@@ -52,7 +52,7 @@ export default function SimpleLoginScreen() {
             WebkitBackgroundClip: "text",
             WebkitTextFillColor: "transparent"
           }}>
-            ChampionTrackPRO
+            <img src="/logo/logo.jpeg" alt="ChampionTrackPro" style={{ maxWidth: 280, width: "100%", display: "block", margin: "0 auto" }} />
           </h1>
           <p style={{ fontSize: "16px", color: "#9AA3B2", margin: 0 }}>
             THE TRAINING INTELLIGENCE

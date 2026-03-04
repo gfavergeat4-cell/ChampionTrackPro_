@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, Pressable, StyleSheet, Dimensions, Platform } from "react-native";
+import { View, Text, Pressable, StyleSheet, Dimensions, Platform, Image } from "react-native";
 import { LinearGradient } from 'expo-linear-gradient';
 import { tokens } from "../theme/tokens";
 
@@ -23,10 +23,12 @@ export default function LandingScreen({
       
       {/* Logo Section */}
       <View style={styles.logoSection}>
-        <Text style={styles.logoText}>
-          <Text style={styles.logoMain}>CHAMPIONTRACK</Text>
-          <Text style={styles.logoPro}>PRO</Text>
-        </Text>
+        <Image
+          source={{ uri: "/logo/logo.jpeg" }}
+          style={styles.logoImage}
+          resizeMode="contain"
+          accessibilityLabel="ChampionTrackPro"
+        />
         <Text style={styles.tagline}>THE TRAINING INTELLIGENCE</Text>
       </View>
 
@@ -93,6 +95,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: tokens.spacing.xl,
+  },
+
+  logoImage: {
+    maxWidth: 280,
+    width: '100%',
+    height: undefined,
+    aspectRatio: 2,
+    marginBottom: tokens.spacing.lg,
   },
   
   logoText: {
