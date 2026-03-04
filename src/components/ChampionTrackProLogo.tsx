@@ -5,13 +5,14 @@ import { Platform, Image } from "react-native";
 const nativeLogoSource = require("../../public/logo-transparent.png");
 
 const webLogoStyle = {
-  width: "280px",
-  maxWidth: "80%",
-  height: "auto",
-  display: "block",
-  margin: "0 auto",
   background: "none",
   backgroundColor: "transparent",
+  mixBlendMode: "screen",
+  width: "280px",
+  height: "auto",
+  maxWidth: "80%",
+  display: "block",
+  margin: "0 auto",
   border: "none",
 } as const;
 
