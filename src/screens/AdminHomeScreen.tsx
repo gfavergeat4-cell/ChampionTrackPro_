@@ -137,6 +137,7 @@ export default function AdminHomeScreen() {
         fontFamily:
           "system-ui, -apple-system, BlinkMacSystemFont, 'Inter', sans-serif",
         padding: isDesktop ? "32px 48px 40px" : "24px 16px 32px",
+        overflowY: "auto",
       }}
     >
       <div
@@ -149,15 +150,26 @@ export default function AdminHomeScreen() {
         <header
           style={{
             marginBottom: 32,
-            textAlign: isDesktop ? "left" : "center",
+            textAlign: "center",
+            paddingTop: 32,
+            paddingBottom: 32,
           }}
         >
+          {/* Icône centrale */}
+          <div style={{ marginBottom: 12, display: "flex", justifyContent: "center" }}>
+            <img
+              src="/icons/icon-192.png"
+              alt="ChampionTrackPro logo"
+              style={{ width: 48, height: 48, borderRadius: 0 }}
+            />
+          </div>
+
           <div
             style={{
               fontFamily: "'Cinzel', serif",
-              fontSize: isDesktop ? 28 : 22,
+              fontSize: 28,
               fontWeight: 700,
-              letterSpacing: "0.12em",
+              letterSpacing: "3px",
             }}
           >
             <span style={{ color: "#F9FAFB" }}>CHAMPIONTRACK</span>
@@ -169,13 +181,23 @@ export default function AdminHomeScreen() {
             style={{
               marginTop: 4,
               fontSize: 11,
-              letterSpacing: "0.28em",
+              letterSpacing: "6px",
               textTransform: "uppercase",
               color: "#9CA3AF",
             }}
           >
             THE TRAINING INTELLIGENCE
           </div>
+
+          {/* Fine ligne séparatrice */}
+          <div
+            style={{
+              marginTop: 24,
+              height: 1,
+              width: "100%",
+              backgroundColor: "rgba(0,224,255,0.2)",
+            }}
+          />
         </header>
 
         {/* Liste des équipes */}
@@ -254,8 +276,8 @@ export default function AdminHomeScreen() {
                   >
                     <span
                       style={{
-                        fontSize: 15,
-                        fontWeight: 600,
+                        fontSize: 17,
+                        fontWeight: 700,
                         whiteSpace: "nowrap",
                         textOverflow: "ellipsis",
                         overflow: "hidden",
@@ -285,6 +307,32 @@ export default function AdminHomeScreen() {
                 </button>
               );
             })}
+
+            {/* Bouton Create Team */}
+            <div
+              style={{
+                marginTop: 24,
+                display: "flex",
+                justifyContent: "center",
+              }}
+            >
+              <button
+                onClick={() => alert("Fonctionnalité à venir")}
+                style={{
+                  padding: "16px 48px",
+                  borderRadius: 8,
+                  backgroundColor: "#00E0FF",
+                  border: "none",
+                  color: "#020617",
+                  fontWeight: 700,
+                  fontSize: 14,
+                  cursor: "pointer",
+                  boxShadow: "0 14px 30px rgba(8,47,73,0.7)",
+                }}
+              >
+                + CREATE TEAM
+              </button>
+            </div>
           </div>
         )}
       </div>
