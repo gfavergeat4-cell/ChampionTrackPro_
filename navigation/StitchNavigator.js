@@ -25,6 +25,7 @@ import DevEventsProbe from "../screens/DevEventsProbe";
 import DebugTestQuestionnaireScreen from "../screens/DebugTestQuestionnaireScreen";
 import PerformanceDashboard from "../src/screens/PerformanceDashboard";
 import AdminHomeScreen from "../src/screens/AdminHomeScreen";
+import CoachHomeScreen from "../src/screens/CoachHomeScreen";
 
 const AuthStack = createNativeStackNavigator();
 const RootStack = createNativeStackNavigator();
@@ -203,7 +204,7 @@ function AdminTabs() {
   );
 }
 
-// Coach Tabs (placeholder for future)
+// Coach Tabs
 function CoachTabs() {
   const CoachTab = createBottomTabNavigator();
   return (
@@ -225,7 +226,7 @@ function CoachTabs() {
     >
       <CoachTab.Screen 
         name="Home" 
-        component={HomeScreen}
+        component={CoachHomeScreen}
         initialParams={{ role: "coach" }}
         options={{
           tabBarIcon: ({ color, size, focused }) => (
@@ -235,7 +236,7 @@ function CoachTabs() {
       />
       <CoachTab.Screen 
         name="Schedule" 
-        component={ScheduleScreen}
+        component={ScheduleScreenNewScreen}
         initialParams={{ role: "coach" }}
         options={{
           tabBarIcon: ({ color, size, focused }) => (

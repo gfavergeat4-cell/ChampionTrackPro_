@@ -249,6 +249,21 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
             teamId = data.teamId || null;
           }
           if (!teamId) {
+            const teamsSnap = await getDocs(collection(db, "teams"));
+            for (const d of teamsSnap.docs) {
+              const data = d.data() as any;
+              const coaches = data.coaches;
+              if (Array.isArray(coaches) && coaches.includes(user.uid)) {
+                teamId = d.id;
+                break;
+              }
+              if (data.coachId === user.uid || data.coach === user.uid) {
+                teamId = d.id;
+                break;
+              }
+            }
+          }
+          if (!teamId) {
             throw new Error("Aucune équipe associée au coach.");
           }
           if (!cancelled) setSelectedTeamId(teamId);
