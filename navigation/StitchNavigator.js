@@ -23,6 +23,7 @@ import AdminDashboard from "../screens/StitchAdminDashboard";
 import TeamDetails from "../screens/StitchTeamDetails";
 import DevEventsProbe from "../screens/DevEventsProbe";
 import DebugTestQuestionnaireScreen from "../screens/DebugTestQuestionnaireScreen";
+import PerformanceDashboard from "../src/screens/PerformanceDashboard";
 
 const AuthStack = createNativeStackNavigator();
 const RootStack = createNativeStackNavigator();
@@ -174,7 +175,8 @@ function AdminTabs() {
       />
       <AdminTab.Screen 
         name="Analytics" 
-        component={AdminDashboard}
+        component={PerformanceDashboard}
+        initialParams={{ role: "admin" }}
         options={{
           tabBarIcon: ({ color, size, focused }) => (
             <TabIcon name="Analytics" color={color} size={size} focused={focused} />
@@ -229,6 +231,16 @@ function CoachTabs() {
         options={{
           tabBarIcon: ({ color, size, focused }) => (
             <TabIcon name="Schedule" color={color} size={size} focused={focused} />
+          ),
+        }}
+      />
+      <CoachTab.Screen
+        name="Analytics"
+        component={PerformanceDashboard}
+        initialParams={{ role: "coach" }}
+        options={{
+          tabBarIcon: ({ color, size, focused }) => (
+            <TabIcon name="Analytics" color={color} size={size} focused={focused} />
           ),
         }}
       />
