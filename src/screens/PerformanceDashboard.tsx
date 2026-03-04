@@ -195,9 +195,10 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
   const role: Role = (route?.params?.role as Role) || "coach";
   const teamNameFromRoute = route?.params?.teamName;
 
-  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(
-    route?.params?.teamId || null
-  );
+  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(() => {
+    const t = route?.params?.teamId;
+    return typeof t === "string" && t.trim() ? t.trim() : null;
+  });
 
   const [members, setMembers] = useState<Member[]>([]);
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([]);
@@ -236,7 +237,9 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
           throw new Error("Utilisateur non authentifié");
         }
 
-        const teamIdFromParams = route?.params?.teamId;
+        const raw = route?.params?.teamId;
+        const teamIdFromParams =
+          typeof raw === "string" && raw.trim() ? raw.trim() : null;
 
         if (role === "coach") {
           let teamId = teamIdFromParams ?? null;
@@ -266,6 +269,16 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
     };
   }, [role, route?.params?.teamId]);
 
+  // Resynchroniser selectedTeamId si la route change (ex. navigation avec un autre teamId)
+  useEffect(() => {
+    const raw = route?.params?.teamId;
+    const next =
+      typeof raw === "string" && raw.trim() ? raw.trim() : null;
+    if (role === "admin" && next !== null) {
+      setSelectedTeamId((prev) => (prev !== next ? next : prev));
+    }
+  }, [route?.params?.teamId, role]);
+
   // Charger les membres de l'équipe + poste depuis users/{uid}
   useEffect(() => {
     let cancelled = false;
@@ -273,6 +286,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
 
     (async () => {
       try {
+        console.log("selectedTeamId:", selectedTeamId);
         const memSnap = await getDocs(
           collection(db, "teams", selectedTeamId, "members")
         );
@@ -1029,6 +1043,19 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
               >
                 Chargement des données...
               </span>
+            </div>
+          ) : !selectedTeamId ? (
+            <div
+              style={{
+                minHeight: 160,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#F87171",
+                fontSize: 14,
+              }}
+            >
+              Aucune équipe sélectionnée
             </div>
           ) : error ? (
             <div
