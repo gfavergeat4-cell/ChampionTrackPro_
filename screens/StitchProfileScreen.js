@@ -719,7 +719,6 @@ export default function StitchProfileScreen() {
             onNavigate={handleTabNavigation} 
           />
         </div>
-        </div>
       </div>
     );
 
