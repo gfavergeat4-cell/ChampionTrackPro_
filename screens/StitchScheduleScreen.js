@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { Platform } from "react-native";
 import MobileViewport from "../src/components/MobileViewport";
+import { useIsDesktop } from "../src/hooks/useIsDesktop";
 import { auth, db } from "../services/firebaseConfig";
 import { doc, getDoc } from "firebase/firestore";
 import {
@@ -22,6 +23,7 @@ import UnifiedAthleteNavigation from "../src/stitch_components/UnifiedAthleteNav
 
 export default function StitchScheduleScreen() {
   const navigation = useNavigation();
+  const isDesktop = useIsDesktop();
   const [activeTab, setActiveTab] = useState("Day");
   const today = new Date();
   const [selectedDay, setSelectedDay] = useState(today);
@@ -471,6 +473,53 @@ export default function StitchScheduleScreen() {
   }, [selectedDay, activeTab]);
 
   if (Platform.OS === "web") {
+    if (isDesktop) {
+      return (
+        <div
+          style={{
+            minHeight: "100vh",
+            backgroundColor: "#0A0F1A",
+            padding: "0 48px 40px",
+            color: "white",
+            fontFamily: "'Inter', sans-serif",
+          }}
+        >
+          <div
+            style={{
+              maxWidth: 1280,
+              margin: "0 auto",
+              paddingTop: 32,
+            }}
+          >
+            {/* Original mobile content container without MobileViewport */}
+            <div
+              style={{
+                width: "100%",
+                backgroundColor: "#0A0F1A",
+                overflow: "hidden",
+                position: "relative",
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
+              {/* Background Gradient */}
+              <div
+                style={{
+                  position: "absolute",
+                  width: "100%",
+                  height: "100%",
+                  background:
+                    "radial-gradient(circle at 50% 0%, rgba(0, 224, 255, 0.1) 0%, rgba(0, 0, 0, 0) 50%), radial-gradient(circle at 0% 100%, rgba(74, 103, 255, 0.1) 0%, rgba(0, 0, 0, 0) 50%)",
+                  zIndex: 0,
+                }}
+              />
+              {/* le reste du JSX reste inchangé ci‑dessous */}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <MobileViewport>
         <div style={{

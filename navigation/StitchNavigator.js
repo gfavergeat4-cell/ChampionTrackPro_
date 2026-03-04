@@ -24,6 +24,7 @@ import TeamDetails from "../screens/StitchTeamDetails";
 import DevEventsProbe from "../screens/DevEventsProbe";
 import DebugTestQuestionnaireScreen from "../screens/DebugTestQuestionnaireScreen";
 import PerformanceDashboard from "../src/screens/PerformanceDashboard";
+import AdminHomeScreen from "../src/screens/AdminHomeScreen";
 
 const AuthStack = createNativeStackNavigator();
 const RootStack = createNativeStackNavigator();
@@ -52,7 +53,11 @@ function AthleteTabs() {
     >
       <AthleteTab.Screen name="Home" component={AthleteHome} />
       <AthleteTab.Screen name="Schedule" component={ScheduleScreenNewScreen} />
-      <AthleteTab.Screen name="Profile" component={ProfileScreen} />
+      <AthleteTab.Screen
+        name="Profile"
+        component={ProfileScreen}
+        initialParams={{ role: "athlete" }}
+      />
     </AthleteTab.Navigator>
   );
 }
@@ -156,8 +161,8 @@ function AdminTabs() {
       }}
     >
       <AdminTab.Screen 
-        name="AdminDashboard" 
-        component={AdminDashboard}
+        name="AdminHome" 
+        component={AdminHomeScreen}
         options={{
           tabBarIcon: ({ color, size, focused }) => (
             <TabIcon name="Dashboard" color={color} size={size} focused={focused} />
@@ -175,8 +180,7 @@ function AdminTabs() {
       />
       <AdminTab.Screen 
         name="Analytics" 
-        component={PerformanceDashboard}
-        initialParams={{ role: "admin" }}
+        component={AdminDashboard}
         options={{
           tabBarIcon: ({ color, size, focused }) => (
             <TabIcon name="Analytics" color={color} size={size} focused={focused} />
@@ -186,6 +190,7 @@ function AdminTabs() {
       <AdminTab.Screen 
         name="Profile" 
         component={ProfileScreen}
+        initialParams={{ role: "admin" }}
         options={{
           tabBarIcon: ({ color, size, focused }) => (
             <TabIcon name="Profile" color={color} size={size} focused={focused} />
@@ -219,6 +224,7 @@ function CoachTabs() {
       <CoachTab.Screen 
         name="Home" 
         component={HomeScreen}
+        initialParams={{ role: "coach" }}
         options={{
           tabBarIcon: ({ color, size, focused }) => (
             <TabIcon name="Home" color={color} size={size} focused={focused} />
@@ -228,6 +234,7 @@ function CoachTabs() {
       <CoachTab.Screen 
         name="Schedule" 
         component={ScheduleScreen}
+        initialParams={{ role: "coach" }}
         options={{
           tabBarIcon: ({ color, size, focused }) => (
             <TabIcon name="Schedule" color={color} size={size} focused={focused} />
@@ -247,6 +254,7 @@ function CoachTabs() {
       <CoachTab.Screen 
         name="Profile" 
         component={ProfileScreen}
+        initialParams={{ role: "coach" }}
         options={{
           tabBarIcon: ({ color, size, focused }) => (
             <TabIcon name="Profile" color={color} size={size} focused={focused} />
@@ -285,6 +293,11 @@ function RootStackNavigator({ role, user, pendingDeepLink, navigationRef }) {
     return (
       <RootStack.Navigator screenOptions={{ headerShown: false }}>
         <RootStack.Screen name="AdminMain" component={AdminTabs} />
+        <RootStack.Screen
+          name="AdminPerformanceDashboard"
+          component={PerformanceDashboard}
+          initialParams={{ role: "admin" }}
+        />
         <RootStack.Screen name="TeamDetails" component={TeamDetails} />
         <RootStack.Screen name="DevEventsProbe" component={DevEventsProbe} />
         <RootStack.Screen name="DebugTestQuestionnaire" component={DebugTestQuestionnaireScreen} />

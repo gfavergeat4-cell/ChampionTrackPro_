@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import { Platform, StyleSheet, View, Text, Pressable, ScrollView, ActivityIndicator, Alert } from "react-native";
 import MobileViewport from "../src/components/MobileViewport";
+import { useIsDesktop } from "../src/hooks/useIsDesktop";
 import { signOut } from "firebase/auth";
 import { auth, db } from "../services/firebaseConfig";
 import { CommonActions } from "@react-navigation/native";
@@ -10,6 +11,9 @@ import UnifiedAthleteNavigation from "../src/stitch_components/UnifiedAthleteNav
 
 export default function StitchProfileScreen() {
   const navigation = useNavigation();
+  const route = useRoute();
+  const isDesktop = useIsDesktop();
+  const roleParam = (route.params && (route.params as any).role) || null;
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -226,22 +230,24 @@ export default function StitchProfileScreen() {
   };
 
   if (Platform.OS === "web") {
-    return (
-      <MobileViewport>
-        <div style={{
-          width: "100%",
-          maxWidth: "360px",
-          margin: "0 auto",
-          height: "812px",
-          backgroundColor: "#0A0F1A",
-          overflow: "hidden",
-          position: "relative",
-          display: "flex",
-          flexDirection: "column",
-          fontFamily: Platform.select({ web: "'Inter', sans-serif", default: "System" }),
-          color: "white",
-          pointerEvents: "auto"
-        }}>
+    const isAdminOrCoachDesktop =
+      isDesktop && (roleParam === "admin" || roleParam === "coach");
+
+    const profileShell = (
+      <div style={{
+        width: "100%",
+        maxWidth: isAdminOrCoachDesktop ? "100%" : "360px",
+        margin: "0 auto",
+        height: isAdminOrCoachDesktop ? "auto" : "812px",
+        backgroundColor: "#0A0F1A",
+        overflow: "hidden",
+        position: "relative",
+        display: "flex",
+        flexDirection: "column",
+        fontFamily: Platform.select({ web: "'Inter', sans-serif", default: "System" }),
+        color: "white",
+        pointerEvents: "auto"
+      }}>
           {/* Background Gradient - Futuristic Dark â†’ Deep Navy â†’ Black */}
           <div style={{
             position: "absolute",
@@ -713,9 +719,25 @@ export default function StitchProfileScreen() {
             onNavigate={handleTabNavigation} 
           />
         </div>
+        </div>
       </div>
-      </MobileViewport>
     );
+
+    if (isAdminOrCoachDesktop) {
+      return (
+        <div
+          style={{
+            minHeight: "100vh",
+            backgroundColor: "#0A0F1A",
+            padding: "0 48px 40px",
+          }}
+        >
+          <div style={{ maxWidth: 1280, margin: "0 auto" }}>{profileShell}</div>
+        </div>
+      );
+    }
+
+    return <MobileViewport>{profileShell}</MobileViewport>;
   }
 
   return (

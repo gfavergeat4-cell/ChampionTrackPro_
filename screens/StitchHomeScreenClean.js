@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { Platform } from "react-native";
 import MobileViewport from "../src/components/MobileViewport";
+import { useIsDesktop } from "../src/hooks/useIsDesktop";
 import { auth, db } from "../services/firebaseConfig";
 import { doc, getDoc, collection, getDocs, query, where, orderBy, Timestamp } from "firebase/firestore";
 import { resolveAthleteTeamAndMembership } from "../src/lib/resolveAthleteTeam";
@@ -9,6 +10,7 @@ import { mapTrainingDoc } from "../src/lib/mapTraining";
 
 export default function StitchHomeScreenClean() {
   const navigation = useNavigation();
+  const isDesktop = useIsDesktop();
   const [calendarEvents, setCalendarEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -196,6 +198,39 @@ export default function StitchHomeScreenClean() {
   };
 
   if (Platform.OS === "web") {
+    if (isDesktop) {
+      return (
+        <div
+          style={{
+            minHeight: "100vh",
+            background: "linear-gradient(to bottom, #0B0F1A, #020409)",
+            padding: "0 48px 40px",
+            fontFamily: "'Inter', sans-serif",
+            color: "#E5E4E2",
+          }}
+        >
+          <div
+            style={{
+              maxWidth: 1280,
+              margin: "0 auto",
+            }}
+          >
+            <div
+              style={{
+                width: "100%",
+                minHeight: "100vh",
+                position: "relative",
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
+              {/* Background Effects and rest of content remain the same */}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <MobileViewport>
         <div

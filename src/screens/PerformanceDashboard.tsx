@@ -1,15 +1,15 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, ActivityIndicator, Platform } from "react-native";
 import {
-  collection,
   collectionGroup,
   doc,
   getDoc,
   getDocs,
   query,
   where,
+  Timestamp,
 } from "firebase/firestore";
-import { auth, db } from "../../firebaseConfig";
+import { auth, db } from "../../services/firebaseConfig";
 import {
   LineChart,
   Line,
@@ -35,6 +35,7 @@ interface PerformanceDashboardProps {
     params?: {
       role?: Role;
       teamId?: string;
+      teamName?: string;
     };
   };
 }
@@ -153,6 +154,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
   }
 
   const role: Role = (route?.params?.role as Role) || "coach";
+  const teamNameFromRoute = route?.params?.teamName;
 
   const [teams, setTeams] = useState<Team[]>([]);
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(
@@ -271,13 +273,15 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
       setError(null);
       try {
         const { start, end } = getDateRange(duration);
+        const startTs = Timestamp.fromDate(start);
+        const endTs = Timestamp.fromDate(end);
 
         const cg = collectionGroup(db, "responses");
         const qy = query(
           cg,
           where("teamId", "==", selectedTeamId),
-          where("submittedAt", ">=", start),
-          where("submittedAt", "<=", end)
+          where("submittedAt", ">=", startTs),
+          where("submittedAt", "<=", endTs)
         );
         const snap = await getDocs(qy);
         if (cancelled) return;
@@ -460,7 +464,9 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                 marginBottom: 4,
               }}
             >
-              Performance Dashboard
+              {teamNameFromRoute
+                ? `Performance • ${teamNameFromRoute}`
+                : "Performance Dashboard"}
             </h1>
             <p style={{ color: "#9CA3AF", fontSize: 14 }}>
               Visualisation des questionnaires par joueur, catégorie et période.
