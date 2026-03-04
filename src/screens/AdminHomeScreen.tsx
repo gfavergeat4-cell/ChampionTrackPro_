@@ -5,6 +5,7 @@ import { collection, getDocs, getCountFromServer } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { auth, db } from "../lib/firebase";
 import { useIsDesktop } from "../hooks/useIsDesktop";
+import ChampionTrackProLogo from "../components/ChampionTrackProLogo";
 
 interface TeamDoc {
   id: string;
@@ -190,35 +191,9 @@ export default function AdminHomeScreen() {
           </button>
         </div>
 
-        {/* Logo — inline text + SVG, no image */}
+        {/* Logo */}
         <div style={{ paddingTop: 32, paddingBottom: 32 }}>
-          <div style={{ textAlign: "center", marginBottom: 40 }}>
-            <div style={{
-              fontSize: 30,
-              fontFamily: "'Palatino Linotype', Palatino, Georgia, serif",
-              letterSpacing: 3,
-              lineHeight: 1.2,
-            }}>
-              <span style={{ color: "#ffffff", textShadow: "0 0 30px rgba(255,255,255,0.4)" }}>CHAMPIONTRACK</span>
-              <span style={{ color: "#00D4FF", textShadow: "0 0 25px rgba(0,212,255,0.9)" }}>PRO</span>
-            </div>
-            <div style={{ fontSize: 10, letterSpacing: 7, color: "rgba(255,255,255,0.45)", marginTop: 6 }}>
-              THE TRAINING INTELLIGENCE
-            </div>
-            <svg style={{ marginTop: 14, display: "block", margin: "14px auto 0" }} width="80" height="18" viewBox="0 0 80 18">
-              <defs>
-                <linearGradient id="admin-lg" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#0044FF" stopOpacity="0.4" />
-                  <stop offset="50%" stopColor="#00D4FF" />
-                  <stop offset="100%" stopColor="#0044FF" stopOpacity="0.4" />
-                </linearGradient>
-                <filter id="admin-glow"><feGaussianBlur stdDeviation="2.5" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
-              </defs>
-              <line x1="4" y1="9" x2="76" y2="9" stroke="url(#admin-lg)" strokeWidth="2" strokeLinecap="round" />
-              <circle cx="40" cy="9" r="5" fill="#00D4FF" filter="url(#admin-glow)" />
-              <circle cx="40" cy="9" r="2.5" fill="#ffffff" />
-            </svg>
-          </div>
+          <ChampionTrackProLogo />
         </div>
 
         {/* Grille des équipes */}
