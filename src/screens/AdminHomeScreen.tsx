@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Platform, ActivityIndicator, View, Text } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { collection, getDocs, getCountFromServer } from "firebase/firestore";
+import { signOut } from "firebase/auth";
 import { auth, db } from "../lib/firebase";
 import { useIsDesktop } from "../hooks/useIsDesktop";
 
@@ -161,7 +162,35 @@ export default function AdminHomeScreen() {
           margin: "0 auto",
         }}
       >
-        {/* Logo header — même direction artistique que l'écran athlete */}
+        {/* Barre haut : bouton déconnexion à droite */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            alignItems: "center",
+            paddingTop: 16,
+            paddingBottom: 8,
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => signOut(auth)}
+            style={{
+              padding: "10px 20px",
+              borderRadius: 12,
+              border: "1px solid #00E0FF",
+              background: "transparent",
+              color: "#00E0FF",
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            Se déconnecter
+          </button>
+        </div>
+
+        {/* Logo — reproduction exacte du visuel */}
         <div style={{ textAlign: "center", paddingTop: 32, paddingBottom: 32 }}>
           <div
             style={{
@@ -185,14 +214,14 @@ export default function AdminHomeScreen() {
               fontSize: 11,
               letterSpacing: 8,
               color: "rgba(255,255,255,0.6)",
-              marginTop: 8,
+              marginTop: 10,
               fontFamily: "sans-serif",
               textTransform: "uppercase",
             }}
           >
             THE TRAINING INTELLIGENCE
           </div>
-          <div style={{ marginTop: 12, display: "flex", justifyContent: "center" }}>
+          <div style={{ marginTop: 16, display: "flex", justifyContent: "center" }}>
             <svg width="80" height="20" viewBox="0 0 80 20">
               <defs>
                 <linearGradient id="adminHeaderGrad" x1="0%" y1="0%" x2="100%" y2="0%">
