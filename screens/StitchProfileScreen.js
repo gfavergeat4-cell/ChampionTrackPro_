@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { Platform, StyleSheet, View, Text, Pressable, ScrollView, ActivityIndicator, Alert } from "react-native";
 import MobileViewport from "../src/components/MobileViewport";
@@ -7,7 +7,6 @@ import { auth, db } from "../services/firebaseConfig";
 import { CommonActions } from "@react-navigation/native";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import UnifiedAthleteNavigation from "../src/stitch_components/UnifiedAthleteNavigation";
-import { normalizePhoneE164, isValidPhoneE164 } from "../src/utils/phoneE164";
 
 // Set to true to show "Test Push Notification (Debug)" button (verification only).
 const DEBUG_PUSH_TEST = true;
@@ -17,14 +16,11 @@ export default function StitchProfileScreen() {
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
-  const SMS_CONSENT_TEXT = "I agree to receive SMS links for training questionnaires. Msg&data rates may apply. Reply STOP to opt out.";
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
     jerseyNumber: "",
     position: "",
-    phoneE164: "",
-    smsOptIn: false,
   });
   const [profileImage, setProfileImage] = useState(null);
 
@@ -100,8 +96,6 @@ export default function StitchProfileScreen() {
           lastName: data.lastName || "",
           jerseyNumber: data.jerseyNumber || "",
           position: data.position || "",
-          phoneE164: data.phoneE164 || "",
-          smsOptIn: !!data.smsOptIn,
         });
         setProfileImage(data.profileImage || null);
       }
@@ -136,26 +130,12 @@ export default function StitchProfileScreen() {
         console.log("âš ï¸ Image too large, compressing...");
         alert("Image is being compressed to fit the size limit...");
       }
-      if (formData.smsOptIn) {
-        if (!formData.phoneE164) {
-          alert("Phone number is required when SMS opt-in is on.");
-          return;
-        }
-        const normalized = normalizePhoneE164(formData.phoneE164);
-        if (!normalized || !isValidPhoneE164(normalized)) {
-          alert("Invalid phone number. Use E.164 format (e.g. +33612345678).");
-          return;
-        }
-      }
       const updateData = {
         firstName: formData.firstName,
         lastName: formData.lastName,
         jerseyNumber: formData.jerseyNumber,
         position: formData.position,
         profileImage: profileImage,
-        phoneE164: formData.smsOptIn ? (normalizePhoneE164(formData.phoneE164) || formData.phoneE164) : null,
-        smsOptIn: !!formData.smsOptIn,
-        ...(formData.smsOptIn && !userData?.smsOptIn && { smsOptInAt: new Date() }),
         updatedAt: new Date(),
       };
       console.log("ðŸ” Update data:", updateData);
@@ -163,7 +143,7 @@ export default function StitchProfileScreen() {
       await updateDoc(doc(db, "users", auth.currentUser.uid), updateData);
 
       console.log("âœ… Profile updated successfully");
-      setUserData(prev => ({ ...prev, ...formData, phoneE164: updateData.phoneE164, smsOptIn: updateData.smsOptIn }));
+      setUserData(prev => ({ ...prev, ...formData }));
       setEditing(false);
       alert("Profile updated successfully!");
     } catch (error) {
@@ -287,45 +267,6 @@ export default function StitchProfileScreen() {
     } catch (e) {
       console.error("[SW] test notification failed", e);
       Alert.alert("Error", "Could not show test notification. Check console.");
-    }
-  };
-
-  const SEND_TEST_SMS_HTTP_URL = "https://us-central1-championtrackpro.cloudfunctions.net/sendTestSmsHttp";
-
-  const handleSendTestSms = async () => {
-    if (!userData?.smsOptIn || !userData?.phoneE164) {
-      notify("SMS opt-in required", "Enable SMS and add your phone number in Personal Info first.");
-      return;
-    }
-    try {
-      console.log("[SMS] calling sendTestSmsHttp");
-      const token = await auth.currentUser.getIdToken(true);
-      const res = await fetch(SEND_TEST_SMS_HTTP_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
-        },
-        body: JSON.stringify({}),
-      });
-      console.log("[SMS] http status", res.status);
-      let data = null;
-      try {
-        data = await res.json();
-      } catch {
-        data = { success: false, reason: "non_json_response" };
-      }
-      console.log("[SMS] callable response", data);
-
-      if (data.success && res.ok) {
-        notify("Test SMS sent", `Twilio SID: ${data.twilioSid || "n/a"}`);
-      } else {
-        const reason = data && data.reason ? data.reason : "unknown";
-        notify("SMS not sent", `HTTP ${res.status} - ${reason}`);
-      }
-    } catch (e) {
-      console.error("[SMS] test failed", e);
-      notify("Error", e?.message || "Failed to send test SMS.");
     }
   };
 
@@ -659,47 +600,7 @@ export default function StitchProfileScreen() {
                     </select>
                   </div>
 
-                  {/* Phone (Personal Info) */}
-                  <div>
-                    <label style={{
-                      display: "block",
-                      fontSize: "14px",
-                      fontWeight: "600",
-                      marginBottom: "8px",
-                      color: "#9AA3B2"
-                    }}>
-                      Phone (E.164)
-                    </label>
-                    <input
-                      type="tel"
-                      value={formData.phoneE164}
-                      onChange={(e) => handleInputChange("phoneE164", e.target.value)}
-                      disabled={!editing}
-                      placeholder="+33612345678"
-                      style={{
-                        width: "100%",
-                        padding: "14px 18px",
-                        borderRadius: "12px",
-                        background: editing ? "rgba(255, 255, 255, 0.08)" : "rgba(255, 255, 255, 0.04)",
-                        border: editing ? `1px solid ${outlineColor}` : "1px solid rgba(255, 255, 255, 0.08)",
-                        color: "#F7FBFF",
-                        fontSize: "15px",
-                        boxSizing: "border-box",
-                      }}
-                    />
-                  </div>
-
-                  {/* SMS opt-in */}
-                  <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: editing ? "pointer" : "default", color: "#9AA3B2", fontSize: 13 }}>
-                    <input
-                      type="checkbox"
-                      checked={!!formData.smsOptIn}
-                      onChange={(e) => handleInputChange("smsOptIn", e.target.checked)}
-                      disabled={!editing}
-                      style={{ marginTop: 2 }}
-                    />
-                    <span>{SMS_CONSENT_TEXT}</span>
-                  </label>
+                  {/* Phone (previously used for SMS opt-in) — fields kept in Firestore but no longer editable here */}
             </div>
 
                 {/* Action Buttons */}
@@ -764,25 +665,6 @@ export default function StitchProfileScreen() {
                           }}
                         >
                           Test Push Notification (Debug)
-                        </button>
-                      )}
-
-                      {userData?.smsOptIn && userData?.phoneE164 && (
-                        <button
-                          onClick={handleSendTestSms}
-                          style={{
-                            width: "100%",
-                            padding: "14px 20px",
-                            borderRadius: "20px",
-                            background: "rgba(156, 163, 175, 0.12)",
-                            border: "1px solid rgba(156, 163, 175, 0.35)",
-                            color: "#9CA3AF",
-                            fontSize: "14px",
-                            fontWeight: "600",
-                            cursor: "pointer",
-                          }}
-                        >
-                          Send Test SMS (Debug)
                         </button>
                       )}
 
