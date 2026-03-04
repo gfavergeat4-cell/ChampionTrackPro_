@@ -144,12 +144,13 @@ export default function AdminHomeScreen() {
     <div
       style={{
         minHeight: "100vh",
+        overflowY: "auto",
+        paddingBottom: 80,
         backgroundColor: "#0A0F1E",
         color: "#F9FAFB",
         fontFamily:
           "system-ui, -apple-system, BlinkMacSystemFont, 'Inter', sans-serif",
-        padding: isDesktop ? "32px 48px 40px" : "24px 16px 32px",
-        overflowY: "auto",
+        padding: isDesktop ? "32px 48px 80px 48px" : "24px 16px 80px 16px",
       }}
     >
       <div
@@ -158,15 +159,33 @@ export default function AdminHomeScreen() {
           margin: "0 auto",
         }}
       >
-        <div style={{ textAlign: "center", padding: "40px 0 24px" }}>
-          <div style={{ fontSize: 32, fontWeight: 700, letterSpacing: 4, fontFamily: "Georgia, serif" }}>
-            <span style={{ color: "#ffffff" }}>ChampionTrack</span>
-            <span style={{ color: "#00E0FF" }}>Pro</span>
+        <div style={{ textAlign: "center", paddingTop: 40, paddingBottom: 24 }}>
+          <div
+            style={{
+              fontSize: 36,
+              fontWeight: 800,
+              letterSpacing: 2,
+              fontFamily: "'Palatino Linotype', Palatino, Georgia, serif",
+              textTransform: "uppercase",
+            }}
+          >
+            <span style={{ color: "#ffffff", textShadow: "0 0 20px rgba(255,255,255,0.3)" }}>Champion</span>
+            <span style={{ color: "#ffffff", textShadow: "0 0 20px rgba(255,255,255,0.3)" }}>Track</span>
+            <span style={{ color: "#00E0FF", textShadow: "0 0 20px rgba(0,224,255,0.6)" }}>Pro</span>
           </div>
-          <div style={{ fontSize: 11, letterSpacing: 8, color: "rgba(255,255,255,0.5)", marginTop: 6, fontFamily: "sans-serif" }}>
-            THE TRAINING INTELLIGENCE
+          <div
+            style={{
+              fontSize: 11,
+              letterSpacing: 8,
+              color: "rgba(255,255,255,0.45)",
+              marginTop: 8,
+              fontFamily: "sans-serif",
+              textTransform: "uppercase",
+            }}
+          >
+            The Training Intelligence
           </div>
-          <div style={{ width: 60, height: 1, background: "rgba(0,224,255,0.4)", margin: "16px auto 0" }} />
+          <div style={{ width: 80, height: 1, background: "linear-gradient(90deg, transparent, #00E0FF, transparent)", margin: "16px auto 0" }} />
         </div>
 
         {/* Grille des équipes */}
