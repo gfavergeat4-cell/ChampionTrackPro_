@@ -8,9 +8,6 @@ import { CommonActions } from "@react-navigation/native";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import UnifiedAthleteNavigation from "../src/stitch_components/UnifiedAthleteNavigation";
 
-// Set to true to show "Test Push Notification (Debug)" button (verification only).
-const DEBUG_PUSH_TEST = true;
-
 export default function StitchProfileScreen() {
   const navigation = useNavigation();
   const [userData, setUserData] = useState(null);
@@ -37,17 +34,6 @@ export default function StitchProfileScreen() {
   const mutedSurface = "rgba(10, 15, 26, 0.85)";
   const formSurface = "rgba(12, 18, 30, 0.85)";
   const outlineColor = "rgba(43, 201, 255, 0.3)";
-  const formatStat = (value) =>
-    value === null || value === undefined || value === "" ? "â€”" : value;
-  const profileStats = [
-    {
-      label: "Questionnaires completion",
-      value: userData?.questionnaireTotal
-        ? `${userData?.completedQuestionnaires || 0}/${userData?.questionnaireTotal}`
-        : formatStat(userData?.completedQuestionnaires)
-    }
-  ];
-
   useEffect(() => {
     loadUserData();
   }, []);
@@ -239,37 +225,6 @@ export default function StitchProfileScreen() {
     }
   };
 
-  // Debug: trigger a local test notification and deep-link to /debug/test-questionnaire
-  const handleTestPushNotification = async () => {
-    if (typeof window === "undefined" || !("Notification" in window) || !("serviceWorker" in navigator)) {
-      Alert.alert("Not supported", "Notifications or Service Worker not available.");
-      return;
-    }
-    let permission = Notification.permission;
-    if (permission !== "granted") {
-      permission = await Notification.requestPermission();
-      if (permission !== "granted") {
-        Alert.alert("Permission needed", "Please allow notifications to test. You can enable them in your browser settings.");
-        return;
-      }
-    }
-    try {
-      let reg = await navigator.serviceWorker.getRegistration();
-      if (!reg) {
-        reg = await navigator.serviceWorker.register("/firebase-messaging-sw.js", { scope: "/", type: "classic" });
-      }
-      await navigator.serviceWorker.ready;
-      reg.showNotification("ChampionTrackPro Test", {
-        body: "Tap to open test questionnaire",
-        tag: "ctpro-test",
-        data: { url: "/debug/test-questionnaire" },
-      });
-    } catch (e) {
-      console.error("[SW] test notification failed", e);
-      Alert.alert("Error", "Could not show test notification. Check console.");
-    }
-  };
-
   if (Platform.OS === "web") {
     return (
       <MobileViewport>
@@ -397,45 +352,6 @@ export default function StitchProfileScreen() {
                   >
                     {profileImage ? "Change Photo" : "Add Photo"}
                   </button>
-                </div>
-
-                <div style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  width: "100%",
-                  marginBottom: "28px"
-                }}>
-                  {profileStats.map((stat) => (
-                    <div
-                      key={stat.label}
-                      style={{
-                        background: "rgba(7, 12, 22, 0.85)",
-                        border: "1px solid rgba(255, 255, 255, 0.05)",
-                        borderRadius: "18px",
-                        padding: "16px 18px",
-                        boxShadow: "0 18px 35px rgba(0, 0, 0, 0.45)",
-                        textAlign: "center"
-                      }}
-                    >
-                      <div style={{
-                        fontSize: "24px",
-                        fontWeight: "700",
-                        color: "#E8FBFF",
-                        marginBottom: "4px"
-                      }}>
-                        {stat.value}
-                      </div>
-                      <div style={{
-                        fontSize: "11px",
-                        fontWeight: "600",
-                        color: "#7E90AB",
-                        letterSpacing: "0.08em",
-                        textTransform: "uppercase"
-                      }}>
-                        {stat.label}
-                      </div>
-                    </div>
-                  ))}
                 </div>
 
                 {/* User Information Form */}
@@ -646,28 +562,6 @@ export default function StitchProfileScreen() {
                         Edit Profile
                       </button>
 
-                      {DEBUG_PUSH_TEST && (
-                        <button
-                          onClick={handleTestPushNotification}
-                          style={{
-                            width: "100%",
-                            padding: "14px 20px",
-                            borderRadius: "20px",
-                            background: "rgba(156, 163, 175, 0.12)",
-                            border: "1px solid rgba(156, 163, 175, 0.35)",
-                            color: "#9CA3AF",
-                            fontSize: "14px",
-                            fontWeight: "600",
-                            cursor: "pointer",
-                            transition: "all 0.3s ease",
-                            pointerEvents: "auto",
-                            letterSpacing: "0.3px"
-                          }}
-                        >
-                          Test Push Notification (Debug)
-                        </button>
-                      )}
-
                       <button
                         onClick={handleLogout}
                         style={{
@@ -697,7 +591,7 @@ export default function StitchProfileScreen() {
                           e.currentTarget.style.transform = "scale(1)";
                         }}
                       >
-                        Se dÃ©connecter
+                        Se déconnecter
                       </button>
                     </>
                   ) : (
@@ -865,7 +759,7 @@ export default function StitchProfileScreen() {
               pressed && nativeStyles.logoutButtonPressed,
             ]}
           >
-            <Text style={nativeStyles.logoutText}>Se dÃ©connecter</Text>
+            <Text style={nativeStyles.logoutText}>Se déconnecter</Text>
           </Pressable>
         </ScrollView>
       )}
