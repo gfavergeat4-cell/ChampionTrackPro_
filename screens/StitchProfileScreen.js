@@ -13,7 +13,7 @@ export default function StitchProfileScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const isDesktop = useIsDesktop();
-  const roleParam = (route.params && (route.params as any).role) || null;
+  const roleParam = (route.params && route.params.role) || null;
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
