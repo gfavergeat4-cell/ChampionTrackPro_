@@ -65,6 +65,7 @@ export default function AdminHomeScreen() {
   const handleOpenTeam = (team: TeamDoc) => {
     navigation.navigate("TeamDetails" as never, {
       teamId: team.id,
+      teamName: team.name || team.id,
     } as never);
   };
 
