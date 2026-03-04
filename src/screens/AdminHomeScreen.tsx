@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Platform, ActivityIndicator, View, Text } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { collection, getDocs } from "firebase/firestore";
-import { db } from "../services/firebaseConfig";
+import { db } from "../lib/firebase";
 import { useIsDesktop } from "../hooks/useIsDesktop";
 
 interface TeamDoc {
