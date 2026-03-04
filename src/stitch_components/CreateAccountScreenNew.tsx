@@ -298,6 +298,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: tokens.spacing.xxxl * 2,
     paddingBottom: tokens.spacing.xxxl,
+    backgroundColor: 'transparent',
   },
 
   logoImage: {

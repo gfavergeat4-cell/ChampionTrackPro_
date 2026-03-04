@@ -10,11 +10,15 @@ const webLogoStyle = {
   height: "auto",
   display: "block",
   margin: "0 auto",
+  background: "none",
+  backgroundColor: "transparent",
+  border: "none",
 } as const;
 
 const nativeLogoStyle = {
   width: 280,
   height: 80,
+  backgroundColor: "transparent",
 };
 
 export default function ChampionTrackProLogo() {

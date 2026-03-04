@@ -17,7 +17,7 @@ export default function AuthScreen() {
   };
 
   return (
-    <View style={{ flex:1, padding:24, gap:12, justifyContent:"center" }}>
+    <View style={{ flex:1, padding:24, gap:12, justifyContent:"center", backgroundColor: "transparent" }}>
       <ChampionTrackProLogo />
       <TextInput placeholder="Email" autoCapitalize="none" keyboardType="email-address"
         value={email} onChangeText={setEmail} style={{ borderWidth:1, padding:12, borderRadius:8 }} />

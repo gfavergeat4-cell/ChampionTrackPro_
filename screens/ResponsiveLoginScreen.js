@@ -78,6 +78,9 @@ export default function ResponsiveLoginScreen() {
         <div style={{ 
           textAlign: "center", 
           marginBottom: "48px",
+          background: "none",
+          backgroundColor: "transparent",
+          border: "none",
         }}>
           <ChampionTrackProLogo />
         </div>

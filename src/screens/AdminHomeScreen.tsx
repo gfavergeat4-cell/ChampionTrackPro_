@@ -191,8 +191,8 @@ export default function AdminHomeScreen() {
           </button>
         </div>
 
-        {/* Logo */}
-        <div style={{ paddingTop: 32, paddingBottom: 32 }}>
+        {/* Logo — no background/border so transparent logo floats on screen */}
+        <div style={{ paddingTop: 32, paddingBottom: 32, background: "none", backgroundColor: "transparent", border: "none" }}>
           <ChampionTrackProLogo />
         </div>
 

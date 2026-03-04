@@ -35,6 +35,7 @@ const styles = StyleSheet.create({
   content: {
     alignItems: "center",
     gap: 20,
+    backgroundColor: "transparent",
   },
   spinner: {
     width: 40,

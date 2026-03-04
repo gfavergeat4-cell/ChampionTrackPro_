@@ -141,7 +141,7 @@ export default function StitchLoginScreen() {
           }}
         >
           {/* Header – ChampionTrackPro logo */}
-          <div style={{ textAlign: "center", userSelect: "none", zIndex: 2, marginBottom: "40px" }}>
+          <div style={{ textAlign: "center", userSelect: "none", zIndex: 2, marginBottom: "40px", background: "none", backgroundColor: "transparent", border: "none" }}>
             <ChampionTrackProLogo />
           </div>
 

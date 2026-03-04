@@ -44,8 +44,8 @@ export default function SimpleLoginScreen() {
         color: "white",
         fontFamily: "'Inter', sans-serif"
       }}>
-        <div style={{ textAlign: "center", marginBottom: "40px" }}>
-          <h1           style={{ margin: "0 0 8px 0" }}>
+        <div style={{ textAlign: "center", marginBottom: "40px", background: "none", backgroundColor: "transparent", border: "none" }}>
+          <h1 style={{ margin: "0 0 8px 0", background: "none", backgroundColor: "transparent", border: "none" }}>
             <ChampionTrackProLogo />
           </h1>
         </div>

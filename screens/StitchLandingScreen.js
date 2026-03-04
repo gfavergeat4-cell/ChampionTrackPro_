@@ -92,7 +92,7 @@ export default function StitchLandingScreen() {
                 paddingTop: "25%",
               }}
             >
-              <div style={{ textAlign: "center" }}>
+              <div style={{ textAlign: "center", background: "none", backgroundColor: "transparent", border: "none" }}>
                 <ChampionTrackProLogo />
               </div>
             </main>

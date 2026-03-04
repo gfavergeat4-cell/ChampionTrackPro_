@@ -42,7 +42,7 @@ export default function TestLandingScreen() {
           }}
         >
           {/* Logo */}
-          <div style={{ textAlign: "center", marginBottom: "60px" }}>
+          <div style={{ textAlign: "center", marginBottom: "60px", background: "none", backgroundColor: "transparent", border: "none" }}>
             <ChampionTrackProLogo />
           </div>
 

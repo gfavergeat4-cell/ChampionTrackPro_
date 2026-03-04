@@ -155,7 +155,8 @@ const styles = StyleSheet.create({
   header: {
     alignItems: "center",
     marginTop: tokens.spacing.xxl,
-    marginBottom: tokens.spacing.xl
+    marginBottom: tokens.spacing.xl,
+    backgroundColor: "transparent",
   },
   logoImage: {
     maxWidth: 280,

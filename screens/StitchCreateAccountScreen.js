@@ -238,8 +238,8 @@ export default function StitchCreateAccountScreen() {
             gap: 32px;
           }
 
-          /* Logo + tagline (mêmes réglages que Login) */
-          .logo-wrap { text-align: center; user-select: none; }
+          /* Logo + tagline (mêmes réglages que Login) — no background/border so transparent logo floats on screen */
+          .logo-wrap { text-align: center; user-select: none; background: none; background-color: transparent; border: none; }
           .logo {
             font-family: "Cinzel", serif;
             font-weight: 700;

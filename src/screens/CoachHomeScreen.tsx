@@ -146,8 +146,8 @@ export default function CoachHomeScreen() {
       }}
     >
       <div style={{ maxWidth: contentWidth, margin: "0 auto" }}>
-        {/* Logo */}
-        <div style={{ paddingTop: 32, paddingBottom: 32 }}>
+        {/* Logo — no background/border so transparent logo floats on screen */}
+        <div style={{ paddingTop: 32, paddingBottom: 32, background: "none", backgroundColor: "transparent", border: "none" }}>
           <ChampionTrackProLogo />
         </div>
 

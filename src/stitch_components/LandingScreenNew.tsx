@@ -90,6 +90,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: tokens.spacing.xl,
+    backgroundColor: 'transparent',
   },
 
   logoImage: {

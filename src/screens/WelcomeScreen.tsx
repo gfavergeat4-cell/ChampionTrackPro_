@@ -72,7 +72,7 @@ const RADIUS = 20;
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#0A0A10" },
   container: { flex: 1, alignItems: "center", paddingHorizontal: 16 },
-  centerBlock: { flex: 1, alignItems: "center", justifyContent: "center" },
+  centerBlock: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "transparent" },
   logoImage: {
     maxWidth: 280,
     width: "100%",

@@ -82,7 +82,8 @@ const styles = StyleSheet.create({
     zIndex: 10
   },
   logoContainer: {
-    alignItems: "center"
+    alignItems: "center",
+    backgroundColor: "transparent",
   },
   logoImage: {
     maxWidth: 280,

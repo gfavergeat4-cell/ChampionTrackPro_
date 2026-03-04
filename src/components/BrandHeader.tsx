@@ -15,6 +15,9 @@ export default function BrandHeader() {
       paddingRight: "16px",
       paddingTop: "24px",
       position: "relative",
+      background: "none",
+      backgroundColor: "transparent",
+      border: "none",
     }}>
       <ChampionTrackProLogo />
     </div>
