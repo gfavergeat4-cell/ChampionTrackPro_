@@ -3,6 +3,7 @@ import { useNavigation } from "@react-navigation/native";
 import { View, Platform } from "react-native";
 import { sendPasswordResetEmail, signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../services/firebaseConfig";
+import ChampionTrackProLogo from "../src/components/ChampionTrackProLogo";
 // Removed responsive imports - using fixed mobile design
 
 export default function ResponsiveLoginScreen() {
@@ -78,33 +79,7 @@ export default function ResponsiveLoginScreen() {
           textAlign: "center", 
           marginBottom: "48px",
         }}>
-          <h1 
-            style={{
-              fontFamily: "'Cinzel', serif",
-              fontSize: "30px",
-              fontWeight: "bold",
-              background: "linear-gradient(135deg, #00E0FF, #4A67FF)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              backgroundClip: "text",
-              marginBottom: "8px",
-            }}
-          >
-            <img src="/logo/logo.jpeg" alt="ChampionTrackPro" style={{ maxWidth: 280, width: "100%", display: "block", margin: "0 auto" }} />
-          </h1>
-          <p 
-            style={{
-              color: "#BFC5D9",
-              opacity: 0.8,
-              letterSpacing: "0.25em",
-              fontSize: "12px",
-              fontWeight: "300",
-              marginTop: "8px",
-              textTransform: "uppercase",
-            }}
-          >
-            THE TRAINING INTELLIGENCE
-          </p>
+          <ChampionTrackProLogo />
         </div>
 
         {/* Form Section - Centered */}

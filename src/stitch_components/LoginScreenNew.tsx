@@ -1,9 +1,10 @@
 import React, { useState } from "react";
-import { View, Text, Pressable, StyleSheet, Dimensions, Platform, TextInput, Image } from "react-native";
+import { View, Text, Pressable, StyleSheet, Dimensions, Platform, TextInput } from "react-native";
 import { LinearGradient } from 'expo-linear-gradient';
 import { signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
 import { auth } from "../lib/firebase";
 import { tokens } from "../theme/tokens";
+import ChampionTrackProLogo from "../components/ChampionTrackProLogo";
 
 interface LoginScreenProps {
   onLoginSuccess?: () => void;
@@ -63,13 +64,7 @@ export default function LoginScreen({ onLoginSuccess, onNavigateToRegister }: Lo
       
       {/* Logo Section */}
       <View style={styles.logoSection}>
-        <Image
-          source={{ uri: "/logo/logo.jpeg" }}
-          style={styles.logoImage}
-          resizeMode="contain"
-          accessibilityLabel="ChampionTrackPro"
-        />
-        <Text style={styles.tagline}>THE TRAINING INTELLIGENCE</Text>
+        <ChampionTrackProLogo />
       </View>
 
       {/* Login Form */}

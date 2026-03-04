@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { View, Platform, Alert } from "react-native";
 import MobileViewport from "../src/components/MobileViewport";
+import ChampionTrackProLogo from "../src/components/ChampionTrackProLogo";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../services/firebaseConfig";
 
@@ -140,30 +141,8 @@ export default function StitchLoginScreen() {
           }}
         >
           {/* Header – ChampionTrackPro logo */}
-          <div style={{ textAlign: "center", userSelect: "none", zIndex: 2 }}>
-            <header
-              style={{
-                marginBottom: "40px",
-                textAlign: "center",
-              }}
-            >
-              <img src="/logo/logo.jpeg" alt="ChampionTrackPro" style={{ maxWidth: 280, width: "100%", display: "block", margin: "0 auto" }} />
-
-              <p
-                style={{
-                  marginTop: "10px",
-                  color: "#C4CCDD",
-                  opacity: 0.9,
-                  fontFamily: "'Inter', sans-serif",
-                  fontSize: "11px",
-                  fontWeight: 400,
-                  letterSpacing: "0.3em",
-                  textTransform: "uppercase",
-                }}
-              >
-                THE TRAINING INTELLIGENCE
-              </p>
-            </header>
+          <div style={{ textAlign: "center", userSelect: "none", zIndex: 2, marginBottom: "40px" }}>
+            <ChampionTrackProLogo />
           </div>
 
           {/* Form */}

@@ -3,6 +3,7 @@ import React from "react";
 import { useNavigation } from "@react-navigation/native";
 import { View, Platform } from "react-native";
 import MobileViewport from "../src/components/MobileViewport";
+import ChampionTrackProLogo from "../src/components/ChampionTrackProLogo";
 
 export default function StitchLandingScreen() {
   const navigation = useNavigation();
@@ -92,33 +93,7 @@ export default function StitchLandingScreen() {
               }}
             >
               <div style={{ textAlign: "center" }}>
-                <h1
-                  className="logo-font text-glow-white"
-                  style={{
-                    margin: 0,
-                    fontWeight: 700,
-                    color: "#FFFFFF",
-                    fontSize: "clamp(1.2rem, 4vw, 1.8rem)",
-                    letterSpacing: "0.01em",
-                    textShadow: "0 0 10px rgba(255,255,255,0.5), 0 0 20px rgba(255,255,255,0.3)",
-                  }}
-                >
-                  <img src="/logo/logo.jpeg" alt="ChampionTrackPro" style={{ maxWidth: 280, width: "100%", display: "block", margin: "0 auto" }} />
-                </h1>
-
-                <p
-                  style={{
-                    marginTop: 8,
-                    fontSize: "clamp(0.4rem, 1.5vw, 0.6rem)",
-                    fontWeight: 300,
-                    color: "#BFC5D9",
-                    letterSpacing: "0.28em",
-                    textTransform: "uppercase",
-                    fontFamily: "'Inter', sans-serif",
-                  }}
-                >
-                  The Training Intelligence
-                </p>
+                <ChampionTrackProLogo />
               </div>
             </main>
 

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, Pressable, StyleSheet, Dimensions, Platform, TextInput, Alert, Image } from "react-native";
+import { View, Text, Pressable, StyleSheet, Dimensions, Platform, TextInput, Alert } from "react-native";
 import { LinearGradient } from 'expo-linear-gradient';
 import { createUserWithEmailAndPassword, getAuth } from "firebase/auth";
 import {
@@ -15,6 +15,7 @@ import { getFunctions, httpsCallable } from "firebase/functions";
 import { auth, db, app } from "../lib/firebase";
 import { tokens } from "../theme/tokens";
 import { createMembershipClientOnly } from "../services/membership";
+import ChampionTrackProLogo from "../components/ChampionTrackProLogo";
 
 interface CreateAccountScreenProps {
   onAccountCreated?: () => void;
@@ -145,13 +146,7 @@ export default function CreateAccountScreen({
       
       {/* Logo Section */}
       <View style={styles.logoSection}>
-        <Image
-          source={{ uri: "/logo/logo.jpeg" }}
-          style={styles.logoImage}
-          resizeMode="contain"
-          accessibilityLabel="ChampionTrackPro"
-        />
-        <Text style={styles.tagline}>THE TRAINING INTELLIGENCE</Text>
+        <ChampionTrackProLogo />
       </View>
 
       {/* Role Selection */}

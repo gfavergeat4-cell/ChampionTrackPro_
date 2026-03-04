@@ -1,9 +1,10 @@
 import React from "react";
-import { SafeAreaView, View, Text, Pressable, StyleSheet, Platform, Image } from "react-native";
+import { SafeAreaView, View, Text, Pressable, StyleSheet, Platform } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
 import { useFonts, Cinzel_700Bold } from "@expo-google-fonts/cinzel";
 import { Rajdhani_300Light, Rajdhani_700Bold } from "@expo-google-fonts/rajdhani";
+import ChampionTrackProLogo from "../components/ChampionTrackProLogo";
 
 type Nav = { navigate: (route: string) => void };
 
@@ -32,14 +33,7 @@ export default function WelcomeScreen() {
       <View style={styles.glow} pointerEvents="none" />
       <View style={styles.container}>
         <View style={styles.centerBlock}>
-          <Image
-            source={{ uri: "/logo/logo.jpeg" }}
-            style={styles.logoImage}
-            resizeMode="contain"
-            accessibilityRole="image"
-            accessibilityLabel="ChampionTrackPro"
-          />
-          <Text style={styles.subtitle}>THE TRAINING INTELLIGENCE</Text>
+          <ChampionTrackProLogo />
         </View>
         <View style={styles.footer}>
           <View style={styles.card}>

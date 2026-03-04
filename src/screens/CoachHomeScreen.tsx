@@ -4,6 +4,7 @@ import { useNavigation } from "@react-navigation/native";
 import { collection, getDocs, getCountFromServer, doc, getDoc } from "firebase/firestore";
 import { auth, db } from "../lib/firebase";
 import { useIsDesktop } from "../hooks/useIsDesktop";
+import ChampionTrackProLogo from "../components/ChampionTrackProLogo";
 
 interface TeamDoc {
   id: string;
@@ -145,57 +146,9 @@ export default function CoachHomeScreen() {
       }}
     >
       <div style={{ maxWidth: contentWidth, margin: "0 auto" }}>
-        {/* Logo header */}
-        <div style={{ textAlign: "center", paddingTop: 32, paddingBottom: 32 }}>
-          <div
-            style={{
-              fontFamily: "'Palatino Linotype', Palatino, Georgia, serif",
-              fontSize: 36,
-              fontWeight: 700,
-              letterSpacing: 4,
-              textTransform: "uppercase",
-              lineHeight: 1.2,
-            }}
-          >
-            <span style={{ color: "#FFFFFF", textShadow: "0 0 20px rgba(255,255,255,0.4)" }}>
-              CHAMPIONTRACK
-            </span>
-            <span style={{ color: "#00E0FF", textShadow: "0 0 25px rgba(0,224,255,0.8)" }}>
-              PRO
-            </span>
-          </div>
-          <div
-            style={{
-              fontSize: 11,
-              letterSpacing: 8,
-              color: "rgba(255,255,255,0.6)",
-              marginTop: 8,
-              fontFamily: "sans-serif",
-              textTransform: "uppercase",
-            }}
-          >
-            THE TRAINING INTELLIGENCE
-          </div>
-          <div style={{ marginTop: 12, display: "flex", justifyContent: "center" }}>
-            <svg width="80" height="20" viewBox="0 0 80 20">
-              <defs>
-                <linearGradient id="coachHeaderGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#0044FF" stopOpacity="0.6" />
-                  <stop offset="50%" stopColor="#00E0FF" />
-                  <stop offset="100%" stopColor="#0044FF" stopOpacity="0.6" />
-                </linearGradient>
-                <filter id="coachHeaderGlow">
-                  <feGaussianBlur stdDeviation="3" result="blur" />
-                  <feMerge>
-                    <feMergeNode in="blur" />
-                    <feMergeNode in="SourceGraphic" />
-                  </feMerge>
-                </filter>
-              </defs>
-              <line x1="0" y1="10" x2="80" y2="10" stroke="url(#coachHeaderGrad)" strokeWidth="2" strokeLinecap="round" />
-              <circle cx="40" cy="10" r="5" fill="#00E0FF" filter="url(#coachHeaderGlow)" />
-            </svg>
-          </div>
+        {/* Logo */}
+        <div style={{ paddingTop: 32, paddingBottom: 32 }}>
+          <ChampionTrackProLogo />
         </div>
 
         {loading ? (

@@ -4,6 +4,7 @@ import { View, Platform } from "react-native";
 import { sendPasswordResetEmail, signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../services/firebaseConfig";
 import MobileViewport from "../src/components/MobileViewport";
+import ChampionTrackProLogo from "../src/components/ChampionTrackProLogo";
 
 export default function StitchLoginScreenClean() {
   const navigation = useNavigation();
@@ -78,28 +79,8 @@ export default function StitchLoginScreenClean() {
         >
           <div style={{ width: "100%", maxWidth: "384px", margin: "0 auto", textAlign: "center" }}>
             {/* Header – ChampionTrackPro logo */}
-            <header
-              style={{
-                marginBottom: "40px",
-                textAlign: "center",
-              }}
-            >
-              <img src="/logo/logo.jpeg" alt="ChampionTrackPro" style={{ maxWidth: 280, width: "100%", display: "block", margin: "0 auto" }} />
-
-              <p 
-                style={{
-                  marginTop: "10px",
-                  color: "#C4CCDD",
-                  opacity: 0.9,
-                  fontFamily: "'Inter', sans-serif",
-                  fontSize: "11px",
-                  fontWeight: 400,
-                  letterSpacing: "0.3em",
-                  textTransform: "uppercase",
-                }}
-              >
-                THE TRAINING INTELLIGENCE
-              </p>
+            <header style={{ marginBottom: "40px", textAlign: "center" }}>
+              <ChampionTrackProLogo />
             </header>
 
             {/* Main Content */}

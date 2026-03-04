@@ -2,6 +2,7 @@ import React from "react";
 import { useNavigation } from "@react-navigation/native";
 import { View, Platform } from "react-native";
 import MobileViewport from "../src/components/MobileViewport";
+import ChampionTrackProLogo from "../src/components/ChampionTrackProLogo";
 
 export default function TestLandingScreen() {
   const navigation = useNavigation();
@@ -42,21 +43,7 @@ export default function TestLandingScreen() {
         >
           {/* Logo */}
           <div style={{ textAlign: "center", marginBottom: "60px" }}>
-            <h1 
-              style={{
-                fontFamily: "'Cinzel', serif",
-                fontWeight: "bold",
-                color: "white",
-                textShadow: "0 0 8px rgba(255, 255, 255, 0.5), 0 0 20px rgba(255, 255, 255, 0.3)",
-                fontSize: "32px",
-                marginBottom: "16px",
-              }}
-            >
-              <img src="/logo/logo.jpeg" alt="ChampionTrackPro" style={{ maxWidth: 280, width: "100%", display: "block", margin: "0 auto" }} />
-            </h1>
-            <p style={{ fontSize: "12px", fontWeight: "300", color: "#D1D5DB", letterSpacing: "0.3em", textTransform: "uppercase" }}>
-              The Training Intelligence
-            </p>
+            <ChampionTrackProLogo />
           </div>
 
           {/* Buttons */}

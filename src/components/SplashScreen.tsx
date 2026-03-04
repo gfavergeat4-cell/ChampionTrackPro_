@@ -1,13 +1,18 @@
 import React from "react";
 import { View, Text, StyleSheet, Platform } from "react-native";
+import ChampionTrackProLogo from "./ChampionTrackProLogo";
 
 export default function SplashScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.content}>
-        <View style={styles.logoContainer}>
-          <Text style={styles.logo}>CTP</Text>
-        </View>
+        {Platform.OS === "web" ? (
+          <ChampionTrackProLogo />
+        ) : (
+          <View style={styles.logoContainer}>
+            <Text style={styles.logo}>CTP</Text>
+          </View>
+        )}
         <View style={styles.spinner} />
         <Text style={styles.text}>Loading...</Text>
       </View>

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigation, CommonActions } from "@react-navigation/native";
 import { View, Platform, Alert } from "react-native";
 import MobileViewport from "../src/components/MobileViewport";
+import ChampionTrackProLogo from "../src/components/ChampionTrackProLogo";
 import { createUserWithEmailAndPassword, getAuth } from "firebase/auth";
 import {
   doc,
@@ -418,8 +419,7 @@ export default function StitchCreateAccountScreen() {
           <div className="create-account-card">
             {/* Logo + Tagline */}
             <div className="logo-wrap">
-              <img src="/logo/logo.jpeg" alt="ChampionTrackPro" style={{ maxWidth: 280, width: "100%", display: "block", margin: "0 auto" }} />
-              <p className="tagline">THE TRAINING INTELLIGENCE</p>
+              <ChampionTrackProLogo />
             </div>
 
             {/* Sélection du rôle */}

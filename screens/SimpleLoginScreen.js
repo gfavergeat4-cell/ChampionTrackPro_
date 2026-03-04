@@ -3,6 +3,7 @@ import { useNavigation } from "@react-navigation/native";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../services/firebaseConfig";
 import MobileViewport from "../src/components/MobileViewport";
+import ChampionTrackProLogo from "../src/components/ChampionTrackProLogo";
 
 export default function SimpleLoginScreen() {
   const navigation = useNavigation();
@@ -44,19 +45,9 @@ export default function SimpleLoginScreen() {
         fontFamily: "'Inter', sans-serif"
       }}>
         <div style={{ textAlign: "center", marginBottom: "40px" }}>
-          <h1 style={{ 
-            fontSize: "32px", 
-            fontWeight: "bold", 
-            margin: "0 0 8px 0",
-            background: "linear-gradient(135deg, #00E0FF, #4A67FF)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent"
-          }}>
-            <img src="/logo/logo.jpeg" alt="ChampionTrackPro" style={{ maxWidth: 280, width: "100%", display: "block", margin: "0 auto" }} />
+          <h1           style={{ margin: "0 0 8px 0" }}>
+            <ChampionTrackProLogo />
           </h1>
-          <p style={{ fontSize: "16px", color: "#9AA3B2", margin: 0 }}>
-            THE TRAINING INTELLIGENCE
-          </p>
         </div>
 
         <div style={{ width: "100%", maxWidth: "320px" }}>

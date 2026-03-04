@@ -1,7 +1,8 @@
 import React from "react";
-import { View, Text, Pressable, StyleSheet, Dimensions, Platform, Image } from "react-native";
+import { View, Text, Pressable, StyleSheet, Dimensions, Platform } from "react-native";
 import { LinearGradient } from 'expo-linear-gradient';
 import { tokens } from "../theme/tokens";
+import ChampionTrackProLogo from "../components/ChampionTrackProLogo";
 
 interface LandingScreenProps {
   onNavigateToLogin?: () => void;
@@ -23,13 +24,7 @@ export default function LandingScreen({
       
       {/* Logo Section */}
       <View style={styles.logoSection}>
-        <Image
-          source={{ uri: "/logo/logo.jpeg" }}
-          style={styles.logoImage}
-          resizeMode="contain"
-          accessibilityLabel="ChampionTrackPro"
-        />
-        <Text style={styles.tagline}>THE TRAINING INTELLIGENCE</Text>
+        <ChampionTrackProLogo />
       </View>
 
       {/* Action Buttons */}

@@ -1,16 +1,11 @@
 import React from 'react';
-import { View, Text, StyleSheet, Platform, Image } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
+import ChampionTrackProLogo from './ChampionTrackProLogo';
 
 export default function TestScreen() {
   return (
     <View style={styles.container}>
-      <Image
-        source={{ uri: "/logo/logo.jpeg" }}
-        style={styles.logoImage}
-        resizeMode="contain"
-        accessibilityLabel="ChampionTrackPro"
-      />
-      <Text style={styles.subtitle}>THE TRAINING INTELLIGENCE</Text>
+      <ChampionTrackProLogo />
       <Text style={styles.status}>✅ Application chargée avec succès</Text>
       <Text style={styles.info}>Plateforme: {Platform.OS}</Text>
     </View>

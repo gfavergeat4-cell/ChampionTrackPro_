@@ -1,7 +1,8 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, Pressable, StyleSheet, Platform, Image } from "react-native";
+import { View, Text, TextInput, Pressable, StyleSheet, Platform } from "react-native";
 import { tokens } from "../theme/tokens";
 import { makePress } from "../utils/press";
+import ChampionTrackProLogo from "../components/ChampionTrackProLogo";
 
 interface CreateAccountProps {
   email: string;
@@ -30,8 +31,7 @@ export default function CreateAccount({
     <View style={styles.container}>
       <View style={styles.content}>
         <View style={styles.header}>
-          <Image source={{ uri: "/logo/logo.jpeg" }} style={styles.logoImage} resizeMode="contain" accessibilityLabel="ChampionTrackPro" />
-          <Text style={styles.tagline}>THE TRAINING INTELLIGENCE</Text>
+          <ChampionTrackProLogo />
         </View>
 
         <View style={styles.form}>
