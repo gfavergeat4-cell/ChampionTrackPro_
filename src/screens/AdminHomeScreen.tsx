@@ -160,32 +160,81 @@ export default function AdminHomeScreen() {
         }}
       >
         <div style={{ textAlign: "center", paddingTop: 40, paddingBottom: 24 }}>
+          {/* Titre principal: ChampionTrack (blanc lumineux) + Pro (cyan) */}
           <div
             style={{
-              fontSize: 36,
-              fontWeight: 800,
-              letterSpacing: 2,
               fontFamily: "'Palatino Linotype', Palatino, Georgia, serif",
+              fontSize: 38,
+              fontWeight: 700,
+              letterSpacing: 3,
               textTransform: "uppercase",
+              lineHeight: 1.2,
             }}
           >
-            <span style={{ color: "#ffffff", textShadow: "0 0 20px rgba(255,255,255,0.3)" }}>Champion</span>
-            <span style={{ color: "#ffffff", textShadow: "0 0 20px rgba(255,255,255,0.3)" }}>Track</span>
-            <span style={{ color: "#00E0FF", textShadow: "0 0 20px rgba(0,224,255,0.6)" }}>Pro</span>
+            <span
+              style={{
+                color: "#ffffff",
+                textShadow: "0 0 16px rgba(180,220,255,0.6), 0 0 32px rgba(0,224,255,0.25), 0 0 48px rgba(255,255,255,0.15)",
+              }}
+            >
+              ChampionTrack
+            </span>
+            <span
+              style={{
+                color: "#00E0FF",
+                textShadow: "0 0 12px rgba(0,224,255,0.9), 0 0 24px rgba(0,224,255,0.6), 0 0 40px rgba(0,224,255,0.35)",
+              }}
+            >
+              Pro
+            </span>
           </div>
+          {/* Sous-titre */}
           <div
             style={{
-              fontSize: 11,
-              letterSpacing: 8,
-              color: "rgba(255,255,255,0.45)",
-              marginTop: 8,
-              fontFamily: "sans-serif",
+              fontFamily: "system-ui, sans-serif",
+              fontSize: 10,
+              fontWeight: 300,
+              letterSpacing: 10,
+              color: "rgba(255,255,255,0.5)",
+              marginTop: 10,
               textTransform: "uppercase",
             }}
           >
-            The Training Intelligence
+            THE TRAINING INTELLIGENCE
           </div>
-          <div style={{ width: 80, height: 1, background: "linear-gradient(90deg, transparent, #00E0FF, transparent)", margin: "16px auto 0" }} />
+          {/* Ligne avec dégradé + orbe central lumineux */}
+          <div
+            style={{
+              marginTop: 16,
+              position: "relative",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <div
+              style={{
+                width: 140,
+                height: 3,
+                borderRadius: 2,
+                background: "linear-gradient(90deg, #00E0FF 0%, #2563eb 50%, #4C1D95 100%)",
+                boxShadow: "0 0 12px rgba(0,224,255,0.4)",
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                left: "50%",
+                top: "50%",
+                transform: "translate(-50%, -50%)",
+                width: 10,
+                height: 10,
+                borderRadius: "50%",
+                background: "#00E0FF",
+                boxShadow: "0 0 12px #00E0FF, 0 0 24px rgba(0,224,255,0.8), 0 0 40px rgba(0,224,255,0.4)",
+              }}
+            />
+          </div>
         </div>
 
         {/* Grille des équipes */}
