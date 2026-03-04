@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Platform, ActivityIndicator, View, Text } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, getCountFromServer } from "firebase/firestore";
 import { auth, db } from "../lib/firebase";
 import { useIsDesktop } from "../hooks/useIsDesktop";
 
@@ -9,6 +9,7 @@ interface TeamDoc {
   id: string;
   name?: string;
   logoUrl?: string;
+  memberCount?: number;
 }
 
 export default function AdminHomeScreen() {
@@ -27,14 +28,25 @@ export default function AdminHomeScreen() {
         setLoading(true);
         const snap = await getDocs(collection(db, "teams"));
         if (cancelled) return;
-        const items: TeamDoc[] = snap.docs.map((d) => {
-          const data = d.data() as any;
-          return {
-            id: d.id,
-            name: data.name,
-            logoUrl: data.logoUrl,
-          };
-        });
+        const items: TeamDoc[] = await Promise.all(
+          snap.docs.map(async (d) => {
+            const data = d.data() as any;
+            let memberCount = 0;
+            try {
+              const countSnap = await getCountFromServer(collection(db, "teams", d.id, "members"));
+              memberCount = countSnap.data().count;
+            } catch {
+              // ignore
+            }
+            return {
+              id: d.id,
+              name: data.name,
+              logoUrl: data.logoUrl,
+              memberCount,
+            };
+          })
+        );
+        if (cancelled) return;
         setTeams(items);
       } catch (e: any) {
         if (!cancelled) {
@@ -146,184 +158,148 @@ export default function AdminHomeScreen() {
           margin: "0 auto",
         }}
       >
-        {/* Logo en haut */}
-        <header
-          style={{
-            marginBottom: 32,
-            textAlign: "center",
-            paddingTop: 32,
-            paddingBottom: 32,
-          }}
-        >
-          <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
-            <img
-              src="/logo/logo.jpeg"
-              alt="ChampionTrackPro"
-              style={{ maxWidth: 280, width: "100%", display: "block", margin: "0 auto" }}
-            />
+        <div style={{ textAlign: "center", padding: "40px 0 24px" }}>
+          <div style={{ fontSize: 32, fontWeight: 700, letterSpacing: 4, fontFamily: "Georgia, serif" }}>
+            <span style={{ color: "#ffffff" }}>ChampionTrack</span>
+            <span style={{ color: "#00E0FF" }}>Pro</span>
           </div>
-          <div style={{ display: "flex", justifyContent: "center", marginBottom: 4 }}>
-            <img
-              src="/icons/icon-192.png"
-              alt=""
-              style={{ width: 48, height: 48, borderRadius: 0 }}
-            />
-          </div>
-          <div
-            style={{
-              fontSize: 11,
-              letterSpacing: "6px",
-              textTransform: "uppercase",
-              color: "#9CA3AF",
-            }}
-          >
+          <div style={{ fontSize: 11, letterSpacing: 8, color: "rgba(255,255,255,0.5)", marginTop: 6, fontFamily: "sans-serif" }}>
             THE TRAINING INTELLIGENCE
           </div>
+          <div style={{ width: 60, height: 1, background: "rgba(0,224,255,0.4)", margin: "16px auto 0" }} />
+        </div>
 
-          {/* Fine ligne séparatrice */}
-          <div
-            style={{
-              marginTop: 24,
-              height: 1,
-              width: "100%",
-              backgroundColor: "rgba(0,224,255,0.2)",
-            }}
-          />
-        </header>
-
-        {/* Liste des équipes */}
+        {/* Grille des équipes */}
         {renderLoadingOrError() || (
           <div
             style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 12,
+              display: "grid",
+              gridTemplateColumns: isDesktop ? "repeat(3, 1fr)" : "1fr",
+              gap: 16,
             }}
           >
             {teams.map((team) => {
-              const logoUrl = team.logoUrl;
-              const fallbackInitial = (team.name || team.id || "CT")
+              const initials = (team.name || team.id || "CT")
                 .trim()
-                .charAt(0)
+                .slice(0, 2)
                 .toUpperCase();
+              const memberCount = team.memberCount ?? 0;
 
               return (
                 <button
                   key={team.id}
                   onClick={() => handleOpenTeam(team)}
+                  type="button"
                   style={{
                     display: "flex",
-                    alignItems: "center",
-                    gap: 14,
+                    flexDirection: "column",
+                    alignItems: "flex-start",
+                    textAlign: "left",
                     width: "100%",
-                    padding: 12,
-                    borderRadius: 14,
-                    border: "1px solid rgba(15,23,42,0.9)",
-                    backgroundColor: "#0E1528",
+                    padding: 16,
+                    borderRadius: 16,
+                    border: "1px solid rgba(0,224,255,0.25)",
+                    background: "linear-gradient(135deg, #0E1528 0%, #111827 100%)",
                     cursor: "pointer",
+                    transition: "border-color 0.2s ease, box-shadow 0.2s ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = "rgba(0,224,255,0.6)";
+                    e.currentTarget.style.boxShadow = "0 8px 32px rgba(0,224,255,0.15)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = "rgba(0,224,255,0.25)";
+                    e.currentTarget.style.boxShadow = "none";
                   }}
                 >
-                  {/* Logo équipe */}
-                  {logoUrl ? (
-                    <img
-                      src={logoUrl}
-                      alt={team.name || team.id}
-                      style={{
-                        width: 44,
-                        height: 44,
-                        borderRadius: 12,
-                        objectFit: "cover",
-                        border: "1px solid rgba(15,23,42,0.9)",
-                      }}
-                    />
-                  ) : (
-                    <div
-                      style={{
-                        width: 44,
-                        height: 44,
-                        borderRadius: 12,
-                        background:
-                          "linear-gradient(135deg, #00E0FF, #3B82F6, #4C1D95)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        color: "#020617",
-                        fontWeight: 700,
-                        fontSize: 16,
-                      }}
-                    >
-                      {fallbackInitial}
-                    </div>
-                  )}
-
-                  {/* Infos équipe */}
+                  {/* Badge initiales en haut à gauche */}
                   <div
                     style={{
-                      flex: 1,
+                      width: 40,
+                      height: 40,
+                      borderRadius: 8,
+                      background: "rgba(0,224,255,0.15)",
+                      color: "#00E0FF",
+                      fontSize: 14,
+                      fontWeight: 700,
                       display: "flex",
-                      flexDirection: "column",
-                      overflow: "hidden",
+                      alignItems: "center",
+                      justifyContent: "center",
                     }}
                   >
-                    <span
-                      style={{
-                        fontSize: 17,
-                        fontWeight: 700,
-                        whiteSpace: "nowrap",
-                        textOverflow: "ellipsis",
-                        overflow: "hidden",
-                      }}
-                    >
-                      {team.name || team.id}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: 11,
-                        color: "#9CA3AF",
-                      }}
-                    >
-                      ID: {team.id}
-                    </span>
+                    {initials}
                   </div>
-
-                  {/* Chevron */}
-                  <span
+                  {/* Nom équipe */}
+                  <div
                     style={{
-                      fontSize: 16,
-                      color: "#6B7280",
+                      marginTop: 12,
+                      fontSize: 18,
+                      fontWeight: 700,
+                      color: "#ffffff",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      width: "100%",
                     }}
                   >
-                    →
-                  </span>
+                    {team.name || team.id}
+                  </div>
+                  {/* Nombre de membres */}
+                  <div
+                    style={{
+                      marginTop: 4,
+                      fontSize: 13,
+                      color: "rgba(255,255,255,0.5)",
+                    }}
+                  >
+                    {memberCount} membre{memberCount !== 1 ? "s" : ""}
+                  </div>
+                  {/* Badge OPERATIONAL */}
+                  <div
+                    style={{
+                      marginTop: 12,
+                      padding: "4px 10px",
+                      borderRadius: 20,
+                      background: "rgba(0,224,255,0.1)",
+                      color: "#00E0FF",
+                      fontSize: 11,
+                      letterSpacing: 2,
+                    }}
+                  >
+                    OPERATIONAL
+                  </div>
                 </button>
               );
             })}
+          </div>
+        )}
 
-            {/* Bouton Create Team */}
-            <div
+        {/* Bouton Create Team */}
+        {!loading && !error && (
+          <div
+            style={{
+              marginTop: 32,
+              display: "flex",
+              justifyContent: "center",
+            }}
+          >
+            <button
+              onClick={() => alert("Fonctionnalité à venir")}
+              type="button"
               style={{
-                marginTop: 24,
-                display: "flex",
-                justifyContent: "center",
+                padding: "16px 48px",
+                borderRadius: 8,
+                backgroundColor: "#00E0FF",
+                border: "none",
+                color: "#ffffff",
+                fontWeight: 700,
+                fontSize: 14,
+                cursor: "pointer",
+                boxShadow: "0 14px 30px rgba(8,47,73,0.7)",
               }}
             >
-              <button
-                onClick={() => alert("Fonctionnalité à venir")}
-                style={{
-                  padding: "16px 48px",
-                  borderRadius: 8,
-                  backgroundColor: "#00E0FF",
-                  border: "none",
-                  color: "#020617",
-                  fontWeight: 700,
-                  fontSize: 14,
-                  cursor: "pointer",
-                  boxShadow: "0 14px 30px rgba(8,47,73,0.7)",
-                }}
-              >
-                + CREATE TEAM
-              </button>
-            </div>
+              + CREATE TEAM
+            </button>
           </div>
         )}
       </div>

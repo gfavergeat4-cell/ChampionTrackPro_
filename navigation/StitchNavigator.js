@@ -140,25 +140,27 @@ const TabIcon = ({ name, color, size = 24, focused }) => {
   );
 };
 
-// Admin Tabs (Dashboard, Teams, Analytics, Profile)
+// Admin Tabs (Dashboard, Teams, Analytics, Profile) — barre masquée sur AdminHome
 function AdminTabs() {
   const AdminTab = createBottomTabNavigator();
   return (
     <AdminTab.Navigator 
-      screenOptions={{ 
+      screenOptions={({ route }) => ({ 
         headerShown: false,
         tabBarShowLabel: false,
-        tabBarStyle: {
-          backgroundColor: '#0E1528',
-          borderTopColor: '#2B2E36',
-          borderTopWidth: 1,
-          height: 80,
-          paddingBottom: 16,
-          paddingTop: 16,
-        },
+        tabBarStyle: route.name === 'AdminHome'
+          ? { display: 'none' }
+          : {
+              backgroundColor: '#0E1528',
+              borderTopColor: '#2B2E36',
+              borderTopWidth: 1,
+              height: 80,
+              paddingBottom: 16,
+              paddingTop: 16,
+            },
         tabBarActiveTintColor: '#00E0FF',
         tabBarInactiveTintColor: '#9CA3AF',
-      }}
+      })}
     >
       <AdminTab.Screen 
         name="AdminHome" 
