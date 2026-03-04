@@ -141,8 +141,8 @@ export default function StitchTeamDetails() {
     right: 0,
     width: 380,
     height: "100vh",
-    backgroundColor: "#0E1528",
-    borderLeft: "1px solid rgba(0,224,255,0.25)",
+    backgroundColor: "#0D1526",
+    borderLeft: "1px solid rgba(0,224,255,0.15)",
     boxShadow: "-8px 0 24px rgba(0,0,0,0.4)",
     zIndex: 1000,
     display: "flex",
@@ -163,8 +163,9 @@ export default function StitchTeamDetails() {
     <div
       style={{
         minHeight: "100vh",
+        background: "radial-gradient(ellipse at top, #0D1F3C 0%, #0A0F1E 60%)",
         backgroundColor: "#0A0F1E",
-        color: "#ffffff",
+        color: "#FFFFFF",
         fontFamily: "system-ui, sans-serif",
         overflowY: "auto",
         paddingBottom: 80,
@@ -193,7 +194,7 @@ export default function StitchTeamDetails() {
               textAlign: "center",
               fontSize: 28,
               fontWeight: 700,
-              color: "#ffffff",
+              color: "#FFFFFF",
               margin: 0,
               minWidth: 0,
             }}
@@ -209,8 +210,9 @@ export default function StitchTeamDetails() {
                 border: "1px solid #00E0FF",
                 color: "#00E0FF",
                 padding: "8px 14px",
-                borderRadius: 8,
+                borderRadius: 12,
                 fontSize: 13,
+                fontWeight: 600,
                 cursor: "pointer",
               }}
             >
@@ -224,8 +226,9 @@ export default function StitchTeamDetails() {
                 border: "1px solid #00E0FF",
                 color: "#00E0FF",
                 padding: "8px 14px",
-                borderRadius: 8,
+                borderRadius: 12,
                 fontSize: 13,
+                fontWeight: 600,
                 cursor: "pointer",
               }}
             >
@@ -285,11 +288,11 @@ export default function StitchTeamDetails() {
                     style={{
                       padding: 12,
                       borderRadius: 8,
-                      border: "1px solid rgba(0,224,255,0.25)",
-                      backgroundColor: "rgba(0,224,255,0.04)",
+                      border: "1px solid rgba(0,224,255,0.2)",
+                      backgroundColor: "#0D1526",
                     }}
                   >
-                    <div style={{ fontSize: 15, fontWeight: 700, color: "#ffffff", marginBottom: 4 }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: "#FFFFFF", marginBottom: 4 }}>
                       {m.fullName || [m.firstName, m.lastName].filter(Boolean).join(" ") || "—"}
                     </div>
                     <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", marginBottom: 6 }}>
@@ -345,11 +348,11 @@ export default function StitchTeamDetails() {
                     style={{
                       padding: 12,
                       borderRadius: 8,
-                      border: "1px solid rgba(0,224,255,0.25)",
-                      backgroundColor: "rgba(0,224,255,0.04)",
+                      border: "1px solid rgba(0,224,255,0.2)",
+                      backgroundColor: "#0D1526",
                     }}
                   >
-                    <div style={{ fontSize: 14, fontWeight: 700, color: "#ffffff", marginBottom: 4 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: "#FFFFFF", marginBottom: 4 }}>
                       {ev.title || ev.summary || "Entraînement"}
                     </div>
                     <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
@@ -364,11 +367,12 @@ export default function StitchTeamDetails() {
                     onClick={() => setTrainingsPage((p) => p - 1)}
                     style={{
                       padding: "6px 12px",
-                      border: "1px solid rgba(0,224,255,0.25)",
-                      background: hasPrev ? "transparent" : "rgba(255,255,255,0.05)",
-                      color: hasPrev ? "#00E0FF" : "rgba(255,255,255,0.4)",
-                      borderRadius: 6,
+                      border: "1px solid rgba(0,224,255,0.2)",
+                      background: hasPrev ? "transparent" : "#0A0F1E",
+                      color: hasPrev ? "#00E0FF" : "rgba(255,255,255,0.6)",
+                      borderRadius: 12,
                       fontSize: 12,
+                      fontWeight: 600,
                       cursor: hasPrev ? "pointer" : "default",
                     }}
                   >
@@ -383,11 +387,12 @@ export default function StitchTeamDetails() {
                     onClick={() => setTrainingsPage((p) => p + 1)}
                     style={{
                       padding: "6px 12px",
-                      border: "1px solid rgba(0,224,255,0.25)",
-                      background: hasNext ? "transparent" : "rgba(255,255,255,0.05)",
-                      color: hasNext ? "#00E0FF" : "rgba(255,255,255,0.4)",
-                      borderRadius: 6,
+                      border: "1px solid rgba(0,224,255,0.2)",
+                      background: hasNext ? "transparent" : "#0A0F1E",
+                      color: hasNext ? "#00E0FF" : "rgba(255,255,255,0.6)",
+                      borderRadius: 12,
                       fontSize: 12,
+                      fontWeight: 600,
                       cursor: hasNext ? "pointer" : "default",
                     }}
                   >

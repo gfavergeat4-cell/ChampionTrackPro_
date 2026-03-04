@@ -536,20 +536,31 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
   const [openIndicators, setOpenIndicators] = useState(false);
 
   const filterBoxStyle = {
-    background: "#0E1528",
+    background: "#0D1526",
     borderRadius: 12,
     padding: 12,
-    border: "1px solid rgba(0,224,255,0.25)",
+    border: "1px solid rgba(0,224,255,0.2)",
   } as const;
   const labelStyle = { fontSize: 12, color: "rgba(255,255,255,0.6)", marginBottom: 6, display: "block" as const };
   const checkboxStyle = { accentColor: CYAN };
+  const btnActiveStyle = {
+    background: "linear-gradient(135deg, #00BFFF, #0066FF)",
+    color: "#FFFFFF",
+    border: "none",
+  };
+  const btnInactiveStyle = {
+    background: "#0A0F1E",
+    color: "rgba(255,255,255,0.7)",
+    border: "1px solid rgba(255,255,255,0.2)",
+  };
 
   return (
     <div
       style={{
         minHeight: "100vh",
+        background: "radial-gradient(ellipse at top, #0D1F3C 0%, #0A0F1E 60%)",
         backgroundColor: BG,
-        color: "white",
+        color: "#FFFFFF",
         padding: 24,
         fontFamily:
           "system-ui, -apple-system, BlinkMacSystemFont, 'Inter', sans-serif",
@@ -577,7 +588,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                 ? `Performance • ${teamNameFromRoute}`
                 : "Performance Dashboard"}
             </h1>
-            <p style={{ color: "#9CA3AF", fontSize: 14 }}>
+            <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 14 }}>
               Visualisation des questionnaires par joueur, catégorie et période.
             </p>
           </div>
@@ -602,9 +613,9 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                 width: "100%",
                 padding: "8px 10px",
                 borderRadius: 8,
-                border: "1px solid rgba(0,224,255,0.25)",
-                background: "#0E1528",
-                color: "#fff",
+                border: "1px solid rgba(0,224,255,0.2)",
+                background: "#0D1526",
+                color: "#FFFFFF",
                 fontSize: 14,
                 textAlign: "left",
                 cursor: "pointer",
@@ -625,15 +636,15 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                   right: 0,
                   marginTop: 4,
                   padding: 8,
-                  background: "#0E1528",
-                  border: "1px solid rgba(0,224,255,0.25)",
+                  background: "#0D1526",
+                  border: "1px solid rgba(0,224,255,0.2)",
                   borderRadius: 8,
                   zIndex: 10,
                   maxHeight: 280,
                   overflowY: "auto",
                 }}
               >
-                <label style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", color: "#fff", cursor: "pointer" }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", color: "#FFFFFF", cursor: "pointer" }}>
                   <input
                     type="checkbox"
                     checked={selectedPlayerIds.length === 0}
@@ -674,9 +685,9 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                 width: "100%",
                 padding: "8px 10px",
                 borderRadius: 8,
-                border: "1px solid rgba(0,224,255,0.25)",
-                background: "#0E1528",
-                color: "#fff",
+                border: "1px solid rgba(0,224,255,0.2)",
+                background: "#0D1526",
+                color: "#FFFFFF",
                 fontSize: 14,
                 textAlign: "left",
                 cursor: "pointer",
@@ -693,15 +704,15 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                   right: 0,
                   marginTop: 4,
                   padding: 8,
-                  background: "#0E1528",
-                  border: "1px solid rgba(0,224,255,0.25)",
+                  background: "#0D1526",
+                  border: "1px solid rgba(0,224,255,0.2)",
                   borderRadius: 8,
                   zIndex: 10,
                   maxHeight: 220,
                   overflowY: "auto",
                 }}
               >
-                <label style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", color: "#fff", cursor: "pointer" }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", color: "#FFFFFF", cursor: "pointer" }}>
                   <input
                     type="checkbox"
                     checked={selectedPositions.length === 0}
@@ -741,11 +752,10 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                 style={{
                   flex: 1,
                   padding: "6px 8px",
-                  borderRadius: 8,
+                  borderRadius: 12,
                   fontSize: 12,
-                  border: durationMode === "preset" ? `1px solid ${CYAN}` : "1px solid rgba(0,224,255,0.25)",
-                  background: durationMode === "preset" ? "rgba(0,224,255,0.1)" : "transparent",
-                  color: "#fff",
+                  fontWeight: 600,
+                  ...(durationMode === "preset" ? btnActiveStyle : btnInactiveStyle),
                   cursor: "pointer",
                 }}
               >
@@ -757,11 +767,10 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                 style={{
                   flex: 1,
                   padding: "6px 8px",
-                  borderRadius: 8,
+                  borderRadius: 12,
                   fontSize: 12,
-                  border: durationMode === "custom" ? `1px solid ${CYAN}` : "1px solid rgba(0,224,255,0.25)",
-                  background: durationMode === "custom" ? "rgba(0,224,255,0.1)" : "transparent",
-                  color: "#fff",
+                  fontWeight: 600,
+                  ...(durationMode === "custom" ? btnActiveStyle : btnInactiveStyle),
                   cursor: "pointer",
                 }}
               >
@@ -779,11 +788,10 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                       onClick={() => setDuration(d)}
                       style={{
                         padding: "6px 10px",
-                        borderRadius: 8,
+                        borderRadius: 12,
                         fontSize: 12,
-                        border: active ? `1px solid ${CYAN}` : "1px solid rgba(0,224,255,0.25)",
-                        background: active ? "rgba(0,224,255,0.15)" : "transparent",
-                        color: active ? CYAN : "#fff",
+                        fontWeight: 600,
+                        ...(active ? btnActiveStyle : btnInactiveStyle),
                         cursor: "pointer",
                       }}
                     >
@@ -798,16 +806,16 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                   type="date"
                   value={customStart}
                   onChange={(e) => setCustomStart(e.target.value)}
-                  style={{
-                    padding: "8px 10px",
-                    borderRadius: 8,
-                    border: "1px solid rgba(0,224,255,0.25)",
-                    background: "#0E1528",
-                    color: "#fff",
-                    fontSize: 14,
-                    colorScheme: "dark",
-                  }}
-                />
+                    style={{
+                      padding: "8px 10px",
+                      borderRadius: 8,
+                      border: "1px solid rgba(0,224,255,0.2)",
+                      background: "#0D1526",
+                      color: "#FFFFFF",
+                      fontSize: 14,
+                      colorScheme: "dark",
+                    }}
+                  />
                 <input
                   type="date"
                   value={customEnd}
@@ -815,9 +823,9 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                   style={{
                     padding: "8px 10px",
                     borderRadius: 8,
-                    border: "1px solid rgba(0,224,255,0.25)",
-                    background: "#0E1528",
-                    color: "#fff",
+                    border: "1px solid rgba(0,224,255,0.2)",
+                    background: "#0D1526",
+                    color: "#FFFFFF",
                     fontSize: 14,
                     colorScheme: "dark",
                   }}
@@ -836,11 +844,10 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                 style={{
                   flex: 1,
                   padding: "6px 8px",
-                  borderRadius: 8,
+                  borderRadius: 12,
                   fontSize: 12,
-                  border: indicatorMode === "category" ? `1px solid ${CYAN}` : "1px solid rgba(0,224,255,0.25)",
-                  background: indicatorMode === "category" ? "rgba(0,224,255,0.1)" : "transparent",
-                  color: "#fff",
+                  fontWeight: 600,
+                  ...(indicatorMode === "category" ? btnActiveStyle : btnInactiveStyle),
                   cursor: "pointer",
                 }}
               >
@@ -852,11 +859,10 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                 style={{
                   flex: 1,
                   padding: "6px 8px",
-                  borderRadius: 8,
+                  borderRadius: 12,
                   fontSize: 12,
-                  border: indicatorMode === "indicator" ? `1px solid ${CYAN}` : "1px solid rgba(0,224,255,0.25)",
-                  background: indicatorMode === "indicator" ? "rgba(0,224,255,0.1)" : "transparent",
-                  color: "#fff",
+                  fontWeight: 600,
+                  ...(indicatorMode === "indicator" ? btnActiveStyle : btnInactiveStyle),
                   cursor: "pointer",
                 }}
               >
@@ -875,11 +881,11 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                       onClick={() => setCategory(c)}
                       style={{
                         padding: "6px 10px",
-                        borderRadius: 8,
+                        borderRadius: 12,
                         fontSize: 12,
-                        border: active ? `1px solid ${color}` : "1px solid rgba(0,224,255,0.25)",
-                        background: active ? "rgba(0,224,255,0.08)" : "transparent",
-                        color: active ? color : "#fff",
+                        fontWeight: 600,
+                        ...(active ? { ...btnActiveStyle, color: "#FFFFFF" } : btnInactiveStyle),
+                        border: active ? "none" : "1px solid rgba(255,255,255,0.2)",
                         cursor: "pointer",
                       }}
                     >
@@ -897,9 +903,9 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                     width: "100%",
                     padding: "8px 10px",
                     borderRadius: 8,
-                    border: "1px solid rgba(0,224,255,0.25)",
-                    background: "#0E1528",
-                    color: "#fff",
+                    border: "1px solid rgba(0,224,255,0.2)",
+                    background: "#0D1526",
+                    color: "#FFFFFF",
                     fontSize: 14,
                     textAlign: "left",
                     cursor: "pointer",
@@ -916,8 +922,8 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                       right: 0,
                       marginTop: 4,
                       padding: 8,
-                      background: "#0E1528",
-                      border: "1px solid rgba(0,224,255,0.25)",
+                      background: "#0D1526",
+                      border: "1px solid rgba(0,224,255,0.2)",
                       borderRadius: 8,
                       zIndex: 10,
                       maxHeight: 320,
@@ -934,7 +940,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                         {ALL_INDICATORS_BY_CATEGORY[cat].map((key) => {
                           const checked = selectedIndicators.includes(key);
                           return (
-                            <label key={key} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", color: "#fff", cursor: "pointer" }}>
+                            <label key={key} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", color: "#FFFFFF", cursor: "pointer" }}>
                               <input
                                 type="checkbox"
                                 checked={checked}
@@ -970,11 +976,10 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                     style={{
                       flex: 1,
                       padding: "6px 8px",
-                      borderRadius: 8,
+                      borderRadius: 12,
                       fontSize: 12,
-                      border: active ? `1px solid ${CYAN}` : "1px solid rgba(0,224,255,0.25)",
-                      background: active ? "rgba(0,224,255,0.15)" : "transparent",
-                      color: active ? CYAN : "#fff",
+                      fontWeight: 600,
+                      ...(active ? btnActiveStyle : btnInactiveStyle),
                       cursor: "pointer",
                     }}
                   >
@@ -999,11 +1004,10 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                     style={{
                       flex: 1,
                       padding: "6px 8px",
-                      borderRadius: 8,
+                      borderRadius: 12,
                       fontSize: 12,
-                      border: active ? `1px solid ${CYAN}` : "1px solid rgba(0,224,255,0.25)",
-                      background: active ? "rgba(0,224,255,0.15)" : "transparent",
-                      color: active ? CYAN : "#fff",
+                      fontWeight: 600,
+                      ...(active ? btnActiveStyle : btnInactiveStyle),
                       cursor: "pointer",
                     }}
                   >
@@ -1017,11 +1021,11 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
 
         <div
           style={{
-            background: "#020617",
+            background: "#0D1526",
             borderRadius: 16,
             padding: 20,
-            border: "1px solid rgba(30,64,175,0.6)",
-            boxShadow: "0 24px 60px rgba(15,23,42,0.8)",
+            border: "1px solid rgba(0,224,255,0.15)",
+            boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
           }}
         >
           {loadingInit || loadingData ? (
@@ -1037,7 +1041,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
               <span
                 style={{
                   marginLeft: 12,
-                  color: "#9CA3AF",
+                  color: "rgba(255,255,255,0.6)",
                   fontSize: 14,
                 }}
               >
@@ -1085,15 +1089,15 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                     data={chartData}
                     margin={{ top: 10, right: 30, left: 0, bottom: 10 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1F2937" />
-                    <XAxis dataKey="date" stroke="#9CA3AF" />
-                    <YAxis domain={[0, 100]} stroke="#9CA3AF" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+                    <XAxis dataKey="date" stroke="rgba(255,255,255,0.6)" />
+                    <YAxis domain={[0, 100]} stroke="rgba(255,255,255,0.6)" />
                     <Tooltip
                       contentStyle={{
-                        backgroundColor: "#020617",
-                        border: "1px solid #1F2937",
+                        backgroundColor: "#0E1528",
+                        border: "1px solid #00E0FF",
                         borderRadius: 8,
-                        color: "#F9FAFB",
+                        color: "#FFFFFF",
                       }}
                     />
                     <Legend />
@@ -1125,15 +1129,15 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                     data={chartData}
                     margin={{ top: 10, right: 30, left: 0, bottom: 10 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1F2937" />
-                    <XAxis dataKey="date" stroke="#9CA3AF" />
-                    <YAxis domain={[0, 100]} stroke="#9CA3AF" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+                    <XAxis dataKey="date" stroke="rgba(255,255,255,0.6)" />
+                    <YAxis domain={[0, 100]} stroke="rgba(255,255,255,0.6)" />
                     <Tooltip
                       contentStyle={{
-                        backgroundColor: "#020617",
-                        border: "1px solid #1F2937",
+                        backgroundColor: "#0E1528",
+                        border: "1px solid #00E0FF",
                         borderRadius: 8,
-                        color: "#F9FAFB",
+                        color: "#FFFFFF",
                       }}
                     />
                     <Legend />

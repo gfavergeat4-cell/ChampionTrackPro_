@@ -147,8 +147,9 @@ export default function AdminHomeScreen() {
         minHeight: "100vh",
         overflowY: "auto",
         paddingBottom: 80,
+        background: "radial-gradient(ellipse at top, #0D1F3C 0%, #0A0F1E 60%)",
         backgroundColor: "#0A0F1E",
-        color: "#F9FAFB",
+        color: "#FFFFFF",
         fontFamily:
           "system-ui, -apple-system, BlinkMacSystemFont, 'Inter', sans-serif",
         padding: isDesktop ? "32px 48px 80px 48px" : "24px 16px 80px 16px",
@@ -160,81 +161,56 @@ export default function AdminHomeScreen() {
           margin: "0 auto",
         }}
       >
-        <div style={{ textAlign: "center", paddingTop: 40, paddingBottom: 24 }}>
-          {/* Titre principal: ChampionTrack (blanc lumineux) + Pro (cyan) */}
+        {/* Logo header — même direction artistique que l'écran athlete */}
+        <div style={{ textAlign: "center", paddingTop: 32, paddingBottom: 32 }}>
           <div
             style={{
               fontFamily: "'Palatino Linotype', Palatino, Georgia, serif",
-              fontSize: 38,
+              fontSize: 36,
               fontWeight: 700,
-              letterSpacing: 3,
+              letterSpacing: 4,
               textTransform: "uppercase",
               lineHeight: 1.2,
             }}
           >
-            <span
-              style={{
-                color: "#ffffff",
-                textShadow: "0 0 16px rgba(180,220,255,0.6), 0 0 32px rgba(0,224,255,0.25), 0 0 48px rgba(255,255,255,0.15)",
-              }}
-            >
-              ChampionTrack
+            <span style={{ color: "#FFFFFF", textShadow: "0 0 20px rgba(255,255,255,0.4)" }}>
+              CHAMPIONTRACK
             </span>
-            <span
-              style={{
-                color: "#00E0FF",
-                textShadow: "0 0 12px rgba(0,224,255,0.9), 0 0 24px rgba(0,224,255,0.6), 0 0 40px rgba(0,224,255,0.35)",
-              }}
-            >
-              Pro
+            <span style={{ color: "#00E0FF", textShadow: "0 0 25px rgba(0,224,255,0.8)" }}>
+              PRO
             </span>
           </div>
-          {/* Sous-titre */}
           <div
             style={{
-              fontFamily: "system-ui, sans-serif",
-              fontSize: 10,
-              fontWeight: 300,
-              letterSpacing: 10,
-              color: "rgba(255,255,255,0.5)",
-              marginTop: 10,
+              fontSize: 11,
+              letterSpacing: 8,
+              color: "rgba(255,255,255,0.6)",
+              marginTop: 8,
+              fontFamily: "sans-serif",
               textTransform: "uppercase",
             }}
           >
             THE TRAINING INTELLIGENCE
           </div>
-          {/* Ligne avec dégradé + orbe central lumineux */}
-          <div
-            style={{
-              marginTop: 16,
-              position: "relative",
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-            }}
-          >
-            <div
-              style={{
-                width: 140,
-                height: 3,
-                borderRadius: 2,
-                background: "linear-gradient(90deg, #00E0FF 0%, #2563eb 50%, #4C1D95 100%)",
-                boxShadow: "0 0 12px rgba(0,224,255,0.4)",
-              }}
-            />
-            <div
-              style={{
-                position: "absolute",
-                left: "50%",
-                top: "50%",
-                transform: "translate(-50%, -50%)",
-                width: 10,
-                height: 10,
-                borderRadius: "50%",
-                background: "#00E0FF",
-                boxShadow: "0 0 12px #00E0FF, 0 0 24px rgba(0,224,255,0.8), 0 0 40px rgba(0,224,255,0.4)",
-              }}
-            />
+          <div style={{ marginTop: 12, display: "flex", justifyContent: "center" }}>
+            <svg width="80" height="20" viewBox="0 0 80 20">
+              <defs>
+                <linearGradient id="adminHeaderGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#0044FF" stopOpacity="0.6" />
+                  <stop offset="50%" stopColor="#00E0FF" />
+                  <stop offset="100%" stopColor="#0044FF" stopOpacity="0.6" />
+                </linearGradient>
+                <filter id="adminHeaderGlow">
+                  <feGaussianBlur stdDeviation="3" result="blur" />
+                  <feMerge>
+                    <feMergeNode in="blur" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
+              </defs>
+              <line x1="0" y1="10" x2="80" y2="10" stroke="url(#adminHeaderGrad)" strokeWidth="2" strokeLinecap="round" />
+              <circle cx="40" cy="10" r="5" fill="#00E0FF" filter="url(#adminHeaderGlow)" />
+            </svg>
           </div>
         </div>
 
@@ -267,17 +243,15 @@ export default function AdminHomeScreen() {
                     width: "100%",
                     padding: 16,
                     borderRadius: 16,
-                    border: "1px solid rgba(0,224,255,0.25)",
-                    background: "linear-gradient(135deg, #0E1528 0%, #111827 100%)",
+                    border: "1px solid rgba(0,224,255,0.2)",
+                    background: "#0D1526",
                     cursor: "pointer",
                     transition: "border-color 0.2s ease, box-shadow 0.2s ease",
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = "rgba(0,224,255,0.6)";
                     e.currentTarget.style.boxShadow = "0 8px 32px rgba(0,224,255,0.15)";
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = "rgba(0,224,255,0.25)";
                     e.currentTarget.style.boxShadow = "none";
                   }}
                 >
@@ -318,7 +292,7 @@ export default function AdminHomeScreen() {
                     style={{
                       marginTop: 4,
                       fontSize: 13,
-                      color: "rgba(255,255,255,0.5)",
+                      color: "rgba(255,255,255,0.6)",
                     }}
                   >
                     {memberCount} membre{memberCount !== 1 ? "s" : ""}
@@ -357,14 +331,14 @@ export default function AdminHomeScreen() {
               type="button"
               style={{
                 padding: "16px 48px",
-                borderRadius: 8,
-                backgroundColor: "#00E0FF",
+                borderRadius: 12,
+                background: "linear-gradient(135deg, #00BFFF, #0066FF)",
                 border: "none",
-                color: "#ffffff",
+                color: "#FFFFFF",
                 fontWeight: 700,
                 fontSize: 14,
                 cursor: "pointer",
-                boxShadow: "0 14px 30px rgba(8,47,73,0.7)",
+                boxShadow: "0 4px 20px rgba(0,200,255,0.4)",
               }}
             >
               + CREATE TEAM
