@@ -45,35 +45,44 @@ export default function StitchCreateAccountScreen() {
 
       setLoading(true);
       
-      // Vérifier le code d'accès AVANT de créer le compte (pas besoin d'être authentifié pour lire)
+      // Vérifier le code d'accès AVANT de créer le compte
+      // Le rôle est déterminé par quel champ Firestore correspond au code saisi :
+      //   coachCode  → role = 'coach'
+      //   codes.athlete → role = 'athlete'
       let teamId = null;
+      let resolvedRole = null;
+
       if (formData.teamCode) {
         console.log("🔍 Vérification du code d'accès:", formData.teamCode);
-        console.log("🔍 Recherche dans la collection 'teams'...");
-        
         const teamsRef = collection(db, "teams");
-        const fieldName = role === "COACH" ? "coachCode" : "codes.athlete";
-        console.log("🔍 Champ utilisé pour la requête:", fieldName);
-        const q = query(teamsRef, where(fieldName, "==", formData.teamCode));
-        console.log("🔍 Requête Firestore créée: collection=teams,", fieldName, "==", formData.teamCode);
-        
-        const querySnapshot = await getDocs(q);
-        console.log("🔍 Résultat de la requête:", querySnapshot.size, "équipes trouvées");
-        
-        if (!querySnapshot.empty) {
-          const teamDoc = querySnapshot.docs[0];
-          teamId = teamDoc.id;
-          const teamData = teamDoc.data();
-          console.log("✅ Code d'accès valide, équipe trouvée:");
-          console.log("  - Team ID:", teamId);
-          console.log("  - Team Name:", teamData.name);
-          console.log("  - Team Data:", teamData);
+
+        // 1. Essayer coachCode
+        const coachQ = query(teamsRef, where("coachCode", "==", formData.teamCode));
+        console.log("🔍 Requête: coachCode ==", formData.teamCode);
+        const coachSnap = await getDocs(coachQ);
+        console.log("🔍 Résultat coachCode:", coachSnap.size, "équipe(s)");
+
+        if (!coachSnap.empty) {
+          teamId = coachSnap.docs[0].id;
+          resolvedRole = "coach";
+          console.log("✅ Code coach valide → role: coach, teamId:", teamId);
         } else {
-          console.log("❌ Code d'accès invalide:", formData.teamCode);
-          console.log("❌ Aucune équipe trouvée avec ce code");
-          Alert.alert("Erreur", "Code d'accès invalide. Vérifiez le code fourni par votre équipe.");
-          setLoading(false);
-          return;
+          // 2. Essayer codes.athlete
+          const athleteQ = query(teamsRef, where("codes.athlete", "==", formData.teamCode));
+          console.log("🔍 Requête: codes.athlete ==", formData.teamCode);
+          const athleteSnap = await getDocs(athleteQ);
+          console.log("🔍 Résultat codes.athlete:", athleteSnap.size, "équipe(s)");
+
+          if (!athleteSnap.empty) {
+            teamId = athleteSnap.docs[0].id;
+            resolvedRole = "athlete";
+            console.log("✅ Code athlète valide → role: athlete, teamId:", teamId);
+          } else {
+            console.log("❌ Code invalide:", formData.teamCode);
+            Alert.alert("Erreur", "Code d'accès invalide. Vérifiez le code fourni par votre équipe.");
+            setLoading(false);
+            return;
+          }
         }
       } else {
         console.log("⚠️ Aucun code d'accès fourni");
@@ -83,8 +92,9 @@ export default function StitchCreateAccountScreen() {
       const cred = await createUserWithEmailAndPassword(auth, formData.email.trim(), formData.password);
       console.log("[CREATE] auth ok", cred.user.uid);
 
-      // Créer le document utilisateur dans Firestore (champs de base)
-      const normalizedRole = role.toLowerCase();
+      // Le rôle vient du code Firestore qui a matché, pas du bouton UI
+      const normalizedRole = resolvedRole || role.toLowerCase();
+      console.log("[CREATE] role résolu:", normalizedRole, "(resolvedRole:", resolvedRole, ", UI role:", role, ")");
       const userData = {
         role: normalizedRole,
         email: formData.email.trim(),
