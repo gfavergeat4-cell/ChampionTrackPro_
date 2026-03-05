@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigation, CommonActions } from "@react-navigation/native";
-import { View, Platform, Alert } from "react-native";
+import { View, Platform, Alert, Text } from "react-native";
 import MobileViewport from "../src/components/MobileViewport";
 import ChampionTrackProLogo from "../src/components/ChampionTrackProLogo";
 import { createUserWithEmailAndPassword, getAuth } from "firebase/auth";
@@ -496,25 +496,6 @@ export default function StitchCreateAccountScreen() {
                   </svg>
                 </div>
               </div>
-
-              <input
-                type="tel"
-                placeholder="Phone (e.g. +33612345678)"
-                value={formData.phone}
-                onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                className="input"
-                autoComplete="tel"
-              />
-
-              <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", color: "#9CA3AF", fontSize: 13 }}>
-                <input
-                  type="checkbox"
-                  checked={!!formData.smsOptIn}
-                  onChange={(e) => setFormData({...formData, smsOptIn: e.target.checked})}
-                  style={{ marginTop: 2 }}
-                />
-                <span>{SMS_CONSENT_TEXT}</span>
-              </label>
 
               <button
                 type="submit"
