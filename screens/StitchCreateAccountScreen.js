@@ -52,8 +52,10 @@ export default function StitchCreateAccountScreen() {
         console.log("🔍 Recherche dans la collection 'teams'...");
         
         const teamsRef = collection(db, "teams");
-        const q = query(teamsRef, where("codes.athlete", "==", formData.teamCode));
-        console.log("🔍 Requête Firestore créée:", q);
+        const fieldName = role === "COACH" ? "coachCode" : "codes.athlete";
+        console.log("🔍 Champ utilisé pour la requête:", fieldName);
+        const q = query(teamsRef, where(fieldName, "==", formData.teamCode));
+        console.log("🔍 Requête Firestore créée: collection=teams,", fieldName, "==", formData.teamCode);
         
         const querySnapshot = await getDocs(q);
         console.log("🔍 Résultat de la requête:", querySnapshot.size, "équipes trouvées");
