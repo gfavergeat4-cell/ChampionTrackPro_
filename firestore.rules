@@ -107,10 +107,8 @@ service cloud.firestore {
                        (isCoach() && isTeamMember(teamId)) || 
                        isTeamMember(teamId);
         
-        // Création : par l'utilisateur lui-même
-        // Permet la création si l'utilisateur est authentifié et crée son propre document
-        // Le teamId est vérifié côté client (dans resolveAthleteTeamAndMembership)
-        allow create: if signedIn() && request.auth.uid == uid;
+        // Création : par l'utilisateur lui-même, un coach, ou un admin
+        allow create: if signedIn() && (request.auth.uid == uid || isCoach() || isAdmin());
         
         // Mise à jour : admin ou l'utilisateur lui-même
         allow update: if isAdmin() || (signedIn() && request.auth.uid == uid);

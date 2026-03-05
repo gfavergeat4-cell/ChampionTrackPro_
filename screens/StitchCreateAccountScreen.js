@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigation, CommonActions } from "@react-navigation/native";
+import { useNavigation } from "@react-navigation/native";
 import { View, Platform, Alert, Text } from "react-native";
 import MobileViewport from "../src/components/MobileViewport";
 import ChampionTrackProLogo from "../src/components/ChampionTrackProLogo";
@@ -147,14 +147,10 @@ export default function StitchCreateAccountScreen() {
         }
       }
 
-      // Navigation robuste avec reset
-      navigation.dispatch(
-        CommonActions.reset({
-          index: 0,
-          routes: [{ name: "AthleteTabs" }],
-        })
-      );
-      console.log("[CREATE] nav reset → AthleteTabs");
+      // AuthGate's onSnapshot listener will detect the newly-written user doc and
+      // automatically redirect to the correct tabs (CoachTabs / AthleteTabs) based
+      // on the role stored in Firestore — no explicit dispatch needed here.
+      console.log("[CREATE] account + user doc created, AuthGate will route by role:", normalizedRole);
       
     } catch (e) {
       console.error("[CREATE] error", e?.code, e?.message);

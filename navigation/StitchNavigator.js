@@ -4,7 +4,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { onAuthStateChanged, setPersistence, browserLocalPersistence } from "firebase/auth";
 import { auth, db } from "../services/firebaseConfig";
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, setDoc, serverTimestamp, onSnapshot } from "firebase/firestore";
 import SplashScreen from "../src/components/SplashScreen";
 
 // Import Stitch screens
@@ -371,12 +371,13 @@ function RootStackNavigator({ role, user, pendingDeepLink, navigationRef }) {
 
 // Auth Gate Component with proper role detection
 function AuthGate({ pendingDeepLink, navigationRef }) {
-  const [state, setState] = React.useState({ 
-    loading: true, 
-    user: null, 
+  const [state, setState] = React.useState({
+    loading: true,
+    user: null,
     userRole: null,
-    authReady: false 
+    authReady: false
   });
+  const unsubDocRef = React.useRef(null);
 
   // Timeout pour éviter que l'écran de chargement reste bloqué
   React.useEffect(() => {
@@ -399,18 +400,22 @@ function AuthGate({ pendingDeepLink, navigationRef }) {
     
     const unsub = onAuthStateChanged(auth, async (u) => {
       console.log("🔍 Auth state changed:", u?.email);
-      
+
+      // Clean up previous user-doc listener when auth changes
+      if (unsubDocRef.current) {
+        unsubDocRef.current();
+        unsubDocRef.current = null;
+      }
+
       if (u) {
         try {
           console.log("👤 User authenticated, fetching role...");
-          // Récupérer le rôle depuis Firestore
           const userDoc = await getDoc(doc(db, "users", u.uid));
           let role = "athlete"; // Default role
-          
+
           if (userDoc.exists()) {
             const userData = userDoc.data();
             const rawRole = userData.role || "athlete";
-            // Normalize role (toLowerCase, trim)
             role = String(rawRole).trim().toLowerCase();
             console.log("📄 User document exists:", userData);
             console.log("📄 Raw role from Firestore:", rawRole);
@@ -418,7 +423,6 @@ function AuthGate({ pendingDeepLink, navigationRef }) {
             console.log("📄 Role comparison (admin):", role === "admin");
           } else {
             console.log("⚠️ No user document found, creating admin document for gabfavergeat@gmail.com");
-            // Créer automatiquement le document admin pour gabfavergeat@gmail.com
             if (u.email === "gabfavergeat@gmail.com") {
               await setDoc(doc(db, "users", u.uid), {
                 email: u.email,
@@ -430,13 +434,28 @@ function AuthGate({ pendingDeepLink, navigationRef }) {
               console.log("✅ Admin document created automatically");
             }
           }
-          
+
           console.log("👤 User state:", { user: u?.email, role });
-          
           setState({ loading: false, user: u, userRole: role, authReady: true });
+
+          // Watch the user doc in real-time so the role is updated as soon as the
+          // account-creation flow writes it (fixes the race between onAuthStateChanged
+          // and setDoc in StitchCreateAccountScreen).
+          unsubDocRef.current = onSnapshot(doc(db, "users", u.uid), (snapshot) => {
+            if (snapshot.exists()) {
+              const rawRole = snapshot.data()?.role || "athlete";
+              const updatedRole = String(rawRole).trim().toLowerCase();
+              setState((prev) => {
+                if (prev.userRole !== updatedRole) {
+                  console.log("[AUTH] Role updated via onSnapshot:", updatedRole);
+                  return { ...prev, userRole: updatedRole };
+                }
+                return prev;
+              });
+            }
+          });
         } catch (error) {
           console.error("❌ Error fetching user role:", error);
-          // Fallback to email-based detection
           const role = u.email === "gabfavergeat@gmail.com" ? "admin" : "athlete";
           console.log("🔄 Fallback role detection:", role);
           setState({ loading: false, user: u, userRole: role, authReady: true });
@@ -446,8 +465,14 @@ function AuthGate({ pendingDeepLink, navigationRef }) {
         setState({ loading: false, user: null, userRole: null, authReady: true });
       }
     });
-    
-    return () => unsub();
+
+    return () => {
+      unsub();
+      if (unsubDocRef.current) {
+        unsubDocRef.current();
+        unsubDocRef.current = null;
+      }
+    };
   }, []);
 
   // Show splash screen while loading
