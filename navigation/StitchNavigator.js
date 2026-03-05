@@ -270,7 +270,8 @@ function CoachTabs() {
 
 // Root Stack Navigator with role-based routing
 function RootStackNavigator({ role, user, pendingDeepLink, navigationRef }) {
-  console.log("[ROOT] role at render =", role);
+  console.log("role from firestore:", role);
+  console.log("[ROOT] role at render =", role, "| type:", typeof role);
   console.log("[ROOT] user =", user?.email);
 
   // Après auth + rôle athlete, ouvrir le questionnaire si un deep link est en attente
@@ -443,8 +444,9 @@ function AuthGate({ pendingDeepLink, navigationRef }) {
           // and setDoc in StitchCreateAccountScreen).
           unsubDocRef.current = onSnapshot(doc(db, "users", u.uid), (snapshot) => {
             if (snapshot.exists()) {
-              const rawRole = snapshot.data()?.role || "athlete";
-              const updatedRole = String(rawRole).trim().toLowerCase();
+              const rawRole = snapshot.data()?.role;
+              console.log("[AUTH] onSnapshot raw role from firestore:", rawRole, "| type:", typeof rawRole);
+              const updatedRole = String(rawRole || "athlete").trim().toLowerCase();
               setState((prev) => {
                 if (prev.userRole !== updatedRole) {
                   console.log("[AUTH] Role updated via onSnapshot:", updatedRole);
