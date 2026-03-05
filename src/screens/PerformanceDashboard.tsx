@@ -53,6 +53,8 @@ interface Member {
   firstName?: string;
   lastName?: string;
   position?: string;
+  jerseyNumber?: number;
+  role?: string;
 }
 
 interface RawResponse {
@@ -315,6 +317,8 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
             fullName: data.fullName || undefined,
             firstName: data.firstName || undefined,
             lastName: data.lastName || undefined,
+            jerseyNumber: typeof data.jerseyNumber === "number" ? data.jerseyNumber : undefined,
+            role: data.role || undefined,
           };
         });
         const withPosition: Member[] = await Promise.all(
@@ -322,14 +326,21 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
             try {
               const userSnap = await getDoc(doc(db, "users", m.id));
               const userData = (userSnap.data() as any) || {};
-              const position = userData.position ?? undefined;
-              return { ...m, position };
+              const position = userData.position ?? m.position ?? undefined;
+              const jerseyNumber = typeof userData.jerseyNumber === "number"
+                ? userData.jerseyNumber
+                : m.jerseyNumber;
+              const role = userData.role ?? m.role ?? undefined;
+              const fullName = userData.fullName || m.fullName || undefined;
+              return { ...m, position, jerseyNumber, role, fullName };
             } catch {
               return m;
             }
           })
         );
-        if (!cancelled) setMembers(withPosition);
+        // Filter out coaches — only show athletes in the dropdown
+        const athleteMembers = withPosition.filter((m) => m.role !== "coach");
+        if (!cancelled) setMembers(athleteMembers);
       } catch (e) {
         console.error("[PERF][DASH] load members error", e);
       }
@@ -525,12 +536,12 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
   const athleteLabel = (uid: string): string => {
     const m = members.find((x) => x.id === uid);
     if (!m) return uid;
-    if (m.fullName) return m.fullName;
-    if (m.displayName) return m.displayName;
-    if (m.firstName || m.lastName) {
-      return `${m.firstName || ""} ${m.lastName || ""}`.trim();
-    }
-    return uid;
+    const name =
+      m.fullName ||
+      m.displayName ||
+      (m.firstName || m.lastName ? `${m.firstName || ""} ${m.lastName || ""}`.trim() : null);
+    if (!name) return uid;
+    return m.jerseyNumber != null ? `#${m.jerseyNumber} ${name}` : name;
   };
 
   const seriesKeys: string[] = useMemo(() => {
@@ -670,7 +681,6 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                   Tous les joueurs
                 </label>
                 {membersFilteredByPosition.map((m) => {
-                  const name = m.fullName || [m.firstName, m.lastName].filter(Boolean).join(" ") || m.id;
                   const checked = selectedPlayerIds.includes(m.id);
                   return (
                     <label key={m.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", color: "#fff", cursor: "pointer" }}>
@@ -683,7 +693,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                         }}
                         style={checkboxStyle}
                       />
-                      {name}
+                      {athleteLabel(m.id)}
                     </label>
                   );
                 })}
