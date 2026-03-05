@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, Platform } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
+import { collection, query, where, getDocs, orderBy, doc, getDoc } from "firebase/firestore";
 import { db } from "../services/firebaseConfig";
 import { DateTime } from "luxon";
 import PerformanceDashboard from "../src/screens/PerformanceDashboard";
@@ -66,6 +66,7 @@ export default function StitchTeamDetails() {
   const isDesktop = useIsDesktop();
   const { teamId, teamName: paramTeamName } = route.params || {};
 
+  const [team, setTeam] = useState(null);
   const [members, setMembers] = useState([]);
   const [trainings, setTrainings] = useState([]);
   const [trainingsPage, setTrainingsPage] = useState(0);
@@ -73,6 +74,21 @@ export default function StitchTeamDetails() {
   const [calendarOpen, setCalendarOpen] = useState(false);
 
   const teamName = paramTeamName || teamId || "Équipe";
+
+  useEffect(() => {
+    if (!teamId) return;
+    (async () => {
+      try {
+        const ref = doc(db, "teams", teamId);
+        const snap = await getDoc(ref);
+        if (snap.exists()) {
+          setTeam({ id: snap.id, ...snap.data() });
+        }
+      } catch (e) {
+        console.error("Load team error", e);
+      }
+    })();
+  }, [teamId]);
 
   useEffect(() => {
     if (!teamId) return;
@@ -125,6 +141,26 @@ export default function StitchTeamDetails() {
   const totalPages = Math.max(1, Math.ceil(trainings.length / PAGE_SIZE));
   const hasPrev = trainingsPage > 0;
   const hasNext = trainingsPage < totalPages - 1;
+
+  const handleCopyCode = (code) => {
+    if (!code) return;
+    try {
+      if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(code).then(
+          () => {
+            alert("Copié !");
+          },
+          () => {
+            alert("Impossible de copier le code.");
+          }
+        );
+      } else {
+        alert("Copié !");
+      }
+    } catch (e) {
+      console.error("Clipboard error", e);
+    }
+  };
 
   if (Platform.OS !== "web") {
     return (
@@ -278,6 +314,111 @@ export default function StitchTeamDetails() {
             </button>
           </div>
           <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>
+            {/* Infos d'équipe au-dessus de la liste des membres */}
+            <div style={{ marginBottom: 16 }}>
+              <div
+                style={{
+                  fontSize: 20,
+                  fontWeight: 700,
+                  color: "#FFFFFF",
+                  marginBottom: 10,
+                }}
+              >
+                {(team && (team.name || team.id)) || teamName}
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 10 }}>
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.75)" }}>
+                  <span style={{ fontWeight: 600 }}>Code Athlète :</span>{" "}
+                  {team && team.athleteCode ? (
+                    <div
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 8,
+                        background: "rgba(0,224,255,0.1)",
+                        border: "1px solid rgba(0,224,255,0.3)",
+                        borderRadius: 8,
+                        padding: "6px 12px",
+                        cursor: "pointer",
+                      }}
+                      onClick={() => handleCopyCode(team.athleteCode)}
+                    >
+                      <span
+                        style={{
+                          color: "#00E0FF",
+                          fontFamily: "monospace",
+                          fontSize: 16,
+                          fontWeight: 700,
+                        }}
+                      >
+                        {team.athleteCode}
+                      </span>
+                      <span
+                        style={{
+                          color: "rgba(255,255,255,0.5)",
+                          fontSize: 11,
+                        }}
+                      >
+                        📋 Copier
+                      </span>
+                    </div>
+                  ) : (
+                    <span style={{ color: "rgba(255,255,255,0.4)", marginLeft: 4 }}>—</span>
+                  )}
+                </div>
+
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.75)" }}>
+                  <span style={{ fontWeight: 600 }}>Code Coach :</span>{" "}
+                  {team && team.coachCode ? (
+                    <div
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 8,
+                        background: "rgba(0,224,255,0.1)",
+                        border: "1px solid rgba(0,224,255,0.3)",
+                        borderRadius: 8,
+                        padding: "6px 12px",
+                        cursor: "pointer",
+                      }}
+                      onClick={() => handleCopyCode(team.coachCode)}
+                    >
+                      <span
+                        style={{
+                          color: "#00E0FF",
+                          fontFamily: "monospace",
+                          fontSize: 16,
+                          fontWeight: 700,
+                        }}
+                      >
+                        {team.coachCode}
+                      </span>
+                      <span
+                        style={{
+                          color: "rgba(255,255,255,0.5)",
+                          fontSize: 11,
+                        }}
+                      >
+                        📋 Copier
+                      </span>
+                    </div>
+                  ) : (
+                    <span style={{ color: "rgba(255,255,255,0.4)", marginLeft: 4 }}>—</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Ligne séparatrice avant la liste des membres */}
+              <div
+                style={{
+                  height: 1,
+                  background: "rgba(0,224,255,0.2)",
+                  margin: "4px 0 12px",
+                }}
+              />
+            </div>
+
             {members.length === 0 ? (
               <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 14, margin: 0 }}>Aucun membre</p>
             ) : (

@@ -96,8 +96,8 @@ export default function StitchLandingScreen() {
                   src="/logo/logo_nobackground.png"
                   alt="ChampionTrackPro"
                   style={{
-                    width: "280px",
-                    maxWidth: "85%",
+                    width: "420px",
+                    maxWidth: "90%",
                     height: "auto",
                     display: "block",
                     margin: "0 auto",
