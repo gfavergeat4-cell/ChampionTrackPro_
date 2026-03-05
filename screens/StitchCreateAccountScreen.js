@@ -178,8 +178,9 @@ export default function StitchCreateAccountScreen() {
   };
 
   if (Platform.OS === "web") {
-    return (
-      <MobileViewport>
+    try {
+      return (
+        <MobileViewport>
         {/* Fonts */}
         <link
           href="https://fonts.googleapis.com"
@@ -379,7 +380,7 @@ export default function StitchCreateAccountScreen() {
           }
         `}</style>
 
-        {/* Bouton retour */}
+          {/* Bouton retour */}
         <button
           onClick={() => navigation.navigate("Landing")}
           style={{
@@ -414,7 +415,7 @@ export default function StitchCreateAccountScreen() {
           </svg>
         </button>
 
-        {/* Contenu */}
+          {/* Contenu */}
         <div className="create-account-root">
           <div className="create-account-card">
             {/* Logo + Tagline */}
@@ -545,9 +546,49 @@ export default function StitchCreateAccountScreen() {
               </p>
             </div>
           </div>
-        </div>
-      </MobileViewport>
-    );
+          </div>
+        </MobileViewport>
+      );
+    } catch (e) {
+      console.error("[StitchCreateAccountScreen] Render error (web):", e);
+      return (
+        <MobileViewport>
+          <div
+            style={{
+              minHeight: "100vh",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 24,
+              background: "linear-gradient(to bottom, #0E1528, #000000)",
+              color: "#fff",
+              fontFamily: "'Inter', sans-serif",
+            }}
+          >
+            <div style={{ maxWidth: 420, textAlign: "center" }}>
+              <h1 style={{ fontSize: 20, marginBottom: 12 }}>Erreur de rendu</h1>
+              <p style={{ fontSize: 14, color: "rgba(255,255,255,0.7)" }}>
+                Une erreur s'est produite lors du rendu de la page de création de compte.
+              </p>
+              <pre
+                style={{
+                  marginTop: 16,
+                  padding: 12,
+                  background: "rgba(0,0,0,0.5)",
+                  borderRadius: 8,
+                  fontSize: 12,
+                  textAlign: "left",
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                }}
+              >
+                {String(e?.message || e)}
+              </pre>
+            </div>
+          </div>
+        </MobileViewport>
+      );
+    }
   }
 
   return (

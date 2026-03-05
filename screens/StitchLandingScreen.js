@@ -7,7 +7,10 @@ import MobileViewport from "../src/components/MobileViewport";
 export default function StitchLandingScreen() {
   const navigation = useNavigation();
 
-  const handleCreateAccount = () => navigation.navigate("CreateAccount");
+  const handleCreateAccount = () => {
+    console.log("Navigate to CreateAccount");
+    navigation.navigate("CreateAccount");
+  };
   const handleLogin = () => navigation.navigate("Login");
 
   if (Platform.OS === "web") {
