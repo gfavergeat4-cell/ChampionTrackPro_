@@ -93,7 +93,7 @@ export default function StitchLandingScreen() {
             >
               <div style={{ textAlign: "center" }}>
                 <img
-                  src="/logo_transparent.png"
+                  src="/logo/logo_nobackground.png"
                   alt="ChampionTrackPro"
                   style={{
                     width: "280px",
@@ -101,7 +101,6 @@ export default function StitchLandingScreen() {
                     height: "auto",
                     display: "block",
                     margin: "0 auto",
-                    mixBlendMode: "screen",
                     background: "transparent",
                   }}
                 />

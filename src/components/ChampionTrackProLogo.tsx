@@ -1,8 +1,8 @@
 import React from "react";
 import { Platform, Image } from "react-native";
 
-// Logo: public/logo_transparent.png (web: /logo_transparent.png)
-const nativeLogoSource = require("../../public/logo_transparent.png");
+// Logo: public/logo/logo_nobackground.png (web: /logo/logo_nobackground.png)
+const nativeLogoSource = require("../../public/logo/logo_nobackground.png");
 
 const webLogoStyle = {
   width: "280px",
@@ -10,7 +10,6 @@ const webLogoStyle = {
   height: "auto",
   display: "block",
   margin: "0 auto",
-  mixBlendMode: "screen",
   background: "transparent",
 } as const;
 
@@ -24,7 +23,7 @@ export default function ChampionTrackProLogo() {
   if (Platform.OS === "web") {
     return (
       <img
-        src="/logo_transparent.png"
+        src="/logo/logo_nobackground.png"
         alt="ChampionTrackPro"
         style={webLogoStyle}
       />
