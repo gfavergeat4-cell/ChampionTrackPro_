@@ -80,6 +80,13 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Wildcard rule required for collectionGroup('responses') queries.
+    // Allows admins and coaches to read responses across all trainings/teams
+    // when using the Performance Dashboard.
+    match /{path=**}/responses/{responseId} {
+      allow read: if isAdmin() || (isCoach() && signedIn());
+    }
+
     match /teams/{teamId} {
       // Lecture publique : permettre la lecture pour valider les codes d'accès
       // Les codes sont publics par design (partagés avec les athlètes)

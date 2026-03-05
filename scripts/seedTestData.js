@@ -20,11 +20,11 @@ const fs    = require('fs');
 const PROJECT_ID = 'championtrackpro';
 const TEAM_ID    = 'Ri8kpStgWp9yymtS71tb';
 
-// Use the 1 known real member + 2 fake athletes for variety
+// Real members of team Ri8kpStgWp9yymtS71tb (fetched 2026-03-05)
 const ATHLETES = [
-  { uid: 'kHc8EeLA7KOYMZEBITrOlEdIySj2', physBase: 70, mentalBase: 65, techBase: 75 },
-  { uid: 'test_athlete_2',               physBase: 65, mentalBase: 78, techBase: 68 },
-  { uid: 'test_athlete_3',               physBase: 74, mentalBase: 66, techBase: 72 },
+  { uid: '84CKZH4GvTbxuK6g7bX73lQaaF32', physBase: 70, mentalBase: 65, techBase: 75 }, // Gab1
+  { uid: 'A5qEE46fPGffhm9DId7wtCsk58e2',  physBase: 65, mentalBase: 78, techBase: 68 }, // GAb TEST
+  { uid: 'fqXEQa0rjPdQcsCEc0RWef0SzWw1',  physBase: 74, mentalBase: 66, techBase: 72 }, // CoachTest
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

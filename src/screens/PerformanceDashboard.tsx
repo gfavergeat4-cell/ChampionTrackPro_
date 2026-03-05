@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, ActivityIndicator, Platform } from "react-native";
 import {
+  collection,
   collectionGroup,
   doc,
   getDoc,
