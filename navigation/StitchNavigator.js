@@ -26,6 +26,8 @@ import DebugTestQuestionnaireScreen from "../screens/DebugTestQuestionnaireScree
 import PerformanceDashboard from "../src/screens/PerformanceDashboard";
 import AdminHomeScreen from "../src/screens/AdminHomeScreen";
 import CoachHomeScreen from "../src/screens/CoachHomeScreen";
+import CoachTeamScreen from "../src/screens/CoachTeamScreen";
+import CoachProfileScreen from "../src/screens/CoachProfileScreen";
 
 const AuthStack = createNativeStackNavigator();
 const RootStack = createNativeStackNavigator();
@@ -204,12 +206,12 @@ function AdminTabs() {
   );
 }
 
-// Coach Tabs
+// Coach Tabs — Home | Team | Analytics | Profile
 function CoachTabs() {
   const CoachTab = createBottomTabNavigator();
   return (
-    <CoachTab.Navigator 
-      screenOptions={{ 
+    <CoachTab.Navigator
+      screenOptions={{
         headerShown: false,
         tabBarShowLabel: false,
         tabBarStyle: {
@@ -224,23 +226,21 @@ function CoachTabs() {
         tabBarInactiveTintColor: '#9CA3AF',
       }}
     >
-      <CoachTab.Screen 
-        name="Home" 
+      <CoachTab.Screen
+        name="Home"
         component={CoachHomeScreen}
-        initialParams={{ role: "coach" }}
         options={{
           tabBarIcon: ({ color, size, focused }) => (
             <TabIcon name="Home" color={color} size={size} focused={focused} />
           ),
         }}
       />
-      <CoachTab.Screen 
-        name="Schedule" 
-        component={ScheduleScreenNewScreen}
-        initialParams={{ role: "coach" }}
+      <CoachTab.Screen
+        name="Team"
+        component={CoachTeamScreen}
         options={{
           tabBarIcon: ({ color, size, focused }) => (
-            <TabIcon name="Schedule" color={color} size={size} focused={focused} />
+            <TabIcon name="Teams" color={color} size={size} focused={focused} />
           ),
         }}
       />
@@ -254,10 +254,9 @@ function CoachTabs() {
           ),
         }}
       />
-      <CoachTab.Screen 
-        name="Profile" 
-        component={ProfileScreen}
-        initialParams={{ role: "coach" }}
+      <CoachTab.Screen
+        name="Profile"
+        component={CoachProfileScreen}
         options={{
           tabBarIcon: ({ color, size, focused }) => (
             <TabIcon name="Profile" color={color} size={size} focused={focused} />
