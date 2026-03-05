@@ -102,6 +102,12 @@ const CATEGORY_COLORS: Record<CategoryKey, string> = {
   technical: "#A855F7",
 };
 
+const INDICATOR_COLORS: Record<CategoryKey, string[]> = {
+  physical:  ["#00E0FF", "#00B8CC", "#0088AA", "#005577", "#003344"],
+  mental:    ["#00FF88", "#00CC66", "#009944", "#006622", "#004411"],
+  technical: ["#A855F7", "#8833DD", "#6611BB", "#440099", "#220077"],
+};
+
 const CATEGORY_LABEL: Record<CategoryKey, string> = {
   physical: "Physical",
   mental: "Mental",
@@ -309,15 +315,21 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
           collection(db, "teams", selectedTeamId, "members")
         );
         if (cancelled) return;
+        console.log('[PERF] raw member docs:', memSnap.docs.map(d => ({ id: d.id, data: d.data() })));
         const baseList: Member[] = memSnap.docs.map((d) => {
           const data = d.data() as any;
+          const rawJersey = data.jerseyNumber;
+          const jerseyNumber =
+            typeof rawJersey === "number" ? rawJersey :
+            typeof rawJersey === "string" ? parseInt(rawJersey, 10) :
+            undefined;
           return {
             id: d.id,
             displayName: data.displayName || data.name || undefined,
             fullName: data.fullName || undefined,
             firstName: data.firstName || undefined,
             lastName: data.lastName || undefined,
-            jerseyNumber: typeof data.jerseyNumber === "number" ? data.jerseyNumber : undefined,
+            jerseyNumber: Number.isFinite(jerseyNumber) ? jerseyNumber : undefined,
             role: data.role || undefined,
           };
         });
@@ -327,9 +339,11 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
               const userSnap = await getDoc(doc(db, "users", m.id));
               const userData = (userSnap.data() as any) || {};
               const position = userData.position ?? m.position ?? undefined;
-              const jerseyNumber = typeof userData.jerseyNumber === "number"
-                ? userData.jerseyNumber
-                : m.jerseyNumber;
+              const rawJ = userData.jerseyNumber;
+              const jerseyNumber =
+                typeof rawJ === "number" ? rawJ :
+                typeof rawJ === "string" ? parseInt(rawJ, 10) :
+                m.jerseyNumber;
               const role = userData.role ?? m.role ?? undefined;
               const fullName = userData.fullName || m.fullName || undefined;
               return { ...m, position, jerseyNumber, role, fullName };
@@ -340,6 +354,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
         );
         // Filter out coaches — only show athletes in the dropdown
         const athleteMembers = withPosition.filter((m) => m.role !== "coach");
+        console.log('members loaded:', athleteMembers);
         if (!cancelled) setMembers(athleteMembers);
       } catch (e) {
         console.error("[PERF][DASH] load members error", e);
@@ -585,10 +600,12 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
     <div
       style={{
         minHeight: "100vh",
+        overflowY: "auto",
         background: "radial-gradient(ellipse at top, #0D1F3C 0%, #0A0F1E 60%)",
         backgroundColor: BG,
         color: "#FFFFFF",
         padding: 24,
+        paddingBottom: 120,
         fontFamily:
           "system-ui, -apple-system, BlinkMacSystemFont, 'Inter', sans-serif",
       }}
@@ -988,10 +1005,10 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
             )}
           </div>
 
-          {/* View Mode */}
+          {/* View Mode + Chart Type */}
           <div style={filterBoxStyle}>
             <label style={labelStyle}>View Mode</label>
-            <div style={{ display: "flex", gap: 6 }}>
+            <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
               {(["categories", "individual"] as ViewMode[]).map((m) => {
                 const active = viewMode === m;
                 return (
@@ -1014,10 +1031,6 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                 );
               })}
             </div>
-          </div>
-
-          {/* Chart Type */}
-          <div style={filterBoxStyle}>
             <label style={labelStyle}>Chart Type</label>
             <div style={{ display: "flex", gap: 6 }}>
               {(["line", "bar"] as ChartType[]).map((t) => {
@@ -1108,15 +1121,15 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
               Aucune donnée sur la période sélectionnée.
             </div>
           ) : (
-            <div style={{ height: 360 }}>
+            <div style={{ height: 420, marginBottom: 40 }}>
               <ResponsiveContainer width="100%" height="100%">
                 {chartType === "line" ? (
                   <LineChart
                     data={chartData}
-                    margin={{ top: 10, right: 30, left: 0, bottom: 10 }}
+                    margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                    <XAxis dataKey="date" stroke="rgba(255,255,255,0.6)" />
+                    <XAxis dataKey="date" stroke="rgba(255,255,255,0.6)" tick={{ fill: "rgba(255,255,255,0.6)", fontSize: 11 }} angle={-35} textAnchor="end" interval="preserveStartEnd" />
                     <YAxis domain={[0, 100]} stroke="rgba(255,255,255,0.6)" />
                     <Tooltip
                       contentStyle={{
@@ -1128,13 +1141,21 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                     />
                     <Legend />
                     {seriesKeys.map((k, idx) => {
-                      const color =
-                        viewMode === "categories"
-                          ? (indicatorMode === "indicator" ? CATEGORY_COLORS[getIndicatorCategory(k)] : categoryColor)
-                          : `hsl(${(idx * 55) % 360}, 85%, 60%)`;
+                      let color: string;
+                      if (viewMode === "categories") {
+                        if (indicatorMode === "indicator") {
+                          const cat = getIndicatorCategory(k);
+                          const catIdx = ALL_INDICATORS_BY_CATEGORY[cat].indexOf(k);
+                          color = INDICATOR_COLORS[cat][catIdx >= 0 ? catIdx : idx % INDICATOR_COLORS[cat].length];
+                        } else {
+                          color = INDICATOR_COLORS[category][idx % INDICATOR_COLORS[category].length];
+                        }
+                      } else {
+                        color = `hsl(${(idx * 55) % 360}, 85%, 60%)`;
+                      }
                       const name =
                         viewMode === "categories"
-                          ? (indicatorMode === "indicator" ? (INDICATOR_LABELS_FR[k] || k) : k)
+                          ? (indicatorMode === "indicator" ? (INDICATOR_LABELS_FR[k] || k) : (INDICATOR_LABELS_FR[k] || k))
                           : athleteLabel(k);
                       return (
                         <Line
@@ -1153,10 +1174,10 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                 ) : (
                   <BarChart
                     data={chartData}
-                    margin={{ top: 10, right: 30, left: 0, bottom: 10 }}
+                    margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                    <XAxis dataKey="date" stroke="rgba(255,255,255,0.6)" />
+                    <XAxis dataKey="date" stroke="rgba(255,255,255,0.6)" tick={{ fill: "rgba(255,255,255,0.6)", fontSize: 11 }} angle={-35} textAnchor="end" interval="preserveStartEnd" />
                     <YAxis domain={[0, 100]} stroke="rgba(255,255,255,0.6)" />
                     <Tooltip
                       contentStyle={{
@@ -1168,13 +1189,21 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                     />
                     <Legend />
                     {seriesKeys.map((k, idx) => {
-                      const color =
-                        viewMode === "categories"
-                          ? (indicatorMode === "indicator" ? CATEGORY_COLORS[getIndicatorCategory(k)] : categoryColor)
-                          : `hsl(${(idx * 55) % 360}, 85%, 60%)`;
+                      let color: string;
+                      if (viewMode === "categories") {
+                        if (indicatorMode === "indicator") {
+                          const cat = getIndicatorCategory(k);
+                          const catIdx = ALL_INDICATORS_BY_CATEGORY[cat].indexOf(k);
+                          color = INDICATOR_COLORS[cat][catIdx >= 0 ? catIdx : idx % INDICATOR_COLORS[cat].length];
+                        } else {
+                          color = INDICATOR_COLORS[category][idx % INDICATOR_COLORS[category].length];
+                        }
+                      } else {
+                        color = `hsl(${(idx * 55) % 360}, 85%, 60%)`;
+                      }
                       const name =
                         viewMode === "categories"
-                          ? (indicatorMode === "indicator" ? (INDICATOR_LABELS_FR[k] || k) : k)
+                          ? (indicatorMode === "indicator" ? (INDICATOR_LABELS_FR[k] || k) : (INDICATOR_LABELS_FR[k] || k))
                           : athleteLabel(k);
                       return (
                         <Bar
