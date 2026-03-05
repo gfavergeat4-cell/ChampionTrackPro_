@@ -303,67 +303,60 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
     }
   }, [route?.params?.teamId, role]);
 
-  // Charger les membres de l'équipe + poste depuis users/{uid}
+  // Load team members — member doc is source of truth, user doc enriches if it exists
   useEffect(() => {
     let cancelled = false;
     if (!selectedTeamId) return;
 
+    const parseJersey = (v: any): number | undefined => {
+      if (typeof v === "number" && Number.isFinite(v)) return v;
+      if (typeof v === "string") { const n = parseInt(v, 10); return Number.isFinite(n) ? n : undefined; }
+      return undefined;
+    };
+
     (async () => {
       try {
-        console.log("selectedTeamId:", selectedTeamId);
-        const memSnap = await getDocs(
-          collection(db, "teams", selectedTeamId, "members")
-        );
+        const memSnap = await getDocs(collection(db, "teams", selectedTeamId, "members"));
         if (cancelled) return;
-        console.log('[PERF] raw member docs:', memSnap.docs.map(d => ({ id: d.id, data: d.data() })));
-        const baseList: Member[] = memSnap.docs.map((d) => {
-          const data = d.data() as any;
-          const rawJersey = data.jerseyNumber;
-          const jerseyNumber =
-            typeof rawJersey === "number" ? rawJersey :
-            typeof rawJersey === "string" ? parseInt(rawJersey, 10) :
-            undefined;
-          return {
-            id: d.id,
-            displayName: data.displayName || data.name || undefined,
-            fullName: data.fullName || undefined,
-            firstName: data.firstName || undefined,
-            lastName: data.lastName || undefined,
-            jerseyNumber: Number.isFinite(jerseyNumber) ? jerseyNumber : undefined,
-            role: data.role || undefined,
-          };
-        });
-        const withPosition: Member[] = await Promise.all(
-          baseList.map(async (m) => {
+
+        const loaded: Member[] = await Promise.all(
+          memSnap.docs.map(async (d) => {
+            const md = d.data() as any;
+            // Seed member doc as baseline
+            let fullName: string | undefined = md.fullName || md.displayName || md.name || undefined;
+            let position: string | undefined = md.position || undefined;
+            let jerseyNumber: number | undefined = parseJersey(md.jerseyNumber);
+            let role: string | undefined = md.role || undefined;
+
+            // Enrich from users/{uid} when the document exists
             try {
-              const userSnap = await getDoc(doc(db, "users", m.id));
-              const userData = (userSnap.data() as any) || {};
-              const position = userData.position ?? m.position ?? undefined;
-              const rawJ = userData.jerseyNumber;
-              const jerseyNumber =
-                typeof rawJ === "number" ? rawJ :
-                typeof rawJ === "string" ? parseInt(rawJ, 10) :
-                m.jerseyNumber;
-              const role = userData.role ?? m.role ?? undefined;
-              const fullName = userData.fullName || m.fullName || undefined;
-              return { ...m, position, jerseyNumber, role, fullName };
+              const userSnap = await getDoc(doc(db, "users", d.id));
+              if (userSnap.exists()) {
+                const ud = userSnap.data() as any;
+                if (ud.fullName) fullName = ud.fullName;
+                else if (ud.displayName && !fullName) fullName = ud.displayName;
+                if (ud.position) position = ud.position;
+                const uj = parseJersey(ud.jerseyNumber);
+                if (uj != null) jerseyNumber = uj;
+                if (ud.role) role = ud.role;
+              }
             } catch {
-              return m;
+              // user doc unreadable — member doc data is used as-is
             }
+
+            return { id: d.id, fullName, displayName: fullName, position, jerseyNumber, role };
           })
         );
-        // Filter out coaches — only show athletes in the dropdown
-        const athleteMembers = withPosition.filter((m) => m.role !== "coach");
-        console.log('members loaded:', athleteMembers);
-        if (!cancelled) setMembers(athleteMembers);
+
+        const athletes = loaded.filter((m) => m.role !== "coach");
+        console.log("members loaded:", athletes);
+        if (!cancelled) setMembers(athletes);
       } catch (e) {
         console.error("[PERF][DASH] load members error", e);
       }
     })();
 
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [selectedTeamId]);
 
   // Charger les réponses de l'équipe sur la période sélectionnée
@@ -633,7 +626,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                 : "Performance Dashboard"}
             </h1>
             <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 14 }}>
-              Visualisation des questionnaires par joueur, catégorie et période.
+              Questionnaire data visualization by player, category and period.
             </p>
           </div>
         </div>
@@ -647,9 +640,9 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
             marginBottom: 24,
           }}
         >
-          {/* Joueurs (multi-select) */}
+          {/* Players (multi-select) */}
           <div style={{ ...filterBoxStyle, position: "relative" }}>
-            <label style={labelStyle}>Joueurs</label>
+            <label style={labelStyle}>Players</label>
             <button
               type="button"
               onClick={() => { setOpenPosition(false); setOpenIndicators(false); setOpenPlayers((v) => !v); }}
@@ -666,10 +659,10 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
               }}
             >
               {selectedPlayerIds.length === 0
-                ? "Tous les joueurs"
+                ? "All Players"
                 : selectedPlayerIds.length === 1
                   ? athleteLabel(selectedPlayerIds[0])
-                  : `${selectedPlayerIds.length} joueurs sélectionnés`}
+                  : `${selectedPlayerIds.length} player(s) selected`}
             </button>
             {openPlayers && (
               <div
@@ -695,7 +688,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                     onChange={() => setSelectedPlayerIds([])}
                     style={checkboxStyle}
                   />
-                  Tous les joueurs
+                  All Players
                 </label>
                 {membersFilteredByPosition.map((m) => {
                   const checked = selectedPlayerIds.includes(m.id);
@@ -718,9 +711,9 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
             )}
           </div>
 
-          {/* Poste (multi-select) */}
+          {/* Position (multi-select) */}
           <div style={{ ...filterBoxStyle, position: "relative" }}>
-            <label style={labelStyle}>Poste</label>
+            <label style={labelStyle}>Position</label>
             <button
               type="button"
               onClick={() => { setOpenPlayers(false); setOpenIndicators(false); setOpenPosition((v) => !v); }}
@@ -736,7 +729,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                 cursor: "pointer",
               }}
             >
-              {selectedPositions.length === 0 ? "Tous les postes" : `${selectedPositions.length} poste(s)`}
+              {selectedPositions.length === 0 ? "All Positions" : `${selectedPositions.length} position(s)`}
             </button>
             {openPosition && (
               <div
@@ -762,7 +755,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                     onChange={() => setSelectedPositions([])}
                     style={checkboxStyle}
                   />
-                  Tous les postes
+                  All Positions
                 </label>
                 {positions.map((p) => {
                   const checked = selectedPositions.includes(p);
@@ -785,9 +778,9 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
             )}
           </div>
 
-          {/* Durée : toggle Période prédéfinie / Dates personnalisées */}
+          {/* Duration */}
           <div style={filterBoxStyle}>
-            <label style={labelStyle}>Durée</label>
+            <label style={labelStyle}>Duration</label>
             <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
               <button
                 type="button"
@@ -802,7 +795,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                   cursor: "pointer",
                 }}
               >
-                Période prédéfinie
+                Preset Period
               </button>
               <button
                 type="button"
@@ -817,7 +810,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                   cursor: "pointer",
                 }}
               >
-                Dates personnalisées
+                Custom Dates
               </button>
             </div>
             {durationMode === "preset" ? (
@@ -877,9 +870,9 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
             )}
           </div>
 
-          {/* Indicateurs : toggle Par catégorie / Par indicateur */}
+          {/* Indicators */}
           <div style={{ ...filterBoxStyle, position: "relative", gridColumn: "span 1" }}>
-            <label style={labelStyle}>Indicateurs</label>
+            <label style={labelStyle}>Indicators</label>
             <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
               <button
                 type="button"
@@ -894,7 +887,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                   cursor: "pointer",
                 }}
               >
-                Par catégorie
+                By Category
               </button>
               <button
                 type="button"
@@ -909,7 +902,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                   cursor: "pointer",
                 }}
               >
-                Par indicateur
+                By Indicator
               </button>
             </div>
             {indicatorMode === "category" ? (
@@ -954,7 +947,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                     cursor: "pointer",
                   }}
                 >
-                  {selectedIndicators.length === 0 ? "Tous" : `${selectedIndicators.length} indicateur(s)`}
+                  {selectedIndicators.length === 0 ? "All" : `${selectedIndicators.length} indicator(s) selected`}
                 </button>
                 {openIndicators && (
                   <div
@@ -976,9 +969,9 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                     {(Object.keys(ALL_INDICATORS_BY_CATEGORY) as CategoryKey[]).map((cat) => (
                       <div key={cat} style={{ marginBottom: 12 }}>
                         <div style={{ fontSize: 11, color: CATEGORY_COLORS[cat], marginBottom: 6 }}>
-                          {cat === "physical" && "🔵 Physique"}
+                          {cat === "physical" && "🔵 Physical"}
                           {cat === "mental" && "🟢 Mental"}
-                          {cat === "technical" && "🟡 Technique"}
+                          {cat === "technical" && "🟡 Technical"}
                         </div>
                         {ALL_INDICATORS_BY_CATEGORY[cat].map((key) => {
                           const checked = selectedIndicators.includes(key);
@@ -1084,7 +1077,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                   fontSize: 14,
                 }}
               >
-                Chargement des données...
+                Loading data...
               </span>
             </div>
           ) : !selectedTeamId ? (
@@ -1098,7 +1091,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                 fontSize: 14,
               }}
             >
-              Aucune équipe sélectionnée
+              No team selected
             </div>
           ) : error ? (
             <div
@@ -1118,7 +1111,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                 fontSize: 14,
               }}
             >
-              Aucune donnée sur la période sélectionnée.
+              No data for the selected period.
             </div>
           ) : (
             <div style={{ height: 420, marginBottom: 40 }}>
