@@ -31,6 +31,7 @@ export default function StitchLandingScreen() {
             transform: "translate(-50%, -50%)",
             width: "100%",
             textAlign: "center",
+            backgroundColor: "#0A0F1E",
           }}
         >
           <img

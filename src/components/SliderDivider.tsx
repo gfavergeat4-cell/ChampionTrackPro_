@@ -1,7 +1,7 @@
 import React from 'react';
 
 export const SliderDivider = () => (
-  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '24px 0', gap: 12 }}>
+  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '24px 0', gap: 12, backgroundColor: '#0A0F1E' }}>
     <svg width='60' height='2' viewBox='0 0 60 2'>
       <defs>
         <linearGradient id='sdg-l' x1='0%' y1='0%' x2='100%' y2='0%'>
