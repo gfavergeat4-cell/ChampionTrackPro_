@@ -115,26 +115,26 @@ const CATEGORY_LABEL: Record<CategoryKey, string> = {
 };
 
 const DURATION_LABEL: Record<DurationKey, string> = {
-  "7d": "7j",
-  "14d": "14j",
-  "30d": "30j",
-  "90d": "3 mois",
+  "7d": "7 days",
+  "14d": "14 days",
+  "30d": "30 days",
+  "90d": "3 months",
 };
 
-const INDICATOR_LABELS_FR: Record<string, string> = {
-  intensiteMoyenne: "Intensité moyenne",
-  hautesIntensites: "Hautes intensités",
-  impactCardiaque: "Impact cardiaque",
-  impactMusculaire: "Impact musculaire",
+const INDICATOR_LABELS: Record<string, string> = {
+  intensiteMoyenne: "Average Intensity",
+  hautesIntensites: "High Intensity",
+  impactCardiaque: "Cardiac Impact",
+  impactMusculaire: "Muscular Impact",
   fatigue: "Fatigue",
   concentration: "Concentration",
-  confiance: "Confiance",
-  bienEtre: "Bien-être",
-  nervosite: "Nervosité",
-  sommeil: "Sommeil",
+  confiance: "Confidence",
+  bienEtre: "Well-being",
+  nervosite: "Nervousness",
+  sommeil: "Sleep",
   technique: "Technique",
-  tactique: "Tactique",
-  dynamisme: "Dynamisme",
+  tactique: "Tactics",
+  dynamisme: "Dynamism",
 };
 
 const ALL_INDICATORS_BY_CATEGORY: Record<CategoryKey, string[]> = {
@@ -243,7 +243,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
       try {
         const user = auth.currentUser;
         if (!user) {
-          throw new Error("Utilisateur non authentifié");
+          throw new Error("User not authenticated");
         }
 
         const raw = route?.params?.teamId;
@@ -273,7 +273,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
             }
           }
           if (!teamId) {
-            throw new Error("Aucune équipe associée au coach.");
+            throw new Error("No team associated with this coach.");
           }
           if (!cancelled) setSelectedTeamId(teamId);
         } else {
@@ -566,9 +566,21 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
 
   const categoryColor = CATEGORY_COLORS[category];
 
-  const [openPlayers, setOpenPlayers] = useState(false);
-  const [openPosition, setOpenPosition] = useState(false);
+  const [showPlayerDropdown, setShowPlayerDropdown] = useState(false);
+  const [showPositionDropdown, setShowPositionDropdown] = useState(false);
   const [openIndicators, setOpenIndicators] = useState(false);
+
+  const togglePlayer = (uid: string) => {
+    setSelectedPlayerIds((ids) =>
+      ids.includes(uid) ? ids.filter((id) => id !== uid) : [...ids, uid]
+    );
+  };
+
+  const togglePosition = (pos: string) => {
+    setSelectedPositions((arr) =>
+      arr.includes(pos) ? arr.filter((p) => p !== pos) : [...arr, pos]
+    );
+  };
 
   const filterBoxStyle = {
     background: "#0D1526",
@@ -641,70 +653,68 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
           }}
         >
           {/* Players (multi-select) */}
-          <div style={{ ...filterBoxStyle, position: "relative" }}>
-            <label style={labelStyle}>Players</label>
+          <div style={{ ...filterBoxStyle, position: "relative", zIndex: showPlayerDropdown ? 100 : 1 }}>
+            <span style={labelStyle}>Players</span>
             <button
               type="button"
-              onClick={() => { setOpenPosition(false); setOpenIndicators(false); setOpenPlayers((v) => !v); }}
+              onClick={() => { setShowPositionDropdown(false); setOpenIndicators(false); setShowPlayerDropdown((v) => !v); }}
               style={{
                 width: "100%",
-                padding: "8px 10px",
+                background: "#0E1528",
+                border: "1px solid rgba(0,224,255,0.3)",
                 borderRadius: 8,
-                border: "1px solid rgba(0,224,255,0.2)",
-                background: "#0D1526",
-                color: "#FFFFFF",
-                fontSize: 14,
-                textAlign: "left",
+                padding: "10px 14px",
                 cursor: "pointer",
+                color: "#FFFFFF",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                fontSize: 14,
               }}
             >
-              {selectedPlayerIds.length === 0
-                ? "All Players"
-                : selectedPlayerIds.length === 1
-                  ? athleteLabel(selectedPlayerIds[0])
+              <span>
+                {selectedPlayerIds.length === 0
+                  ? "All Players"
                   : `${selectedPlayerIds.length} player(s) selected`}
+              </span>
+              <span style={{ fontSize: 10, opacity: 0.7 }}>{showPlayerDropdown ? "▲" : "▼"}</span>
             </button>
-            {openPlayers && (
+            {showPlayerDropdown && (
               <div
+                onClick={(e) => e.stopPropagation()}
                 style={{
                   position: "absolute",
                   top: "100%",
                   left: 0,
                   right: 0,
-                  marginTop: 4,
-                  padding: 8,
-                  background: "#0D1526",
-                  border: "1px solid rgba(0,224,255,0.2)",
+                  zIndex: 1000,
+                  background: "#0E1528",
+                  border: "1px solid rgba(0,224,255,0.3)",
                   borderRadius: 8,
-                  zIndex: 10,
-                  maxHeight: 280,
+                  maxHeight: 260,
                   overflowY: "auto",
+                  marginTop: 4,
                 }}
               >
-                <label style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", color: "#FFFFFF", cursor: "pointer" }}>
-                  <input
-                    type="checkbox"
-                    checked={selectedPlayerIds.length === 0}
-                    onChange={() => setSelectedPlayerIds([])}
-                    style={checkboxStyle}
-                  />
+                <div
+                  onClick={() => setSelectedPlayerIds([])}
+                  style={{ padding: "10px 14px", cursor: "pointer", color: selectedPlayerIds.length === 0 ? CYAN : "#FFFFFF", display: "flex", gap: 8, alignItems: "center" }}
+                >
+                  <input type="checkbox" checked={selectedPlayerIds.length === 0} readOnly style={checkboxStyle} />
                   All Players
-                </label>
+                </div>
                 {membersFilteredByPosition.map((m) => {
-                  const checked = selectedPlayerIds.includes(m.id);
+                  const playerName = m.fullName || m.displayName || m.id;
+                  const label = (m.jerseyNumber != null ? `#${m.jerseyNumber} ` : "") + playerName + (m.position ? ` — ${m.position}` : "");
                   return (
-                    <label key={m.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", color: "#fff", cursor: "pointer" }}>
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => {
-                          if (checked) setSelectedPlayerIds((ids) => ids.filter((id) => id !== m.id));
-                          else setSelectedPlayerIds((ids) => [...ids, m.id]);
-                        }}
-                        style={checkboxStyle}
-                      />
-                      {athleteLabel(m.id)}
-                    </label>
+                    <div
+                      key={m.id}
+                      onClick={() => togglePlayer(m.id)}
+                      style={{ padding: "10px 14px", cursor: "pointer", color: selectedPlayerIds.includes(m.id) ? CYAN : "#FFFFFF", display: "flex", gap: 8, alignItems: "center" }}
+                    >
+                      <input type="checkbox" checked={selectedPlayerIds.includes(m.id)} readOnly style={checkboxStyle} />
+                      {label}
+                    </div>
                   );
                 })}
               </div>
@@ -712,68 +722,62 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
           </div>
 
           {/* Position (multi-select) */}
-          <div style={{ ...filterBoxStyle, position: "relative" }}>
-            <label style={labelStyle}>Position</label>
+          <div style={{ ...filterBoxStyle, position: "relative", zIndex: showPositionDropdown ? 100 : 1 }}>
+            <span style={labelStyle}>Position</span>
             <button
               type="button"
-              onClick={() => { setOpenPlayers(false); setOpenIndicators(false); setOpenPosition((v) => !v); }}
+              onClick={() => { setShowPlayerDropdown(false); setOpenIndicators(false); setShowPositionDropdown((v) => !v); }}
               style={{
                 width: "100%",
-                padding: "8px 10px",
+                background: "#0E1528",
+                border: "1px solid rgba(0,224,255,0.3)",
                 borderRadius: 8,
-                border: "1px solid rgba(0,224,255,0.2)",
-                background: "#0D1526",
-                color: "#FFFFFF",
-                fontSize: 14,
-                textAlign: "left",
+                padding: "10px 14px",
                 cursor: "pointer",
+                color: "#FFFFFF",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                fontSize: 14,
               }}
             >
-              {selectedPositions.length === 0 ? "All Positions" : `${selectedPositions.length} position(s)`}
+              <span>{selectedPositions.length === 0 ? "All Positions" : `${selectedPositions.length} position(s)`}</span>
+              <span style={{ fontSize: 10, opacity: 0.7 }}>{showPositionDropdown ? "▲" : "▼"}</span>
             </button>
-            {openPosition && (
+            {showPositionDropdown && (
               <div
+                onClick={(e) => e.stopPropagation()}
                 style={{
                   position: "absolute",
                   top: "100%",
                   left: 0,
                   right: 0,
-                  marginTop: 4,
-                  padding: 8,
-                  background: "#0D1526",
-                  border: "1px solid rgba(0,224,255,0.2)",
+                  zIndex: 1000,
+                  background: "#0E1528",
+                  border: "1px solid rgba(0,224,255,0.3)",
                   borderRadius: 8,
-                  zIndex: 10,
                   maxHeight: 220,
                   overflowY: "auto",
+                  marginTop: 4,
                 }}
               >
-                <label style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", color: "#FFFFFF", cursor: "pointer" }}>
-                  <input
-                    type="checkbox"
-                    checked={selectedPositions.length === 0}
-                    onChange={() => setSelectedPositions([])}
-                    style={checkboxStyle}
-                  />
+                <div
+                  onClick={() => setSelectedPositions([])}
+                  style={{ padding: "10px 14px", cursor: "pointer", color: selectedPositions.length === 0 ? CYAN : "#FFFFFF", display: "flex", gap: 8, alignItems: "center" }}
+                >
+                  <input type="checkbox" checked={selectedPositions.length === 0} readOnly style={checkboxStyle} />
                   All Positions
-                </label>
-                {positions.map((p) => {
-                  const checked = selectedPositions.includes(p);
-                  return (
-                    <label key={p} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", color: "#fff", cursor: "pointer" }}>
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => {
-                          if (checked) setSelectedPositions((arr) => arr.filter((x) => x !== p));
-                          else setSelectedPositions((arr) => [...arr, p]);
-                        }}
-                        style={checkboxStyle}
-                      />
-                      {p}
-                    </label>
-                  );
-                })}
+                </div>
+                {positions.map((p) => (
+                  <div
+                    key={p}
+                    onClick={() => togglePosition(p)}
+                    style={{ padding: "10px 14px", cursor: "pointer", color: selectedPositions.includes(p) ? CYAN : "#FFFFFF", display: "flex", gap: 8, alignItems: "center" }}
+                  >
+                    <input type="checkbox" checked={selectedPositions.includes(p)} readOnly style={checkboxStyle} />
+                    {p}
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -986,7 +990,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                                 }}
                                 style={checkboxStyle}
                               />
-                              {INDICATOR_LABELS_FR[key] || key}
+                              {INDICATOR_LABELS[key] || key}
                             </label>
                           );
                         })}
@@ -1148,7 +1152,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                       }
                       const name =
                         viewMode === "categories"
-                          ? (indicatorMode === "indicator" ? (INDICATOR_LABELS_FR[k] || k) : (INDICATOR_LABELS_FR[k] || k))
+                          ? (indicatorMode === "indicator" ? (INDICATOR_LABELS[k] || k) : (INDICATOR_LABELS[k] || k))
                           : athleteLabel(k);
                       return (
                         <Line
@@ -1196,7 +1200,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                       }
                       const name =
                         viewMode === "categories"
-                          ? (indicatorMode === "indicator" ? (INDICATOR_LABELS_FR[k] || k) : (INDICATOR_LABELS_FR[k] || k))
+                          ? (indicatorMode === "indicator" ? (INDICATOR_LABELS[k] || k) : (INDICATOR_LABELS[k] || k))
                           : athleteLabel(k);
                       return (
                         <Bar
