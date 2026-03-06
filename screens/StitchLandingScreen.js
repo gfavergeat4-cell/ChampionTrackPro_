@@ -38,8 +38,8 @@ export default function StitchLandingScreen() {
             src="/logo/logo_clean.png"
             alt=""
             style={{
-              width: 300,
-              maxWidth: '80%',
+              width: 420,
+              maxWidth: '92%',
               height: 'auto',
               display: 'block',
               margin: '0 auto',
