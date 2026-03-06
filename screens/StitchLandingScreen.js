@@ -105,16 +105,6 @@ export default function StitchLandingScreen() {
                   mixBlendMode: "multiply",
                 }}
               />
-              <p style={{
-                margin: "0 auto",
-                fontSize: 16,
-                fontStyle: "italic",
-                fontFamily: "'Palatino Linotype', Palatino, Georgia, serif",
-                color: "rgba(255,255,255,0.6)",
-                letterSpacing: "0.02em",
-              }}>
-                Elevate your team's performance
-              </p>
             </div>
 
             {/* Buttons at bottom */}
