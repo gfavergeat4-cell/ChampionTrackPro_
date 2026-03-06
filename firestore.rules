@@ -84,7 +84,7 @@ service cloud.firestore {
     // Allows admins and coaches to read responses across all trainings/teams
     // when using the Performance Dashboard.
     match /{path=**}/responses/{responseId} {
-      allow read: if isAdmin() || (isCoach() && signedIn());
+      allow read: if isAdmin() || isCoach();
     }
 
     match /teams/{teamId} {
@@ -107,20 +107,10 @@ service cloud.firestore {
                         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members']) &&
                         request.resource.data.members == resource.data.members + 1);
 
-      // Sous-collection MEMBERS : indispensable pour lier l'athlète à l'équipe
       match /members/{uid} {
-        // Lecture : admin, coach de l'équipe, ou membre de l'équipe
-        allow read: if isAdmin() || 
-                       (isCoach() && isTeamMember(teamId)) || 
-                       isTeamMember(teamId);
-        
-        // Création : par l'utilisateur lui-même, un coach, ou un admin
+        allow read: if isAdmin() || isCoach() || isTeamMember(teamId);
         allow create: if signedIn() && (request.auth.uid == uid || isCoach() || isAdmin());
-        
-        // Mise à jour : admin ou l'utilisateur lui-même
         allow update: if isAdmin() || (signedIn() && request.auth.uid == uid);
-        
-        // Suppression : admin uniquement
         allow delete: if isAdmin();
       }
 
