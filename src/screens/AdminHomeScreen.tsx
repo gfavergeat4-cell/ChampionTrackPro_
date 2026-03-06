@@ -194,7 +194,7 @@ export default function AdminHomeScreen() {
         </div>
 
         {/* Logo */}
-        <div style={{ paddingTop: 32, paddingBottom: 16, backgroundColor: "#0A0F1E" }}>
+        <div style={{ paddingTop: 32, paddingBottom: 16 }}>
           <ChampionTrackProLogo />
         </div>
 

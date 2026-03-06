@@ -5,8 +5,7 @@ import { Platform, Image } from "react-native";
 const nativeLogoSource = require("../../public/logo/logo_nobackground.png");
 
 const webLogoStyle = {
-  width: 300,
-  maxWidth: "85%",
+  width: 280,
   height: "auto",
   display: "block",
   margin: "0 auto",

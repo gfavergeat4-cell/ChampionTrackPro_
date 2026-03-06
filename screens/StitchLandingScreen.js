@@ -30,21 +30,12 @@ export default function StitchLandingScreen() {
             left: "50%",
             transform: "translate(-50%, -50%)",
             width: "100%",
-            textAlign: "center",
-            backgroundColor: "#0A0F1E",
           }}
         >
           <img
             src="/logo/logo_final.jpeg"
             alt=""
-            style={{
-              width: 320,
-              maxWidth: "80%",
-              height: "auto",
-              display: "block",
-              margin: "0 auto",
-              mixBlendMode: "screen",
-            }}
+            style={{ width: 280, height: "auto", display: "block", margin: "0 auto", mixBlendMode: "screen" }}
           />
         </div>
 

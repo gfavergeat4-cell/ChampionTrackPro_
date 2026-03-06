@@ -197,7 +197,7 @@ export default function CoachHomeScreen() {
       <div style={{ maxWidth, margin: "0 auto" }}>
 
         {/* Logo */}
-        <div style={{ paddingTop: 24, paddingBottom: 28, textAlign: "center", backgroundColor: "#0A0F1E", border: "none" }}>
+        <div style={{ paddingTop: 24, paddingBottom: 28, textAlign: "center" }}>
           <ChampionTrackProLogo />
         </div>
 
