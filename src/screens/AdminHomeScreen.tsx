@@ -198,8 +198,6 @@ export default function AdminHomeScreen() {
           <ChampionTrackProLogo />
         </div>
 
-        <SliderDivider />
-
         {/* Grille des équipes */}
         {renderLoadingOrError() || (
           <div

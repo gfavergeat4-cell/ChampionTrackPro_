@@ -94,18 +94,17 @@ export default function StitchLandingScreen() {
               paddingRight: 24,
             }}>
               <img
-                src="/logo/logo_final.jpeg"
+                src="/logo/logo_nobackground.png"
                 alt=""
                 style={{
-                  width: 280,
+                  width: 300,
                   maxWidth: "85%",
                   height: "auto",
                   display: "block",
                   margin: "0 auto",
-                  mixBlendMode: "screen",
+                  mixBlendMode: "multiply",
                 }}
               />
-              <SliderDivider />
               <p style={{
                 margin: "0 auto",
                 fontSize: 16,

@@ -14,7 +14,7 @@ export const SliderDivider = () => (
     <img
       src='/logo/minimal_logo.png'
       alt=''
-      style={{ width: 80, height: 'auto', display: 'block', margin: '0 auto', mixBlendMode: 'screen' as any }}
+      style={{ width: 80, height: 'auto', display: 'block', margin: '4px auto 0', mixBlendMode: 'screen' as any }}
     />
     <svg width='60' height='2' viewBox='0 0 60 2'>
       <defs>

@@ -218,8 +218,6 @@ export default function CoachHomeScreen() {
               <p style={{ margin: 0, fontSize: 15, color: "#00D4FF", fontWeight: 500 }}>{teamName}</p>
             </div>
 
-            <SliderDivider />
-
             {/* Stat cards */}
             <div style={{
               display: "grid",
