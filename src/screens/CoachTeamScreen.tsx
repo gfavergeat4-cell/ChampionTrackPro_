@@ -17,6 +17,7 @@ interface Athlete {
   uid: string;
   name: string;
   position: string;
+  jerseyNumber?: number;
   status: "completed" | "pending" | "pain";
 }
 
@@ -68,6 +69,7 @@ export default function CoachTeamScreen() {
             const mData = d.data() as any;
             let name = mData.displayName || mData.name || mData.fullName || d.id;
             let position = mData.position || "";
+            let jerseyNumber: number | undefined = mData.jerseyNumber != null ? Number(mData.jerseyNumber) : undefined;
             // Enrich from users/{uid}
             try {
               const uSnap = await getDoc(doc(db, "users", d.id));
@@ -75,9 +77,10 @@ export default function CoachTeamScreen() {
                 const uData = uSnap.data() as any;
                 if (uData.fullName) name = uData.fullName;
                 if (uData.position) position = uData.position;
+                if (uData.jerseyNumber != null) jerseyNumber = Number(uData.jerseyNumber);
               }
             } catch { /* ignore */ }
-            memberList.push({ uid: d.id, name, position } as any);
+            memberList.push({ uid: d.id, name, position, jerseyNumber } as any);
           })
         );
 
@@ -119,7 +122,7 @@ export default function CoachTeamScreen() {
           if (respondedUids.has(m.uid)) {
             status = painUids.has(m.uid) ? "pain" : "completed";
           }
-          return { uid: m.uid, name: m.name, position: (m as any).position || "", status };
+          return { uid: m.uid, name: m.name, position: (m as any).position || "", jerseyNumber: (m as any).jerseyNumber, status };
         });
 
         // Sort: pain first, then pending, then completed
@@ -150,9 +153,9 @@ export default function CoachTeamScreen() {
   const maxWidth = isDesktop ? 960 : 480;
 
   const statusConfig = {
-    completed: { label: "Completed ✅", color: "#00FF88", bg: "rgba(0,255,136,0.1)", border: "rgba(0,255,136,0.25)" },
-    pending:   { label: "Pending ⏳",   color: "#F59E0B", bg: "rgba(245,158,11,0.1)", border: "rgba(245,158,11,0.25)" },
-    pain:      { label: "Pain reported 🔴", color: "#EF4444", bg: "rgba(239,68,68,0.1)", border: "rgba(239,68,68,0.25)" },
+    completed: { label: "Completed ✅",      color: "#00FF88", bg: "rgba(0,255,136,0.08)",  border: "rgba(0,255,136,0.25)" },
+    pending:   { label: "Pending ⏳",         color: "#FFB800", bg: "rgba(255,184,0,0.08)",  border: "rgba(255,184,0,0.25)" },
+    pain:      { label: "Pain reported 🔴",   color: "#FF4444", bg: "rgba(255,68,68,0.08)",  border: "rgba(255,68,68,0.25)" },
   };
 
   return (
@@ -223,6 +226,27 @@ export default function CoachTeamScreen() {
                     (e.currentTarget as HTMLDivElement).style.boxShadow = "none";
                   }}
                 >
+                  {/* Jersey badge */}
+                  {athlete.jerseyNumber != null && (
+                    <div style={{
+                      minWidth: 30,
+                      height: 30,
+                      borderRadius: 6,
+                      background: "rgba(0,212,255,0.12)",
+                      border: "1px solid rgba(0,212,255,0.35)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      color: "#00D4FF",
+                      flexShrink: 0,
+                      padding: "0 6px",
+                    }}>
+                      #{athlete.jerseyNumber}
+                    </div>
+                  )}
+
                   {/* Avatar */}
                   <div style={{
                     width: 44,

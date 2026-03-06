@@ -106,7 +106,7 @@ export default function AdminHomeScreen() {
         >
           <ActivityIndicator color="#00D4FF" />
           <span style={{ color: "#9CA3AF", fontSize: 14 }}>
-            Chargement des équipes...
+            Loading teams...
           </span>
         </div>
       );
@@ -135,7 +135,7 @@ export default function AdminHomeScreen() {
             fontSize: 14,
           }}
         >
-          Aucune équipe trouvée.
+          No teams found.
         </div>
       );
     }
@@ -181,15 +181,15 @@ export default function AdminHomeScreen() {
             style={{
               padding: "10px 20px",
               borderRadius: 12,
-              border: "1px solid #00D4FF",
+              border: "1px solid rgba(255,255,255,0.2)",
               background: "transparent",
-              color: "#00D4FF",
+              color: "#FFFFFF",
               fontSize: 14,
               fontWeight: 600,
               cursor: "pointer",
             }}
           >
-            Se déconnecter
+            Log Out
           </button>
         </div>
 
@@ -230,7 +230,7 @@ export default function AdminHomeScreen() {
                     padding: 16,
                     borderRadius: theme.borderRadius.card,
                     border: "1px solid rgba(0,212,255,0.2)",
-                    borderTop: "2px solid rgba(0,212,255,0.4)",
+                    borderTop: "2px solid rgba(0,212,255,0.25)",
                     background: theme.colors.bgCard,
                     cursor: "pointer",
                     transition: "border-color 0.2s ease, box-shadow 0.2s ease",
@@ -282,7 +282,7 @@ export default function AdminHomeScreen() {
                       color: "rgba(255,255,255,0.6)",
                     }}
                   >
-                    {memberCount} membre{memberCount !== 1 ? "s" : ""}
+                    {memberCount} member{memberCount !== 1 ? "s" : ""}
                   </div>
                   {/* Badge OPERATIONAL */}
                   <div

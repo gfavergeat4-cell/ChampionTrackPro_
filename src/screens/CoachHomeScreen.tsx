@@ -23,6 +23,7 @@ import { theme } from "../constants/theme";
 interface AlertEntry {
   uid: string;
   name: string;
+  jerseyNumber?: number;
   type: "no_response" | "pain";
 }
 
@@ -112,9 +113,11 @@ export default function CoachHomeScreen() {
             // Fetch all members to build uid→name map
             const membersSnap = await getDocs(collection(db, "teams", tid, "members"));
             const memberMap: Record<string, string> = {};
+            const jerseyMap: Record<string, number | undefined> = {};
             membersSnap.docs.forEach((d) => {
               const data = d.data() as any;
               memberMap[d.id] = data.displayName || data.name || data.fullName || d.id;
+              jerseyMap[d.id] = data.jerseyNumber != null ? Number(data.jerseyNumber) : undefined;
             });
 
             // Fetch responses for last training
@@ -147,12 +150,12 @@ export default function CoachHomeScreen() {
             // No response alerts
             Object.keys(memberMap).forEach((uid) => {
               if (!respondedUids.has(uid)) {
-                alertList.push({ uid, name: memberMap[uid], type: "no_response" });
+                alertList.push({ uid, name: memberMap[uid], jerseyNumber: jerseyMap[uid], type: "no_response" });
               }
             });
             // Pain alerts
             painUids.forEach((uid) => {
-              alertList.push({ uid, name: memberMap[uid] || uid, type: "pain" });
+              alertList.push({ uid, name: memberMap[uid] || uid, jerseyNumber: jerseyMap[uid], type: "pain" });
             });
             if (!cancelled) setAlerts(alertList);
           } else {
@@ -225,22 +228,22 @@ export default function CoachHomeScreen() {
               marginBottom: 32,
             }}>
               {[
-                { label: "Athletes", value: athleteCount, color: "#00D4FF" },
-                { label: "This Week", value: weekTrainings, color: "#A855F7" },
-                { label: "Response Rate", value: responseRate !== null ? `${responseRate}%` : "—", color: "#00FF88" },
-              ].map(({ label, value, color }) => (
+                { label: "Athletes", value: athleteCount },
+                { label: "This Week", value: weekTrainings },
+                { label: "Response Rate", value: responseRate !== null ? `${responseRate}%` : "—" },
+              ].map(({ label, value }) => (
                 <div key={label} style={{
                   background: theme.colors.bgCard,
                   border: "1px solid rgba(0,212,255,0.15)",
-                  borderTop: "2px solid rgba(0,212,255,0.4)",
+                  borderTop: "2px solid rgba(0,212,255,0.25)",
                   borderRadius: theme.borderRadius.card,
                   padding: isDesktop ? "20px 24px" : "16px 12px",
                   textAlign: "center",
                 }}>
-                  <div style={{ fontSize: isDesktop ? 32 : 26, fontWeight: 800, color, lineHeight: 1.1 }}>
+                  <div style={{ fontSize: isDesktop ? 32 : 26, fontWeight: 800, color: "#FFFFFF", lineHeight: 1.1 }}>
                     {value}
                   </div>
-                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 6, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                  <div style={{ fontSize: 11, color: "#00D4FF", marginTop: 6, textTransform: "uppercase", letterSpacing: "3px" }}>
                     {label}
                   </div>
                 </div>
@@ -251,13 +254,13 @@ export default function CoachHomeScreen() {
             <div style={{
               background: theme.colors.bgCard,
               border: "1px solid rgba(0,212,255,0.15)",
-              borderTop: "2px solid rgba(0,212,255,0.4)",
+              borderTop: "2px solid rgba(0,212,255,0.25)",
               borderRadius: theme.borderRadius.card,
               padding: isDesktop ? "20px 24px" : "16px",
               marginBottom: 28,
             }}>
-              <h2 style={{ fontSize: 15, fontWeight: 700, color: "#FFFFFF", margin: "0 0 16px", letterSpacing: "0.04em" }}>
-                ALERTS
+              <h2 style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.45)", margin: "0 0 16px", letterSpacing: "3px", textTransform: "uppercase" }}>
+                ATTENTION REQUIRED
               </h2>
 
               {alerts.length === 0 ? (
@@ -285,7 +288,12 @@ export default function CoachHomeScreen() {
                           background: isPain ? "#FB7100" : "#EF4444",
                           flexShrink: 0,
                         }} />
-                        <span style={{ fontSize: 14, color: "#FFFFFF", flex: 1 }}>{a.name}</span>
+                        <span style={{ fontSize: 14, color: "#FFFFFF", flex: 1 }}>
+                          {a.jerseyNumber != null && (
+                            <span style={{ color: "#00D4FF", fontWeight: 700, marginRight: 6 }}>#{a.jerseyNumber}</span>
+                          )}
+                          {a.name}
+                        </span>
                         <span style={{
                           fontSize: 11,
                           fontWeight: 600,

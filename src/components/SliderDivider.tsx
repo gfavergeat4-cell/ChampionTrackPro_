@@ -1,22 +1,29 @@
 import React from 'react';
 
 export const SliderDivider = () => (
-  <div style={{ display: 'flex', justifyContent: 'center', margin: '24px 0' }}>
-    <svg width='80' height='18' viewBox='0 0 80 18'>
+  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '24px 0', gap: 12 }}>
+    <svg width='60' height='2' viewBox='0 0 60 2'>
       <defs>
-        <linearGradient id='sdg' x1='0%' y1='0%' x2='100%' y2='0%'>
-          <stop offset='0%' stopColor='#0044FF' stopOpacity={0.4}/>
-          <stop offset='50%' stopColor='#00D4FF'/>
-          <stop offset='100%' stopColor='#0044FF' stopOpacity={0.4}/>
+        <linearGradient id='sdg-l' x1='0%' y1='0%' x2='100%' y2='0%'>
+          <stop offset='0%' stopColor='#0044FF' stopOpacity={0}/>
+          <stop offset='100%' stopColor='#00D4FF' stopOpacity={0.7}/>
         </linearGradient>
-        <filter id='sf'>
-          <feGaussianBlur stdDeviation='2' result='b'/>
-          <feMerge><feMergeNode in='b'/><feMergeNode in='SourceGraphic'/></feMerge>
-        </filter>
       </defs>
-      <line x1='4' y1='9' x2='76' y2='9' stroke='url(#sdg)' strokeWidth='2' strokeLinecap='round'/>
-      <circle cx='40' cy='9' r='4' fill='#00D4FF' filter='url(#sf)'/>
-      <circle cx='40' cy='9' r='2' fill='#ffffff'/>
+      <line x1='0' y1='1' x2='60' y2='1' stroke='url(#sdg-l)' strokeWidth='2' strokeLinecap='round'/>
+    </svg>
+    <img
+      src='/logo/minimal_logo.png'
+      alt=''
+      style={{ width: 24, height: 24, objectFit: 'contain', mixBlendMode: 'screen' as any, opacity: 0.85 }}
+    />
+    <svg width='60' height='2' viewBox='0 0 60 2'>
+      <defs>
+        <linearGradient id='sdg-r' x1='0%' y1='0%' x2='100%' y2='0%'>
+          <stop offset='0%' stopColor='#00D4FF' stopOpacity={0.7}/>
+          <stop offset='100%' stopColor='#0044FF' stopOpacity={0}/>
+        </linearGradient>
+      </defs>
+      <line x1='0' y1='1' x2='60' y2='1' stroke='url(#sdg-r)' strokeWidth='2' strokeLinecap='round'/>
     </svg>
   </div>
 );

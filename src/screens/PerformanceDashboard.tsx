@@ -639,14 +639,17 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                 fontWeight: 700,
                 color: "#FFFFFF",
                 marginBottom: 4,
-                fontFamily: "Palatino Linotype, Palatino, Georgia, serif",
+                fontFamily: "'Palatino Linotype', Palatino, Georgia, serif",
               }}
             >
-              {teamNameFromRoute
-                ? `Performance • ${teamNameFromRoute}`
-                : "Performance Dashboard"}
+              Performance Analytics
             </h1>
-            <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 14 }}>
+            {teamNameFromRoute && (
+              <p style={{ margin: "2px 0 4px", fontSize: 14, color: "#00D4FF", fontWeight: 600 }}>
+                {teamNameFromRoute}
+              </p>
+            )}
+            <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 13, margin: 0 }}>
               Questionnaire data visualization by player, category and period.
             </p>
           </div>
@@ -1129,7 +1132,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
               No data for the selected period.
             </div>
           ) : (
-            <div style={{ height: 420, marginBottom: 40 }}>
+            <div style={{ minHeight: 400, marginBottom: 16 }}>
               <ResponsiveContainer width="100%" height="100%">
                 {chartType === "line" ? (
                   <LineChart
@@ -1147,8 +1150,8 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                         color: "#FFFFFF",
                       }}
                     />
-                    <Legend />
                     {seriesKeys.map((k, idx) => {
+                      const playerPalette = ["#00D4FF","#00FF88","#A855F7","#FFB800","#FF6B6B","#4ECDC4","#45B7D1","#96CEB4"];
                       let color: string;
                       if (viewMode === "categories") {
                         if (indicatorMode === "indicator") {
@@ -1159,7 +1162,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                           color = INDICATOR_COLORS[category][idx % INDICATOR_COLORS[category].length];
                         }
                       } else {
-                        color = `hsl(${(idx * 55) % 360}, 85%, 60%)`;
+                        color = playerPalette[idx % playerPalette.length];
                       }
                       const name =
                         viewMode === "categories"
@@ -1195,8 +1198,8 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                         color: "#FFFFFF",
                       }}
                     />
-                    <Legend />
                     {seriesKeys.map((k, idx) => {
+                      const playerPalette = ["#00D4FF","#00FF88","#A855F7","#FFB800","#FF6B6B","#4ECDC4","#45B7D1","#96CEB4"];
                       let color: string;
                       if (viewMode === "categories") {
                         if (indicatorMode === "indicator") {
@@ -1207,7 +1210,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                           color = INDICATOR_COLORS[category][idx % INDICATOR_COLORS[category].length];
                         }
                       } else {
-                        color = `hsl(${(idx * 55) % 360}, 85%, 60%)`;
+                        color = playerPalette[idx % playerPalette.length];
                       }
                       const name =
                         viewMode === "categories"
@@ -1226,6 +1229,31 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                   </BarChart>
                 )}
               </ResponsiveContainer>
+              {/* Custom legend */}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "10px 20px", padding: "16px 20px 4px", justifyContent: "center" }}>
+                {seriesKeys.map((k, idx) => {
+                  const playerPalette = ["#00D4FF","#00FF88","#A855F7","#FFB800","#FF6B6B","#4ECDC4","#45B7D1","#96CEB4"];
+                  let color: string;
+                  if (viewMode === "categories") {
+                    if (indicatorMode === "indicator") {
+                      const cat = getIndicatorCategory(k);
+                      const catIdx = ALL_INDICATORS_BY_CATEGORY[cat].indexOf(k);
+                      color = INDICATOR_COLORS[cat][catIdx >= 0 ? catIdx : idx % INDICATOR_COLORS[cat].length];
+                    } else {
+                      color = INDICATOR_COLORS[category][idx % INDICATOR_COLORS[category].length];
+                    }
+                  } else {
+                    color = playerPalette[idx % playerPalette.length];
+                  }
+                  const label = viewMode === "categories" ? (INDICATOR_LABELS[k] || k) : athleteLabel(k);
+                  return (
+                    <div key={k} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <div style={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: color, flexShrink: 0 }} />
+                      <span style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>{label}</span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>

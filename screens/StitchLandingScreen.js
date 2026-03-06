@@ -3,6 +3,7 @@ import React from "react";
 import { useNavigation } from "@react-navigation/native";
 import { View, Platform } from "react-native";
 import MobileViewport from "../src/components/MobileViewport";
+import { SliderDivider } from "../src/components/SliderDivider";
 
 export default function StitchLandingScreen() {
   const navigation = useNavigation();
@@ -65,84 +66,89 @@ export default function StitchLandingScreen() {
               color: "white",
               WebkitFontSmoothing: "antialiased",
               MozOsxFontSmoothing: "grayscale",
-              background: "linear-gradient(to bottom, #0E1528, #000000)",
+              background: "radial-gradient(ellipse at top, #0D1F3C 0%, #0A0F1E 60%)",
               minHeight: "100vh",
-              minHeight: "100dvh",
               overflow: "hidden",
               fontFamily: "'Inter','SF Pro Display',sans-serif",
               position: "relative",
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
-              justifyContent: "center",
+              justifyContent: "flex-start",
               padding: 24,
             }}
           >
             {/* Halo central */}
             <div className="cyan-halo" />
 
-            {/* Main (logo + tagline) */}
-            <main
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "flex-start",
-                flexGrow: 1,
-                width: "100%",
-                zIndex: 1,
-                paddingTop: "25%",
-              }}
-            >
-              <div style={{ textAlign: "center" }}>
-                <img
-                  src="/logo/logo_nobackground.png"
-                  alt="ChampionTrackPro"
-                  style={{
-                    width: "420px",
-                    maxWidth: "90%",
-                    height: "auto",
-                    display: "block",
-                    margin: "0 auto",
-                    background: "transparent",
-                  }}
-                />
-              </div>
-            </main>
+            {/* Logo centered at ~40% from top */}
+            <div style={{
+              position: "absolute",
+              top: "40%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              textAlign: "center",
+              zIndex: 1,
+              width: "100%",
+              paddingLeft: 24,
+              paddingRight: 24,
+            }}>
+              <img
+                src="/logo/logo_final.jpeg"
+                alt="ChampionTrackPro"
+                style={{
+                  width: "320px",
+                  maxWidth: "85%",
+                  height: "auto",
+                  display: "block",
+                  margin: "0 auto",
+                  mixBlendMode: "screen",
+                }}
+              />
+              <SliderDivider />
+              <p style={{
+                margin: "0 auto",
+                fontSize: 16,
+                fontStyle: "italic",
+                fontFamily: "'Palatino Linotype', Palatino, Georgia, serif",
+                color: "rgba(255,255,255,0.6)",
+                letterSpacing: "0.02em",
+              }}>
+                Elevate your team's performance
+              </p>
+            </div>
 
-            {/* Footer (boutons) - Positionnés en bas */}
+            {/* Buttons at bottom */}
             <footer
               style={{
                 width: "100%",
-                maxWidth: 384,
-                paddingBottom: "env(safe-area-inset-bottom, 16px)",
-                paddingTop: 0,
+                maxWidth: 360,
+                paddingBottom: "env(safe-area-inset-bottom, 24px)",
                 zIndex: 1,
-                flexShrink: 0,
                 position: "absolute",
-                bottom: "20%",
+                bottom: "8%",
                 left: "50%",
                 transform: "translateX(-50%)",
               }}
             >
-              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
                 <button
                   onClick={handleCreateAccount}
                   className="button-glow"
                   style={{
                     width: "100%",
-                    height: "clamp(40px, 6vh, 48px)",
-                    borderRadius: 10,
-                    backgroundImage:
-                      "linear-gradient(to right, var(--gradient-cyan), var(--gradient-blue))",
+                    height: 56,
+                    borderRadius: 12,
+                    background: "linear-gradient(135deg, #00D4FF, #0066FF)",
                     color: "white",
                     fontWeight: 700,
-                    fontSize: "clamp(12px, 2vw, 14px)",
+                    fontSize: 14,
                     letterSpacing: "0.08em",
                     textTransform: "uppercase",
                     border: "none",
                     cursor: "pointer",
                     transition: "opacity .2s",
+                    boxShadow: "0 4px 20px rgba(0,180,255,0.4)",
                   }}
                   onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.9")}
                   onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
@@ -154,24 +160,20 @@ export default function StitchLandingScreen() {
                   onClick={handleLogin}
                   style={{
                     width: "100%",
-                    height: "clamp(40px, 6vh, 48px)",
-                    borderRadius: 10,
-                    background: "var(--matte-graphite)",
-                    border: "1px solid var(--graphite-border)",
+                    height: 56,
+                    borderRadius: 12,
+                    background: "transparent",
+                    border: "1px solid rgba(255,255,255,0.2)",
                     color: "white",
                     fontWeight: 700,
-                    fontSize: "clamp(12px, 2vw, 14px)",
+                    fontSize: 14,
                     letterSpacing: "0.08em",
                     textTransform: "uppercase",
                     cursor: "pointer",
-                    transition: "background-color .2s",
+                    transition: "border-color .2s",
                   }}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.backgroundColor = "rgba(26,26,26,.8)")
-                  }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.backgroundColor = "var(--matte-graphite)")
-                  }
+                  onMouseEnter={(e) => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.5)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.2)")}
                 >
                   Log In
                 </button>
