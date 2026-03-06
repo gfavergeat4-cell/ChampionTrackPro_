@@ -333,7 +333,13 @@ export default function CoachScheduleScreen() {
   // ── filter helpers ──
 
   const trainingsForDay = (dayMs: number) =>
-    trainings.filter((t) => isSameDay(t.startUtc, dayMs));
+    trainings
+      .filter((t) => isSameDay(t.startUtc, dayMs))
+      .sort((a, b) => {
+        const aTime = (a as any).startUtc?.toMillis?.() ?? ((a as any).startUtc?.seconds ?? 0) * 1000 || a.startUtc || 0;
+        const bTime = (b as any).startUtc?.toMillis?.() ?? ((b as any).startUtc?.seconds ?? 0) * 1000 || b.startUtc || 0;
+        return aTime - bTime;
+      });
 
   const trainingsForMonth = (monthStartMs: number) => {
     const d = new Date(monthStartMs);
@@ -450,6 +456,7 @@ export default function CoachScheduleScreen() {
   return (
     <div style={containerStyle}>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <div style={{ maxWidth: 800, margin: "0 auto", padding: "0 24px" }}>
 
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
@@ -708,6 +715,7 @@ export default function CoachScheduleScreen() {
           }
         </div>
       )}
+      </div>
     </div>
   );
 }
