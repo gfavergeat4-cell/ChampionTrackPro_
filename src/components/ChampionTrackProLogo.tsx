@@ -5,8 +5,8 @@ import { Platform, Image } from "react-native";
 const nativeLogoSource = require("../../public/logo/logo_nobackground.png");
 
 const webLogoStyle = {
-  width: "320px",
-  maxWidth: "90%",
+  width: 280,
+  maxWidth: "85%",
   height: "auto",
   display: "block",
   margin: "0 auto",
@@ -24,7 +24,7 @@ export default function ChampionTrackProLogo() {
     return (
       <img
         src="/logo/logo_final.jpeg"
-        alt="ChampionTrackPro"
+        alt=""
         style={webLogoStyle}
       />
     );
