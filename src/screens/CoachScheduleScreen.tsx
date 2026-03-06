@@ -336,8 +336,8 @@ export default function CoachScheduleScreen() {
     trainings
       .filter((t) => isSameDay(t.startUtc, dayMs))
       .sort((a, b) => {
-        const aTime = (a as any).startUtc?.toMillis?.() ?? ((a as any).startUtc?.seconds ?? 0) * 1000 || a.startUtc || 0;
-        const bTime = (b as any).startUtc?.toMillis?.() ?? ((b as any).startUtc?.seconds ?? 0) * 1000 || b.startUtc || 0;
+        const aTime = ((a as any).startUtc?.toMillis?.()) ?? (((a as any).startUtc?.seconds ?? 0) * 1000);
+        const bTime = ((b as any).startUtc?.toMillis?.()) ?? (((b as any).startUtc?.seconds ?? 0) * 1000);
         return aTime - bTime;
       });
 
