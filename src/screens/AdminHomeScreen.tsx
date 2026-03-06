@@ -5,7 +5,6 @@ import { collection, getDocs, getCountFromServer } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { auth, db } from "../lib/firebase";
 import { useIsDesktop } from "../hooks/useIsDesktop";
-import ChampionTrackProLogo from "../components/ChampionTrackProLogo";
 import { SliderDivider } from "../components/SliderDivider";
 import { theme } from "../constants/theme";
 
@@ -195,7 +194,11 @@ export default function AdminHomeScreen() {
 
         {/* Logo */}
         <div style={{ paddingTop: 32, paddingBottom: 16 }}>
-          <ChampionTrackProLogo />
+          <img
+            src="/logo/logo_clean.png"
+            alt=""
+            style={{ width: 300, maxWidth: '80%', height: 'auto', display: 'block', margin: '0 auto' }}
+          />
         </div>
 
         {/* Grille des équipes */}

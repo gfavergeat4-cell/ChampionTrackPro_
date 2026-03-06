@@ -16,7 +16,6 @@ import {
 } from "firebase/firestore";
 import { auth, db } from "../lib/firebase";
 import { useIsDesktop } from "../hooks/useIsDesktop";
-import ChampionTrackProLogo from "../components/ChampionTrackProLogo";
 import { SliderDivider } from "../components/SliderDivider";
 import { theme } from "../constants/theme";
 
@@ -197,8 +196,12 @@ export default function CoachHomeScreen() {
       <div style={{ maxWidth, margin: "0 auto" }}>
 
         {/* Logo */}
-        <div style={{ paddingTop: 24, paddingBottom: 28, textAlign: "center" }}>
-          <ChampionTrackProLogo />
+        <div style={{ paddingTop: 24, paddingBottom: 28 }}>
+          <img
+            src="/logo/logo_clean.png"
+            alt=""
+            style={{ width: 300, maxWidth: '80%', height: 'auto', display: 'block', margin: '0 auto' }}
+          />
         </div>
 
         {loading ? (

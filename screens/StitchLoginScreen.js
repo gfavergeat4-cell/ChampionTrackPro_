@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { View, Platform, Alert } from "react-native";
 import MobileViewport from "../src/components/MobileViewport";
-import ChampionTrackProLogo from "../src/components/ChampionTrackProLogo";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../services/firebaseConfig";
 
@@ -141,8 +140,18 @@ export default function StitchLoginScreen() {
           }}
         >
           {/* Header – ChampionTrackPro logo */}
-          <div style={{ textAlign: "center", userSelect: "none", zIndex: 2, marginBottom: "40px", background: "none", backgroundColor: "transparent", border: "none" }}>
-            <ChampionTrackProLogo />
+          <div style={{ zIndex: 2, marginBottom: "40px" }}>
+            <img
+              src="/logo/logo_clean.png"
+              alt=""
+              style={{
+                width: 300,
+                maxWidth: '80%',
+                height: 'auto',
+                display: 'block',
+                margin: '0 auto',
+              }}
+            />
           </div>
 
           {/* Form */}
