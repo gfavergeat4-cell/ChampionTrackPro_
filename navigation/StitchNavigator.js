@@ -28,6 +28,7 @@ import AdminHomeScreen from "../src/screens/AdminHomeScreen";
 import CoachHomeScreen from "../src/screens/CoachHomeScreen";
 import CoachTeamScreen from "../src/screens/CoachTeamScreen";
 import CoachProfileScreen from "../src/screens/CoachProfileScreen";
+import CoachScheduleScreen from "../src/screens/CoachScheduleScreen";
 
 const AuthStack = createNativeStackNavigator();
 const RootStack = createNativeStackNavigator();
@@ -241,6 +242,15 @@ function CoachTabs() {
         options={{
           tabBarIcon: ({ color, size, focused }) => (
             <TabIcon name="Teams" color={color} size={size} focused={focused} />
+          ),
+        }}
+      />
+      <CoachTab.Screen
+        name="Schedule"
+        component={CoachScheduleScreen}
+        options={{
+          tabBarIcon: ({ color, size, focused }) => (
+            <TabIcon name="Schedule" color={color} size={size} focused={focused} />
           ),
         }}
       />

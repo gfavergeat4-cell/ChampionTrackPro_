@@ -541,6 +541,13 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
     return data;
   }, [filteredResponses, durationMode, duration, customStart, customEnd, viewMode, selectedTeamId, activeFields]);
 
+  function formatPlayerName(fullName: string, jerseyNumber: number): string {
+    const parts = fullName.trim().split(' ');
+    const first = parts[0]?.[0] || '';
+    const last = parts[parts.length - 1] || '';
+    return `${first}. ${last} #${jerseyNumber}`;
+  }
+
   const athleteLabel = (uid: string): string => {
     const m = members.find((x) => x.id === uid);
     if (!m) return uid;
@@ -549,7 +556,8 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
       m.displayName ||
       (m.firstName || m.lastName ? `${m.firstName || ""} ${m.lastName || ""}`.trim() : null);
     if (!name) return uid;
-    return m.jerseyNumber != null ? `#${m.jerseyNumber} ${name}` : name;
+    if (m.jerseyNumber != null) return formatPlayerName(name, m.jerseyNumber);
+    return name;
   };
 
   const seriesKeys: string[] = useMemo(() => {
@@ -705,7 +713,9 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                 </div>
                 {membersFilteredByPosition.map((m) => {
                   const playerName = m.fullName || m.displayName || m.id;
-                  const label = (m.jerseyNumber != null ? `#${m.jerseyNumber} ` : "") + playerName + (m.position ? ` — ${m.position}` : "");
+                  const label = m.jerseyNumber != null
+                    ? formatPlayerName(playerName, m.jerseyNumber) + (m.position ? ` — ${m.position}` : "")
+                    : playerName + (m.position ? ` — ${m.position}` : "");
                   return (
                     <div
                       key={m.id}
@@ -1126,7 +1136,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                     margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                    <XAxis dataKey="date" stroke="rgba(255,255,255,0.6)" tick={{ fill: "rgba(255,255,255,0.6)", fontSize: 11 }} angle={-35} textAnchor="end" interval="preserveStartEnd" />
+                    <XAxis dataKey="date" stroke="rgba(255,255,255,0.6)" tick={{ fill: "rgba(255,255,255,0.6)", fontSize: 11 }} angle={-35} textAnchor="end" interval="preserveStartEnd" tickFormatter={(dateStr) => { const d = new Date(dateStr); return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }); }} />
                     <YAxis domain={[0, 100]} stroke="rgba(255,255,255,0.6)" />
                     <Tooltip
                       contentStyle={{
@@ -1174,7 +1184,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                     margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                    <XAxis dataKey="date" stroke="rgba(255,255,255,0.6)" tick={{ fill: "rgba(255,255,255,0.6)", fontSize: 11 }} angle={-35} textAnchor="end" interval="preserveStartEnd" />
+                    <XAxis dataKey="date" stroke="rgba(255,255,255,0.6)" tick={{ fill: "rgba(255,255,255,0.6)", fontSize: 11 }} angle={-35} textAnchor="end" interval="preserveStartEnd" tickFormatter={(dateStr) => { const d = new Date(dateStr); return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }); }} />
                     <YAxis domain={[0, 100]} stroke="rgba(255,255,255,0.6)" />
                     <Tooltip
                       contentStyle={{
