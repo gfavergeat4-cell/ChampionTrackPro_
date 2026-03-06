@@ -1,12 +1,17 @@
 import React from "react";
 import { View, Text, StyleSheet, Platform } from "react-native";
-import ChampionTrackProLogo from "./ChampionTrackProLogo";
-
+// ChampionTrackProLogo import removed — using img directly
 export default function SplashScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.content}>
-        <ChampionTrackProLogo />
+        {Platform.OS === "web" && (
+          <img
+            src="/logo/logo_clean.png"
+            alt=""
+            style={{ width: 200, height: "auto", display: "block", margin: "0 auto" }}
+          />
+        )}
         <View style={styles.spinner} />
         <Text style={styles.text}>Loading...</Text>
       </View>
