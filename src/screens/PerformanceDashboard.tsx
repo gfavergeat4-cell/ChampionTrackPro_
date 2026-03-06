@@ -97,13 +97,13 @@ const CATEGORY_FIELDS: Record<CategoryKey, string[]> = {
 };
 
 const CATEGORY_COLORS: Record<CategoryKey, string> = {
-  physical: "#00E0FF",
+  physical: "#00D4FF",
   mental: "#00FF88",
   technical: "#A855F7",
 };
 
 const INDICATOR_COLORS: Record<CategoryKey, string[]> = {
-  physical:  ["#00E0FF", "#00B8CC", "#0088AA", "#005577", "#003344"],
+  physical:  ["#00D4FF", "#00B8CC", "#0088AA", "#005577", "#003344"],
   mental:    ["#00FF88", "#00CC66", "#009944", "#006622", "#004411"],
   technical: ["#A855F7", "#8833DD", "#6611BB", "#440099", "#220077"],
 };
@@ -231,7 +231,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
 
   const [responses, setResponses] = useState<RawResponse[]>([]);
 
-  const CYAN = "#00E0FF";
+  const CYAN = "#00D4FF";
   const BG = "#0A0F1E";
 
   // Initialisation : teamId fixé par les props (admin) ou résolu depuis l'utilisateur (coach)
@@ -594,7 +594,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
     background: "#0D1526",
     borderRadius: 12,
     padding: 12,
-    border: "1px solid rgba(0,224,255,0.2)",
+    border: "1px solid rgba(0,212,255,0.2)",
   } as const;
   const labelStyle = { fontSize: 12, color: "rgba(255,255,255,0.6)", marginBottom: 6, display: "block" as const };
   const checkboxStyle = { accentColor: CYAN };
@@ -639,6 +639,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                 fontWeight: 700,
                 color: "#FFFFFF",
                 marginBottom: 4,
+                fontFamily: "Palatino Linotype, Palatino, Georgia, serif",
               }}
             >
               {teamNameFromRoute
@@ -669,7 +670,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
               style={{
                 width: "100%",
                 background: "#0E1528",
-                border: "1px solid rgba(0,224,255,0.3)",
+                border: "1px solid rgba(0,212,255,0.3)",
                 borderRadius: 8,
                 padding: "10px 14px",
                 cursor: "pointer",
@@ -697,7 +698,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                   right: 0,
                   zIndex: 1000,
                   background: "#0E1528",
-                  border: "1px solid rgba(0,224,255,0.3)",
+                  border: "1px solid rgba(0,212,255,0.3)",
                   borderRadius: 8,
                   maxHeight: 260,
                   overflowY: "auto",
@@ -740,7 +741,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
               style={{
                 width: "100%",
                 background: "#0E1528",
-                border: "1px solid rgba(0,224,255,0.3)",
+                border: "1px solid rgba(0,212,255,0.3)",
                 borderRadius: 8,
                 padding: "10px 14px",
                 cursor: "pointer",
@@ -764,7 +765,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                   right: 0,
                   zIndex: 1000,
                   background: "#0E1528",
-                  border: "1px solid rgba(0,224,255,0.3)",
+                  border: "1px solid rgba(0,212,255,0.3)",
                   borderRadius: 8,
                   maxHeight: 220,
                   overflowY: "auto",
@@ -859,7 +860,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                     style={{
                       padding: "8px 10px",
                       borderRadius: 8,
-                      border: "1px solid rgba(0,224,255,0.2)",
+                      border: "1px solid rgba(0,212,255,0.2)",
                       background: "#0D1526",
                       color: "#FFFFFF",
                       fontSize: 14,
@@ -873,7 +874,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                   style={{
                     padding: "8px 10px",
                     borderRadius: 8,
-                    border: "1px solid rgba(0,224,255,0.2)",
+                    border: "1px solid rgba(0,212,255,0.2)",
                     background: "#0D1526",
                     color: "#FFFFFF",
                     fontSize: 14,
@@ -953,7 +954,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                     width: "100%",
                     padding: "8px 10px",
                     borderRadius: 8,
-                    border: "1px solid rgba(0,224,255,0.2)",
+                    border: "1px solid rgba(0,212,255,0.2)",
                     background: "#0D1526",
                     color: "#FFFFFF",
                     fontSize: 14,
@@ -973,7 +974,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                       marginTop: 4,
                       padding: 8,
                       background: "#0D1526",
-                      border: "1px solid rgba(0,224,255,0.2)",
+                      border: "1px solid rgba(0,212,255,0.2)",
                       borderRadius: 8,
                       zIndex: 10,
                       maxHeight: 320,
@@ -1070,7 +1071,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
             background: "#0D1526",
             borderRadius: 16,
             padding: 20,
-            border: "1px solid rgba(0,224,255,0.15)",
+            border: "1px solid rgba(0,212,255,0.15)",
             boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
           }}
         >
@@ -1141,7 +1142,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                     <Tooltip
                       contentStyle={{
                         backgroundColor: "#0E1528",
-                        border: "1px solid #00E0FF",
+                        border: "1px solid #00D4FF",
                         borderRadius: 8,
                         color: "#FFFFFF",
                       }}
@@ -1189,7 +1190,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                     <Tooltip
                       contentStyle={{
                         backgroundColor: "#0E1528",
-                        border: "1px solid #00E0FF",
+                        border: "1px solid #00D4FF",
                         borderRadius: 8,
                         color: "#FFFFFF",
                       }}

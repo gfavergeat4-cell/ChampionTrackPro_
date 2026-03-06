@@ -348,7 +348,7 @@ export default function StitchHomeScreenClean() {
                     width: "40px", 
                     height: "40px", 
                     border: "3px solid rgba(0, 224, 255, 0.3)", 
-                    borderTop: "3px solid #00E0FF", 
+                    borderTop: "3px solid #00D4FF", 
                     borderRadius: "50%", 
                     animation: "spin 1s linear infinite",
                     marginBottom: "16px"

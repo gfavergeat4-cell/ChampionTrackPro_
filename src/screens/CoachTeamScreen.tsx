@@ -172,12 +172,12 @@ export default function CoachTeamScreen() {
           <h1 style={{ fontSize: isDesktop ? 28 : 22, fontWeight: 700, color: "#FFFFFF", margin: "0 0 4px" }}>
             My Team
           </h1>
-          <p style={{ margin: 0, fontSize: 15, color: "#00E0FF", fontWeight: 500 }}>{teamName}</p>
+          <p style={{ margin: 0, fontSize: 15, color: "#00D4FF", fontWeight: 500 }}>{teamName}</p>
         </div>
 
         {loading ? (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, padding: 60 }}>
-            <ActivityIndicator color="#00E0FF" />
+            <ActivityIndicator color="#00D4FF" />
             <span style={{ color: "rgba(255,255,255,0.6)", fontSize: 14 }}>Loading team...</span>
           </div>
         ) : error ? (
@@ -208,18 +208,18 @@ export default function CoachTeamScreen() {
                     alignItems: "center",
                     gap: 14,
                     background: "#0D1526",
-                    border: "1px solid rgba(0,224,255,0.12)",
+                    border: "1px solid rgba(0,212,255,0.12)",
                     borderRadius: 14,
                     padding: "14px 16px",
                     cursor: "pointer",
                     transition: "border-color 0.2s, box-shadow 0.2s",
                   }}
                   onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(0,224,255,0.4)";
-                    (e.currentTarget as HTMLDivElement).style.boxShadow = "0 4px 20px rgba(0,224,255,0.1)";
+                    (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(0,212,255,0.4)";
+                    (e.currentTarget as HTMLDivElement).style.boxShadow = "0 4px 20px rgba(0,212,255,0.1)";
                   }}
                   onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(0,224,255,0.12)";
+                    (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(0,212,255,0.12)";
                     (e.currentTarget as HTMLDivElement).style.boxShadow = "none";
                   }}
                 >
@@ -228,14 +228,14 @@ export default function CoachTeamScreen() {
                     width: 44,
                     height: 44,
                     borderRadius: "50%",
-                    background: "linear-gradient(135deg, #00E0FF22, #4A67FF33)",
-                    border: "1px solid rgba(0,224,255,0.3)",
+                    background: "linear-gradient(135deg, #00D4FF22, #4A67FF33)",
+                    border: "1px solid rgba(0,212,255,0.3)",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                     fontSize: 14,
                     fontWeight: 700,
-                    color: "#00E0FF",
+                    color: "#00D4FF",
                     flexShrink: 0,
                   }}>
                     {initials || "?"}

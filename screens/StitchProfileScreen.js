@@ -742,7 +742,7 @@ export default function StitchProfileScreen() {
   return (
     <View style={nativeStyles.container}>
       {loading ? (
-        <ActivityIndicator color="#00E0FF" style={{ marginTop: 32 }} />
+        <ActivityIndicator color="#00D4FF" style={{ marginTop: 32 }} />
       ) : (
         <ScrollView contentContainerStyle={nativeStyles.content} showsVerticalScrollIndicator={false}>
           <Text style={nativeStyles.header}>Profil</Text>

@@ -259,7 +259,7 @@ export default function StitchCreateAccountScreen() {
             letter-spacing: .02em;
           }
           .logo .pro {
-            color: #00E0FF;
+            color: #00D4FF;
             text-shadow: 0 0 12px rgba(0,224,255,0.8), 0 0 28px rgba(0,224,255,0.4);
             font-weight: 700;
             letter-spacing: 0.06em;
@@ -292,7 +292,7 @@ export default function StitchCreateAccountScreen() {
             transition: all 0.2s;
           }
           .role-btn.active {
-            background-image: linear-gradient(to right, #00E0FF, #4A67FF);
+            background-image: linear-gradient(to right, #00D4FF, #4A67FF);
             color: #fff;
             box-shadow: 0 4px 15px rgba(0,224,255,0.3);
           }
@@ -327,7 +327,7 @@ export default function StitchCreateAccountScreen() {
           }
           .input:focus {
             outline: none;
-            border-color: #00E0FF;
+            border-color: #00D4FF;
             box-shadow: 0 0 0 3px rgba(0,224,255,0.1);
           }
           .input::placeholder {
@@ -356,7 +356,7 @@ export default function StitchCreateAccountScreen() {
             font-size: 15px;
             letter-spacing: 0.06em;
             color: #fff;
-            background-image: linear-gradient(to right, #00E0FF, #4A67FF);
+            background-image: linear-gradient(to right, #00D4FF, #4A67FF);
             box-shadow: 0 4px 20px rgba(0,224,255,0.30), 0 0 24px rgba(74,103,255,0.20);
             transition: opacity 0.2s ease;
             border: none;
@@ -382,7 +382,7 @@ export default function StitchCreateAccountScreen() {
           }
           .footer a {
             font-weight: 500;
-            color: #00E0FF;
+            color: #00D4FF;
             cursor: pointer;
             text-decoration: underline;
           }

@@ -17,6 +17,8 @@ import {
 import { auth, db } from "../lib/firebase";
 import { useIsDesktop } from "../hooks/useIsDesktop";
 import ChampionTrackProLogo from "../components/ChampionTrackProLogo";
+import { SliderDivider } from "../components/SliderDivider";
+import { theme } from "../constants/theme";
 
 interface AlertEntry {
   uid: string;
@@ -198,7 +200,7 @@ export default function CoachHomeScreen() {
 
         {loading ? (
           <div style={{ minHeight: 200, display: "flex", alignItems: "center", justifyContent: "center", gap: 12 }}>
-            <ActivityIndicator color="#00E0FF" />
+            <ActivityIndicator color="#00D4FF" />
             <span style={{ color: "rgba(255,255,255,0.6)", fontSize: 14 }}>Loading your team...</span>
           </div>
         ) : error ? (
@@ -207,11 +209,13 @@ export default function CoachHomeScreen() {
           <>
             {/* Welcome header */}
             <div style={{ marginBottom: 32 }}>
-              <h1 style={{ fontSize: isDesktop ? 28 : 22, fontWeight: 700, color: "#FFFFFF", margin: "0 0 4px" }}>
+              <h1 style={{ fontSize: isDesktop ? 28 : 22, fontWeight: 700, color: "#FFFFFF", margin: "0 0 4px", fontFamily: theme.fonts.serif }}>
                 Welcome back, {coachName}
               </h1>
-              <p style={{ margin: 0, fontSize: 15, color: "#00E0FF", fontWeight: 500 }}>{teamName}</p>
+              <p style={{ margin: 0, fontSize: 15, color: "#00D4FF", fontWeight: 500 }}>{teamName}</p>
             </div>
+
+            <SliderDivider />
 
             {/* Stat cards */}
             <div style={{
@@ -221,14 +225,15 @@ export default function CoachHomeScreen() {
               marginBottom: 32,
             }}>
               {[
-                { label: "Athletes", value: athleteCount, color: "#00E0FF" },
+                { label: "Athletes", value: athleteCount, color: "#00D4FF" },
                 { label: "This Week", value: weekTrainings, color: "#A855F7" },
                 { label: "Response Rate", value: responseRate !== null ? `${responseRate}%` : "—", color: "#00FF88" },
               ].map(({ label, value, color }) => (
                 <div key={label} style={{
-                  background: "#0D1526",
-                  border: "1px solid rgba(0,224,255,0.15)",
-                  borderRadius: 16,
+                  background: theme.colors.bgCard,
+                  border: "1px solid rgba(0,212,255,0.15)",
+                  borderTop: "2px solid rgba(0,212,255,0.4)",
+                  borderRadius: theme.borderRadius.card,
                   padding: isDesktop ? "20px 24px" : "16px 12px",
                   textAlign: "center",
                 }}>
@@ -244,9 +249,10 @@ export default function CoachHomeScreen() {
 
             {/* Alerts */}
             <div style={{
-              background: "#0D1526",
-              border: "1px solid rgba(0,224,255,0.15)",
-              borderRadius: 16,
+              background: theme.colors.bgCard,
+              border: "1px solid rgba(0,212,255,0.15)",
+              borderTop: "2px solid rgba(0,212,255,0.4)",
+              borderRadius: theme.borderRadius.card,
               padding: isDesktop ? "20px 24px" : "16px",
               marginBottom: 28,
             }}>
@@ -306,15 +312,15 @@ export default function CoachHomeScreen() {
                 onClick={() => navigation.navigate("Analytics", { teamId, teamName, role: "coach" })}
                 style={{
                   padding: "16px 48px",
-                  borderRadius: 12,
-                  background: "linear-gradient(135deg, #00E0FF, #4A67FF)",
+                  borderRadius: theme.borderRadius.button,
+                  background: theme.gradients.buttonPrimary,
                   border: "none",
                   color: "#FFFFFF",
                   fontWeight: 700,
                   fontSize: 15,
-                  letterSpacing: "0.06em",
+                  letterSpacing: 1,
                   cursor: "pointer",
-                  boxShadow: "0 4px 20px rgba(0,224,255,0.3)",
+                  boxShadow: theme.shadows.buttonPrimary,
                   textTransform: "uppercase",
                   transition: "opacity 0.2s",
                 }}

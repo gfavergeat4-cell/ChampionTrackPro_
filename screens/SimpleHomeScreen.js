@@ -82,7 +82,7 @@ export default function SimpleHomeScreen() {
                 height: "36px",
                 borderRadius: "50%",
                 backgroundColor: "#00C6FF",
-                border: "2px solid #00E0FF",
+                border: "2px solid #00D4FF",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",

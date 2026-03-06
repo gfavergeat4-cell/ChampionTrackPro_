@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 3,
-    borderColor: "#00E0FF",
+    borderColor: "#00D4FF",
   },
   avatarText: {
     color: "#FFFFFF",
@@ -158,7 +158,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   userRole: {
-    color: "#00E0FF",
+    color: "#00D4FF",
     fontSize: 14,
     fontFamily: "Inter",
     textTransform: "uppercase",

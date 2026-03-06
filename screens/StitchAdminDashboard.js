@@ -526,7 +526,7 @@ export default function StitchAdminDashboard() {
                 fontSize: "20px",
                 fontWeight: "bold",
                 margin: "0 0 4px 0",
-                background: "linear-gradient(135deg, #00E0FF, #4A67FF)",
+                background: "linear-gradient(135deg, #00D4FF, #4A67FF)",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent"
               }}>
@@ -573,7 +573,7 @@ export default function StitchAdminDashboard() {
               fontSize: "16px",
               fontWeight: "600",
               margin: "0 0 12px 0",
-              color: "#00E0FF"
+              color: "#00D4FF"
             }}>
               Créer une nouvelle équipe
             </h2>
@@ -585,7 +585,7 @@ export default function StitchAdminDashboard() {
                   width: "100%",
                   padding: "12px",
                   borderRadius: "8px",
-                  background: "linear-gradient(135deg, #00E0FF, #4A67FF)",
+                  background: "linear-gradient(135deg, #00D4FF, #4A67FF)",
                   color: "white",
                   fontSize: "14px",
                   fontWeight: "600",
@@ -690,7 +690,7 @@ export default function StitchAdminDashboard() {
                       flex: 1,
                       padding: "12px",
                       borderRadius: "8px",
-                      background: isGenerating ? "rgba(0, 224, 255, 0.5)" : "linear-gradient(135deg, #00E0FF, #4A67FF)",
+                      background: isGenerating ? "rgba(0, 224, 255, 0.5)" : "linear-gradient(135deg, #00D4FF, #4A67FF)",
                       color: "white",
                       fontSize: "14px",
                       fontWeight: "600",
@@ -805,7 +805,7 @@ export default function StitchAdminDashboard() {
                             <div style={{
                               fontSize: "12px",
                               fontWeight: "600",
-                              color: "#00E0FF",
+                              color: "#00D4FF",
                               fontFamily: "monospace",
                               background: "rgba(0, 224, 255, 0.1)",
                               padding: "4px 8px",
@@ -838,7 +838,7 @@ export default function StitchAdminDashboard() {
                           <span style={{ fontSize: "11px" }}>Membres: {team.members}</span>
                           <span style={{ fontSize: "11px" }}>Entraîneurs: {team.coaches}</span>
                           <span style={{ fontSize: "11px" }}>Créé: {new Date(team.createdAt).toLocaleDateString()}</span>
-                          <span style={{ color: team.calendarImported ? "#00E0FF" : "#6B7280", fontSize: "11px" }}>
+                          <span style={{ color: team.calendarImported ? "#00D4FF" : "#6B7280", fontSize: "11px" }}>
                             📅 Calendrier: {team.calendarImported ? "Importé" : "Non importé"}
                           </span>
                         </div>
@@ -868,7 +868,7 @@ export default function StitchAdminDashboard() {
                             borderRadius: "4px",
                             background: "rgba(0, 224, 255, 0.1)",
                             border: "1px solid rgba(0, 224, 255, 0.3)",
-                            color: "#00E0FF",
+                            color: "#00D4FF",
                             fontSize: "10px",
                             fontWeight: "500",
                             cursor: "pointer"
@@ -916,7 +916,7 @@ export default function StitchAdminDashboard() {
           zIndex: 1000
         }}>
           <nav style={{ display: "flex", justifyContent: "space-around", alignItems: "center" }}>
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "4px", color: "#00E0FF" }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "4px", color: "#00D4FF" }}>
               <svg style={{ width: "24px", height: "24px" }} fill="currentColor" viewBox="0 0 24 24">
                 <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/>
               </svg>
@@ -993,7 +993,7 @@ export default function StitchAdminDashboard() {
                     padding: "8px 16px",
                     borderRadius: "6px",
                     background: importMode === "url" 
-                      ? "linear-gradient(135deg, #00E0FF, #4A67FF)" 
+                      ? "linear-gradient(135deg, #00D4FF, #4A67FF)" 
                       : "transparent",
                     border: "none",
                     color: "white",
@@ -1012,7 +1012,7 @@ export default function StitchAdminDashboard() {
                     padding: "8px 16px",
                     borderRadius: "6px",
                     background: importMode === "file" 
-                      ? "linear-gradient(135deg, #00E0FF, #4A67FF)" 
+                      ? "linear-gradient(135deg, #00D4FF, #4A67FF)" 
                       : "transparent",
                     border: "none",
                     color: "white",
@@ -1149,7 +1149,7 @@ export default function StitchAdminDashboard() {
                       borderRadius: "8px",
                       background: !calendarUrl.trim() || isImporting
                         ? "rgba(74, 103, 255, 0.3)"
-                        : "linear-gradient(135deg, #00E0FF, #4A67FF)",
+                        : "linear-gradient(135deg, #00D4FF, #4A67FF)",
                       border: "none",
                       color: "white",
                       fontSize: "14px",

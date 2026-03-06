@@ -66,7 +66,7 @@ export default function TestLandingScreen() {
                 width: "100%",
                 height: "56px",
                 borderRadius: "12px",
-                background: "linear-gradient(to right, #00E0FF, #4A67FF)",
+                background: "linear-gradient(to right, #00D4FF, #4A67FF)",
                 color: "white",
                 fontWeight: "bold",
                 fontSize: "16px",

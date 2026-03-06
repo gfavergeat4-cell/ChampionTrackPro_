@@ -73,7 +73,7 @@ export default function DebugTestQuestionnaireScreen() {
   const backButtonStyle = {
     backgroundColor: "transparent",
     borderWidth: 1,
-    borderColor: "#00E0FF",
+    borderColor: "#00D4FF",
     borderRadius: 12,
     padding: 16,
     alignItems: "center",
@@ -120,7 +120,7 @@ export default function DebugTestQuestionnaireScreen() {
       </Pressable>
 
       <Pressable style={backButtonStyle} onPress={handleBackToProfile}>
-        <Text style={{ color: "#00E0FF", fontSize: 16, fontWeight: "600" }}>Back to Profile</Text>
+        <Text style={{ color: "#00D4FF", fontSize: 16, fontWeight: "600" }}>Back to Profile</Text>
       </Pressable>
     </View>
   );

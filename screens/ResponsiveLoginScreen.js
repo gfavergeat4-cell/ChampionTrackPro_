@@ -193,7 +193,7 @@ export default function ResponsiveLoginScreen() {
                   style={{
                     fontSize: "14px",
                     fontWeight: "500",
-                    color: "#00E0FF",
+                    color: "#00D4FF",
                     cursor: "pointer",
                     textDecoration: "underline",
                     background: "none",
@@ -211,7 +211,7 @@ export default function ResponsiveLoginScreen() {
                 onClick={handleSubmit}
                 style={{
                   width: "100%",
-                  backgroundImage: "linear-gradient(to right, #00E0FF, #4A67FF)",
+                  backgroundImage: "linear-gradient(to right, #00D4FF, #4A67FF)",
                   boxShadow: "0 4px 20px rgba(0, 224, 255, 0.3)",
                   borderRadius: "14px",
                   color: "white",
@@ -241,7 +241,7 @@ export default function ResponsiveLoginScreen() {
                   onClick={handleCreateAccountLink}
                   style={{
                     fontWeight: "500",
-                    color: "#00E0FF",
+                    color: "#00D4FF",
                     cursor: "pointer",
                     textDecoration: "underline",
                   }}
@@ -365,7 +365,7 @@ export default function ResponsiveLoginScreen() {
                     onClick={handleForgotPassword}
                     style={{
                       flex: 1,
-                      backgroundImage: "linear-gradient(to right, #00E0FF, #4A67FF)",
+                      backgroundImage: "linear-gradient(to right, #00D4FF, #4A67FF)",
                       border: "none",
                       borderRadius: "12px",
                       color: "white",

@@ -214,7 +214,7 @@ export default function StitchLoginScreen() {
                   style={{
                     fontSize: 14,
                     fontWeight: 500,
-                    color: "#00E0FF",
+                    color: "#00D4FF",
                     textDecoration: "underline",
                     background: "none",
                     border: "none",
@@ -263,7 +263,7 @@ export default function StitchLoginScreen() {
                   onClick={() => navigation.navigate("CreateAccount")}
                   style={{
                     fontWeight: 500,
-                    color: "#00E0FF",
+                    color: "#00D4FF",
                     cursor: "pointer",
                     textDecoration: "underline",
                   }}
@@ -302,7 +302,7 @@ const primaryBtnStyle = {
   fontSize: "clamp(12px, 2vw, 14px)",
   letterSpacing: "0.06em",
   color: "#fff",
-  backgroundImage: "linear-gradient(to right, #00E0FF, #4A67FF)",
+  backgroundImage: "linear-gradient(to right, #00D4FF, #4A67FF)",
   boxShadow: "0 4px 20px rgba(0,224,255,0.30), 0 0 24px rgba(74,103,255,0.20)",
   transition: "opacity 0.2s ease",
   border: "none",

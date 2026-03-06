@@ -635,7 +635,7 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   comingSoonShadow: {
-    shadowColor: '#00E0FF',
+    shadowColor: '#00D4FF',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.35,
     shadowRadius: 12,

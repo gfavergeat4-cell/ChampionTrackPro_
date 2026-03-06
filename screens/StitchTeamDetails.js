@@ -216,7 +216,7 @@ export default function StitchTeamDetails() {
             style={{
               background: "transparent",
               border: "none",
-              color: "#00E0FF",
+              color: "#00D4FF",
               fontSize: 15,
               cursor: "pointer",
               padding: "4px 0",
@@ -243,8 +243,8 @@ export default function StitchTeamDetails() {
               onClick={() => { setCalendarOpen(false); setMembersOpen((v) => !v); }}
               style={{
                 background: "transparent",
-                border: "1px solid #00E0FF",
-                color: "#00E0FF",
+                border: "1px solid #00D4FF",
+                color: "#00D4FF",
                 padding: "8px 14px",
                 borderRadius: 12,
                 fontSize: 13,
@@ -259,8 +259,8 @@ export default function StitchTeamDetails() {
               onClick={() => { setMembersOpen(false); setCalendarOpen((v) => !v); }}
               style={{
                 background: "transparent",
-                border: "1px solid #00E0FF",
-                color: "#00E0FF",
+                border: "1px solid #00D4FF",
+                color: "#00D4FF",
                 padding: "8px 14px",
                 borderRadius: 12,
                 fontSize: 13,
@@ -346,7 +346,7 @@ export default function StitchTeamDetails() {
                     >
                       <span
                         style={{
-                          color: "#00E0FF",
+                          color: "#00D4FF",
                           fontFamily: "monospace",
                           fontSize: 16,
                           fontWeight: 700,
@@ -386,7 +386,7 @@ export default function StitchTeamDetails() {
                     >
                       <span
                         style={{
-                          color: "#00E0FF",
+                          color: "#00D4FF",
                           fontFamily: "monospace",
                           fontSize: 16,
                           fontWeight: 700,
@@ -443,7 +443,7 @@ export default function StitchTeamDetails() {
                       style={{
                         fontSize: 11,
                         fontWeight: 600,
-                        color: "#00E0FF",
+                        color: "#00D4FF",
                         textTransform: "uppercase",
                         letterSpacing: 1,
                       }}
@@ -510,7 +510,7 @@ export default function StitchTeamDetails() {
                       padding: "6px 12px",
                       border: "1px solid rgba(0,224,255,0.2)",
                       background: hasPrev ? "transparent" : "#0A0F1E",
-                      color: hasPrev ? "#00E0FF" : "rgba(255,255,255,0.6)",
+                      color: hasPrev ? "#00D4FF" : "rgba(255,255,255,0.6)",
                       borderRadius: 12,
                       fontSize: 12,
                       fontWeight: 600,
@@ -530,7 +530,7 @@ export default function StitchTeamDetails() {
                       padding: "6px 12px",
                       border: "1px solid rgba(0,224,255,0.2)",
                       background: hasNext ? "transparent" : "#0A0F1E",
-                      color: hasNext ? "#00E0FF" : "rgba(255,255,255,0.6)",
+                      color: hasNext ? "#00D4FF" : "rgba(255,255,255,0.6)",
                       borderRadius: 12,
                       fontSize: 12,
                       fontWeight: 600,

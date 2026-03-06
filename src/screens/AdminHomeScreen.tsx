@@ -6,6 +6,8 @@ import { signOut } from "firebase/auth";
 import { auth, db } from "../lib/firebase";
 import { useIsDesktop } from "../hooks/useIsDesktop";
 import ChampionTrackProLogo from "../components/ChampionTrackProLogo";
+import { SliderDivider } from "../components/SliderDivider";
+import { theme } from "../constants/theme";
 
 interface TeamDoc {
   id: string;
@@ -102,7 +104,7 @@ export default function AdminHomeScreen() {
             gap: 12,
           }}
         >
-          <ActivityIndicator color="#00E0FF" />
+          <ActivityIndicator color="#00D4FF" />
           <span style={{ color: "#9CA3AF", fontSize: 14 }}>
             Chargement des équipes...
           </span>
@@ -179,9 +181,9 @@ export default function AdminHomeScreen() {
             style={{
               padding: "10px 20px",
               borderRadius: 12,
-              border: "1px solid #00E0FF",
+              border: "1px solid #00D4FF",
               background: "transparent",
-              color: "#00E0FF",
+              color: "#00D4FF",
               fontSize: 14,
               fontWeight: 600,
               cursor: "pointer",
@@ -192,9 +194,11 @@ export default function AdminHomeScreen() {
         </div>
 
         {/* Logo */}
-        <div style={{ paddingTop: 32, paddingBottom: 32 }}>
+        <div style={{ paddingTop: 32, paddingBottom: 16 }}>
           <ChampionTrackProLogo />
         </div>
+
+        <SliderDivider />
 
         {/* Grille des équipes */}
         {renderLoadingOrError() || (
@@ -224,14 +228,15 @@ export default function AdminHomeScreen() {
                     textAlign: "left",
                     width: "100%",
                     padding: 16,
-                    borderRadius: 16,
-                    border: "1px solid rgba(0,224,255,0.2)",
-                    background: "#0D1526",
+                    borderRadius: theme.borderRadius.card,
+                    border: "1px solid rgba(0,212,255,0.2)",
+                    borderTop: "2px solid rgba(0,212,255,0.4)",
+                    background: theme.colors.bgCard,
                     cursor: "pointer",
                     transition: "border-color 0.2s ease, box-shadow 0.2s ease",
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.boxShadow = "0 8px 32px rgba(0,224,255,0.15)";
+                    e.currentTarget.style.boxShadow = theme.shadows.cardHover;
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.boxShadow = "none";
@@ -243,8 +248,8 @@ export default function AdminHomeScreen() {
                       width: 40,
                       height: 40,
                       borderRadius: 8,
-                      background: "rgba(0,224,255,0.15)",
-                      color: "#00E0FF",
+                      background: "rgba(0,212,255,0.15)",
+                      color: "#00D4FF",
                       fontSize: 14,
                       fontWeight: 700,
                       display: "flex",
@@ -285,8 +290,8 @@ export default function AdminHomeScreen() {
                       marginTop: 12,
                       padding: "4px 10px",
                       borderRadius: 20,
-                      background: "rgba(0,224,255,0.1)",
-                      color: "#00E0FF",
+                      background: "rgba(0,212,255,0.1)",
+                      color: "#00D4FF",
                       fontSize: 11,
                       letterSpacing: 2,
                     }}
@@ -313,14 +318,15 @@ export default function AdminHomeScreen() {
               type="button"
               style={{
                 padding: "16px 48px",
-                borderRadius: 12,
-                background: "linear-gradient(135deg, #00BFFF, #0066FF)",
+                borderRadius: theme.borderRadius.button,
+                background: theme.gradients.buttonPrimary,
                 border: "none",
                 color: "#FFFFFF",
                 fontWeight: 700,
+                letterSpacing: 1,
                 fontSize: 14,
                 cursor: "pointer",
-                boxShadow: "0 4px 20px rgba(0,200,255,0.4)",
+                boxShadow: theme.shadows.buttonPrimary,
               }}
             >
               + CREATE TEAM

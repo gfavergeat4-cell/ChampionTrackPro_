@@ -12,9 +12,9 @@ import { auth, db } from "../lib/firebase";
 import { useIsDesktop } from "../hooks/useIsDesktop";
 
 const BG = "#0A0F1E";
-const CYAN = "#00E0FF";
+const CYAN = "#00D4FF";
 const CARD_BG = "#0D1526";
-const BORDER = "rgba(0,224,255,0.2)";
+const BORDER = "rgba(0,212,255,0.2)";
 const ORANGE = "#FF8C42";
 
 type ViewTab = "Day" | "Week" | "Month";
@@ -111,6 +111,7 @@ function TrainingCard({
         backgroundColor: CARD_BG,
         borderRadius: 14,
         border: `1px solid ${BORDER}`,
+        borderTop: "2px solid rgba(0,212,255,0.4)",
         marginBottom: 14,
         overflow: "hidden",
       }}
@@ -142,9 +143,9 @@ function TrainingCard({
               borderRadius: 20,
               fontSize: 12,
               fontWeight: 600,
-              backgroundColor: isGood ? "rgba(0,224,255,0.10)" : "rgba(255,140,66,0.10)",
+              backgroundColor: isGood ? "rgba(0,212,255,0.10)" : "rgba(255,140,66,0.10)",
               color: isGood ? CYAN : ORANGE,
-              border: `1px solid ${isGood ? "rgba(0,224,255,0.3)" : "rgba(255,140,66,0.3)"}`,
+              border: `1px solid ${isGood ? "rgba(0,212,255,0.3)" : "rgba(255,140,66,0.3)"}`,
               whiteSpace: "nowrap",
             }}
           >
@@ -460,7 +461,7 @@ export default function CoachScheduleScreen() {
 
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ margin: 0, fontSize: isDesktop ? 26 : 20, fontWeight: 700, color: "#fff" }}>
+        <h1 style={{ margin: 0, fontSize: isDesktop ? 26 : 20, fontWeight: 700, color: "#fff", fontFamily: "'Palatino Linotype', Palatino, Georgia, serif" }}>
           Training Schedule
         </h1>
         <p style={{ margin: "5px 0 0", fontSize: 13, color: "rgba(255,255,255,0.35)" }}>
@@ -514,7 +515,7 @@ export default function CoachScheduleScreen() {
           </div>
           {selectedDayMs !== todayMs && (
             <div style={{ textAlign: "center", marginBottom: 16 }}>
-              <button onClick={() => setSelectedDayMs(todayMs)} style={{ ...navBtnStyle, color: CYAN, borderColor: "rgba(0,224,255,0.3)" }}>
+              <button onClick={() => setSelectedDayMs(todayMs)} style={{ ...navBtnStyle, color: CYAN, borderColor: "rgba(0,212,255,0.3)" }}>
                 Today
               </button>
             </div>
@@ -559,7 +560,7 @@ export default function CoachScheduleScreen() {
             <div style={{ textAlign: "center", marginBottom: 16 }}>
               <button
                 onClick={() => { setCurrentWeekMs(startOfWeek(todayMs)); setSelectedDayMs(todayMs); }}
-                style={{ ...navBtnStyle, color: CYAN, borderColor: "rgba(0,224,255,0.3)" }}
+                style={{ ...navBtnStyle, color: CYAN, borderColor: "rgba(0,212,255,0.3)" }}
               >
                 Today
               </button>

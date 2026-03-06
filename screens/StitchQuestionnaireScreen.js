@@ -297,7 +297,7 @@ export default function StitchQuestionnaireScreen() {
         }
         .slider::-webkit-slider-runnable-track {
           height: 10px;
-          background: linear-gradient(90deg, #00E0FF, #4A67FF);
+          background: linear-gradient(90deg, #00D4FF, #4A67FF);
           border-radius: 9999px;
         }
         .slider::-webkit-slider-thumb {
@@ -305,7 +305,7 @@ export default function StitchQuestionnaireScreen() {
           appearance: none;
           width: 20px;
           height: 20px;
-          background: #00E0FF;
+          background: #00D4FF;
           cursor: pointer;
           border-radius: 50%;
           margin-top: -5px;
@@ -317,13 +317,13 @@ export default function StitchQuestionnaireScreen() {
         }
         .slider::-moz-range-track {
           height: 10px;
-          background: linear-gradient(90deg, #00E0FF, #4A67FF);
+          background: linear-gradient(90deg, #00D4FF, #4A67FF);
           border-radius: 9999px;
         }
         .slider::-moz-range-thumb {
           width: 20px;
           height: 20px;
-          background: #00E0FF;
+          background: #00D4FF;
           cursor: pointer;
           border-radius: 50%;
           box-shadow: 0 0 10px 2px rgba(0, 224, 255, 0.5);
@@ -854,12 +854,12 @@ export default function StitchQuestionnaireScreen() {
               width: "40px",
               height: "40px",
               border: "3px solid rgba(0, 224, 255, 0.3)",
-              borderTop: "3px solid #00E0FF",
+              borderTop: "3px solid #00D4FF",
               borderRadius: "50%",
               animation: "spin 1s linear infinite"
             }}></div>
             <div style={{
-              color: "#00E0FF",
+              color: "#00D4FF",
               fontSize: "16px",
               fontWeight: "600"
             }}>
@@ -924,7 +924,7 @@ export default function StitchQuestionnaireScreen() {
                 border: "1px solid rgba(0, 224, 255, 0.3)",
                 borderRadius: "12px",
                 padding: "12px 16px",
-                color: "#00E0FF",
+                color: "#00D4FF",
                 fontSize: "14px",
                 fontWeight: "500",
                 cursor: "pointer",
@@ -1167,7 +1167,7 @@ export default function StitchQuestionnaireScreen() {
                       fontSize: "16px",
                       fontWeight: "600",
                   cursor: isSubmitting ? "not-allowed" : "pointer",
-                      background: "linear-gradient(90deg, #00E0FF, #4A67FF)",
+                      background: "linear-gradient(90deg, #00D4FF, #4A67FF)",
                       color: "white",
                       border: "none",
                       boxShadow: "0 0 20px 5px rgba(0, 224, 255, 0.25)",

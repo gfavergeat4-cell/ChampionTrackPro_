@@ -42,7 +42,7 @@ const styles = StyleSheet.create({
     height: 40,
     borderWidth: 3,
     borderColor: "rgba(0, 224, 255, 0.3)",
-    borderTopColor: "#00E0FF",
+    borderTopColor: "#00D4FF",
     borderRadius: 20,
     ...(Platform.OS === "web" && {
       className: "spinner-web",
@@ -51,7 +51,7 @@ const styles = StyleSheet.create({
   text: {
     fontSize: 16,
     fontWeight: "500",
-    color: "#00E0FF",
+    color: "#00D4FF",
     fontFamily: Platform.OS === "web" ? "'Inter', sans-serif" : "System",
   },
 });

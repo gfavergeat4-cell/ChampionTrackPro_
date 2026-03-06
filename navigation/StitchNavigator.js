@@ -75,10 +75,10 @@ const TabIcon = ({ name, color, size = 24, focused }) => {
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: focused ? 'rgba(0,224,255,0.15)' : 'transparent',
-    border: focused ? '1px solid rgba(0,224,255,0.3)' : '1px solid transparent',
+    backgroundColor: focused ? 'rgba(0,212,255,0.15)' : 'transparent',
+    border: focused ? '1px solid rgba(0,212,255,0.3)' : '1px solid transparent',
     transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-    boxShadow: focused ? '0 4px 12px rgba(0,224,255,0.2)' : 'none',
+    boxShadow: focused ? '0 4px 12px rgba(0,212,255,0.2)' : 'none',
   };
 
   const getIcon = () => {
@@ -162,7 +162,7 @@ function AdminTabs() {
               paddingBottom: 16,
               paddingTop: 16,
             },
-        tabBarActiveTintColor: '#00E0FF',
+        tabBarActiveTintColor: '#00D4FF',
         tabBarInactiveTintColor: '#9CA3AF',
       })}
     >
@@ -223,7 +223,7 @@ function CoachTabs() {
           paddingBottom: 16,
           paddingTop: 16,
         },
-        tabBarActiveTintColor: '#00E0FF',
+        tabBarActiveTintColor: '#00D4FF',
         tabBarInactiveTintColor: '#9CA3AF',
       }}
     >

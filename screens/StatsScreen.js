@@ -52,7 +52,7 @@ export default function StatsScreen({ navigation }) {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#00E0FF" />
+        <ActivityIndicator size="large" color="#00D4FF" />
         <Text style={styles.loadingText}>Loading your stats...</Text>
       </View>
     );
@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
     borderColor: "#2B2E36",
   },
   statValue: {
-    color: "#00E0FF",
+    color: "#00D4FF",
     fontSize: 24,
     fontWeight: "700",
     fontFamily: "Inter",
@@ -284,7 +284,7 @@ const styles = StyleSheet.create({
   },
   progressFill: {
     height: "100%",
-    backgroundColor: "#00E0FF",
+    backgroundColor: "#00D4FF",
     borderRadius: 4,
   },
 });

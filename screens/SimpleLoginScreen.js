@@ -107,7 +107,7 @@ export default function SimpleLoginScreen() {
               width: "100%",
               padding: "16px",
               borderRadius: "12px",
-              background: loading ? "rgba(0, 224, 255, 0.5)" : "linear-gradient(135deg, #00E0FF, #4A67FF)",
+              background: loading ? "rgba(0, 224, 255, 0.5)" : "linear-gradient(135deg, #00D4FF, #4A67FF)",
               color: "white",
               fontSize: "16px",
               fontWeight: "600",

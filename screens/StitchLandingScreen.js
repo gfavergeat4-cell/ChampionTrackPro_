@@ -35,14 +35,14 @@ export default function StitchLandingScreen() {
           {/* Styles dédiés (pas de Tailwind pour éviter la purge) */}
           <style>{`
             :root {
-              --gradient-cyan: #00E0FF;
+              --gradient-cyan: #00D4FF;
               --gradient-blue: #4A67FF;
               --matte-graphite: #1A1A1A;
               --graphite-border: #2B2E36;
             }
             .logo-font { font-family: 'Cinzel', serif; }
             .text-glow-white { text-shadow: 0 0 8px rgba(255,255,255,.5), 0 0 20px rgba(255,255,255,.3); }
-            .text-glow-cyan { color: #00E0FF; text-shadow: 0 0 8px rgba(0,224,255,.7), 0 0 20px rgba(0,224,255,.5); }
+            .text-glow-cyan { color: #00D4FF; text-shadow: 0 0 8px rgba(0,224,255,.7), 0 0 20px rgba(0,224,255,.5); }
             .cyan-halo {
               position: absolute;
               top: 25%; left: 50%; transform: translate(-50%, -50%);

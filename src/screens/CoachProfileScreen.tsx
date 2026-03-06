@@ -96,7 +96,7 @@ export default function CoachProfileScreen() {
 
         {loading ? (
           <div style={{ display: "flex", alignItems: "center", gap: 12, padding: 40 }}>
-            <ActivityIndicator color="#00E0FF" />
+            <ActivityIndicator color="#00D4FF" />
             <span style={{ color: "rgba(255,255,255,0.6)", fontSize: 14 }}>Loading...</span>
           </div>
         ) : (
@@ -108,7 +108,7 @@ export default function CoachProfileScreen() {
               alignItems: "center",
               gap: 16,
               background: "#0D1526",
-              border: "1px solid rgba(0,224,255,0.15)",
+              border: "1px solid rgba(0,212,255,0.15)",
               borderRadius: 16,
               padding: "20px 24px",
             }}>
@@ -116,14 +116,14 @@ export default function CoachProfileScreen() {
                 width: 56,
                 height: 56,
                 borderRadius: "50%",
-                background: "linear-gradient(135deg, #00E0FF33, #4A67FF44)",
-                border: "1px solid rgba(0,224,255,0.35)",
+                background: "linear-gradient(135deg, #00D4FF33, #4A67FF44)",
+                border: "1px solid rgba(0,212,255,0.35)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 fontSize: 20,
                 fontWeight: 700,
-                color: "#00E0FF",
+                color: "#00D4FF",
                 flexShrink: 0,
               }}>
                 {(fullName || email || "C").slice(0, 1).toUpperCase()}
@@ -139,14 +139,14 @@ export default function CoachProfileScreen() {
             {/* Team info */}
             <div style={{
               background: "#0D1526",
-              border: "1px solid rgba(0,224,255,0.15)",
+              border: "1px solid rgba(0,212,255,0.15)",
               borderRadius: 16,
               padding: "20px 24px",
             }}>
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>
                 Team
               </div>
-              <div style={{ fontSize: 16, fontWeight: 600, color: "#00E0FF" }}>
+              <div style={{ fontSize: 16, fontWeight: 600, color: "#00D4FF" }}>
                 {teamName || "—"}
               </div>
             </div>
@@ -155,7 +155,7 @@ export default function CoachProfileScreen() {
             {coachCode ? (
               <div style={{
                 background: "#0D1526",
-                border: "1px solid rgba(0,224,255,0.15)",
+                border: "1px solid rgba(0,212,255,0.15)",
                 borderRadius: 16,
                 padding: "20px 24px",
               }}>
@@ -178,9 +178,9 @@ export default function CoachProfileScreen() {
                     style={{
                       padding: "8px 16px",
                       borderRadius: 10,
-                      border: "1px solid rgba(0,224,255,0.35)",
-                      background: copied ? "rgba(0,255,136,0.15)" : "rgba(0,224,255,0.1)",
-                      color: copied ? "#00FF88" : "#00E0FF",
+                      border: "1px solid rgba(0,212,255,0.35)",
+                      background: copied ? "rgba(0,255,136,0.15)" : "rgba(0,212,255,0.1)",
+                      color: copied ? "#00FF88" : "#00D4FF",
                       fontSize: 13,
                       fontWeight: 600,
                       cursor: "pointer",
