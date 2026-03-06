@@ -10,7 +10,7 @@ const webLogoStyle = {
   height: "auto",
   display: "block",
   margin: "0 auto",
-  mixBlendMode: "multiply" as const,
+  mixBlendMode: "screen" as const,
 } as const;
 
 const nativeLogoStyle = {
@@ -23,7 +23,7 @@ export default function ChampionTrackProLogo() {
   if (Platform.OS === "web") {
     return (
       <img
-        src="/logo/logo_nobackground.png"
+        src="/logo/logo_final.jpeg"
         alt=""
         style={webLogoStyle}
       />

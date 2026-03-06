@@ -43,7 +43,6 @@ export default function StitchLandingScreen() {
               display: "block",
               margin: "0 auto",
               mixBlendMode: "screen",
-              animation: "logoReveal 1.4s cubic-bezier(0.22, 1, 0.36, 1) forwards",
             }}
           />
         </div>
@@ -78,7 +77,6 @@ export default function StitchLandingScreen() {
               cursor: "pointer",
               marginBottom: 12,
               transition: "opacity 0.2s",
-              animation: "fadeUp 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.8s both",
             }}
             onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.88")}
             onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
@@ -101,7 +99,6 @@ export default function StitchLandingScreen() {
               textTransform: "uppercase",
               cursor: "pointer",
               transition: "border-color 0.2s",
-              animation: "fadeUp 0.7s cubic-bezier(0.22, 1, 0.36, 1) 1s both",
             }}
             onMouseEnter={(e) => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.5)")}
             onMouseLeave={(e) => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.2)")}
