@@ -314,7 +314,7 @@ export default function CoachScheduleScreen() {
           })
         );
 
-        result.sort((a, b) => b.startUtc - a.startUtc);
+        result.sort((a, b) => a.startUtc - b.startUtc);
 
         if (!cancelled) {
           setTrainings(result);
@@ -336,11 +336,7 @@ export default function CoachScheduleScreen() {
   const trainingsForDay = (dayMs: number) =>
     trainings
       .filter((t) => isSameDay(t.startUtc, dayMs))
-      .sort((a, b) => {
-        const aTime = ((a as any).startUtc?.toMillis?.()) ?? (((a as any).startUtc?.seconds ?? 0) * 1000);
-        const bTime = ((b as any).startUtc?.toMillis?.()) ?? (((b as any).startUtc?.seconds ?? 0) * 1000);
-        return aTime - bTime;
-      });
+      .sort((a, b) => a.startUtc - b.startUtc);
 
   const trainingsForMonth = (monthStartMs: number) => {
     const d = new Date(monthStartMs);

@@ -198,12 +198,13 @@ export default function CoachTeamScreen() {
                 <div
                   key={athlete.uid}
                   onClick={() =>
-                    navigation.navigate("Analytics", {
+                    navigation.navigate("AthleteDetail", {
                       teamId,
                       teamName,
-                      role: "coach",
                       athleteId: athlete.uid,
                       athleteName: athlete.name,
+                      jerseyNumber: athlete.jerseyNumber,
+                      position: athlete.position,
                     })
                   }
                   style={{

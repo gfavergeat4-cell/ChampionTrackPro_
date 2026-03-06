@@ -1,22 +1,33 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Platform, View, Text, ActivityIndicator } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { signOut } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
-import { auth, db } from "../lib/firebase";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { auth, db, storage } from "../lib/firebase";
 import { useIsDesktop } from "../hooks/useIsDesktop";
 import { CommonActions } from "@react-navigation/native";
 
 export default function CoachProfileScreen() {
   const navigation = useNavigation<any>();
   const isDesktop = useIsDesktop();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [teamName, setTeamName] = useState("");
   const [coachCode, setCoachCode] = useState("");
+  const [photoURL, setPhotoURL] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+
+  // Edit mode
+  const [editMode, setEditMode] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editPhotoURL, setEditPhotoURL] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -28,7 +39,10 @@ export default function CoachProfileScreen() {
 
         const userSnap = await getDoc(doc(db, "users", user.uid));
         const userData = (userSnap.data() as any) || {};
-        if (!cancelled) setFullName(userData.fullName || userData.displayName || "");
+        if (!cancelled) {
+          setFullName(userData.fullName || userData.displayName || "");
+          setPhotoURL(userData.photoURL || null);
+        }
 
         const tid: string | null = userData.teamId || null;
         if (tid) {
@@ -67,6 +81,56 @@ export default function CoachProfileScreen() {
     }
   };
 
+  const startEdit = () => {
+    setEditName(fullName);
+    setEditPhone("");
+    setEditPhotoURL(photoURL);
+    setSaveError(null);
+    setEditMode(true);
+  };
+
+  const cancelEdit = () => {
+    setEditMode(false);
+    setSaveError(null);
+  };
+
+  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const user = auth.currentUser;
+    if (!user) return;
+    try {
+      const storageRef = ref(storage, `profiles/${user.uid}/avatar.jpg`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      setEditPhotoURL(url);
+    } catch (err: any) {
+      setSaveError("Photo upload failed: " + (err?.message || String(err)));
+    }
+  };
+
+  const handleSave = async () => {
+    const user = auth.currentUser;
+    if (!user) return;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const updates: Record<string, any> = {
+        fullName: editName.trim() || fullName,
+      };
+      if (editPhotoURL) updates.photoURL = editPhotoURL;
+
+      await updateDoc(doc(db, "users", user.uid), updates);
+      setFullName(updates.fullName);
+      if (editPhotoURL) setPhotoURL(editPhotoURL);
+      setEditMode(false);
+    } catch (err: any) {
+      setSaveError(err?.message || String(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (Platform.OS !== "web") {
     return (
       <View style={{ flex: 1, backgroundColor: "#0A0F1E", justifyContent: "center", alignItems: "center" }}>
@@ -76,6 +140,7 @@ export default function CoachProfileScreen() {
   }
 
   const maxWidth = isDesktop ? 640 : 480;
+  const initials = (fullName || email || "C").slice(0, 1).toUpperCase();
 
   return (
     <div style={{
@@ -90,9 +155,29 @@ export default function CoachProfileScreen() {
       <div style={{ maxWidth, margin: "0 auto" }}>
 
         {/* Header */}
-        <h1 style={{ fontSize: isDesktop ? 28 : 22, fontWeight: 700, color: "#FFFFFF", margin: "0 0 32px" }}>
-          Profile
-        </h1>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 32 }}>
+          <h1 style={{ fontSize: isDesktop ? 28 : 22, fontWeight: 700, color: "#FFFFFF", margin: 0 }}>
+            Profile
+          </h1>
+          {!editMode && !loading && (
+            <button
+              type="button"
+              onClick={startEdit}
+              style={{
+                padding: "8px 20px",
+                borderRadius: 10,
+                border: "1px solid rgba(0,212,255,0.35)",
+                background: "rgba(0,212,255,0.08)",
+                color: "#00D4FF",
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Edit
+            </button>
+          )}
+        </div>
 
         {loading ? (
           <div style={{ display: "flex", alignItems: "center", gap: 12, padding: 40 }}>
@@ -109,32 +194,130 @@ export default function CoachProfileScreen() {
               gap: 16,
               background: "#0D1526",
               border: "1px solid rgba(0,212,255,0.15)",
+              borderTop: "2px solid rgba(0,212,255,0.25)",
               borderRadius: 16,
               padding: "20px 24px",
             }}>
-              <div style={{
-                width: 56,
-                height: 56,
-                borderRadius: "50%",
-                background: "linear-gradient(135deg, #00D4FF33, #4A67FF44)",
-                border: "1px solid rgba(0,212,255,0.35)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 20,
-                fontWeight: 700,
-                color: "#00D4FF",
-                flexShrink: 0,
-              }}>
-                {(fullName || email || "C").slice(0, 1).toUpperCase()}
+              {/* Avatar */}
+              <div style={{ position: "relative", flexShrink: 0 }}>
+                {(editMode ? editPhotoURL : photoURL) ? (
+                  <img
+                    src={(editMode ? editPhotoURL : photoURL)!}
+                    alt="avatar"
+                    style={{ width: 56, height: 56, borderRadius: "50%", objectFit: "cover", border: "2px solid rgba(0,212,255,0.4)" }}
+                  />
+                ) : (
+                  <div style={{
+                    width: 56,
+                    height: 56,
+                    borderRadius: "50%",
+                    background: "linear-gradient(135deg, #00D4FF33, #4A67FF44)",
+                    border: "1px solid rgba(0,212,255,0.35)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 20,
+                    fontWeight: 700,
+                    color: "#00D4FF",
+                  }}>
+                    {initials}
+                  </div>
+                )}
+                {editMode && (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    style={{
+                      position: "absolute",
+                      bottom: -4,
+                      right: -4,
+                      width: 24,
+                      height: 24,
+                      borderRadius: "50%",
+                      background: "#00D4FF",
+                      border: "none",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: 0,
+                    }}
+                  >
+                    <svg width="12" height="12" fill="none" stroke="#0A0F1E" strokeWidth="2.5" viewBox="0 0 24 24">
+                      <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  style={{ display: "none" }}
+                  onChange={handlePhotoSelect}
+                />
               </div>
-              <div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: "#FFFFFF" }}>
-                  {fullName || "Coach"}
-                </div>
-                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginTop: 2 }}>{email}</div>
+
+              {/* Name/email */}
+              <div style={{ flex: 1 }}>
+                {editMode ? (
+                  <input
+                    type="text"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    placeholder="Full name"
+                    style={{
+                      width: "100%",
+                      background: "rgba(255,255,255,0.06)",
+                      border: "1px solid rgba(0,212,255,0.35)",
+                      borderRadius: 8,
+                      color: "#FFFFFF",
+                      fontSize: 15,
+                      fontWeight: 600,
+                      padding: "8px 12px",
+                      outline: "none",
+                      marginBottom: 6,
+                    }}
+                  />
+                ) : (
+                  <div style={{ fontSize: 18, fontWeight: 700, color: "#FFFFFF" }}>
+                    {fullName || "Coach"}
+                  </div>
+                )}
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginTop: editMode ? 0 : 2 }}>{email}</div>
               </div>
             </div>
+
+            {/* Phone (edit only) */}
+            {editMode && (
+              <div style={{
+                background: "#0D1526",
+                border: "1px solid rgba(0,212,255,0.15)",
+                borderRadius: 16,
+                padding: "16px 24px",
+              }}>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>
+                  Phone (optional)
+                </div>
+                <input
+                  type="tel"
+                  value={editPhone}
+                  onChange={(e) => setEditPhone(e.target.value)}
+                  placeholder="+1 555 000 0000"
+                  style={{
+                    width: "100%",
+                    background: "rgba(255,255,255,0.06)",
+                    border: "1px solid rgba(0,212,255,0.25)",
+                    borderRadius: 8,
+                    color: "#FFFFFF",
+                    fontSize: 14,
+                    padding: "8px 12px",
+                    outline: "none",
+                    boxSizing: "border-box",
+                  }}
+                />
+              </div>
+            )}
 
             {/* Team info */}
             <div style={{
@@ -196,28 +379,77 @@ export default function CoachProfileScreen() {
               </div>
             ) : null}
 
-            {/* Logout */}
-            <button
-              type="button"
-              onClick={handleLogout}
-              style={{
-                width: "100%",
-                padding: "16px",
-                borderRadius: 12,
-                background: "rgba(239,68,68,0.1)",
-                border: "1px solid rgba(239,68,68,0.3)",
-                color: "#EF4444",
-                fontSize: 15,
-                fontWeight: 600,
-                cursor: "pointer",
-                transition: "background 0.2s",
-                marginTop: 8,
-              }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(239,68,68,0.18)"; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(239,68,68,0.1)"; }}
-            >
-              Log Out
-            </button>
+            {/* Save error */}
+            {saveError && (
+              <div style={{ color: "#FCA5A5", fontSize: 13, padding: "8px 12px", background: "rgba(239,68,68,0.1)", borderRadius: 8 }}>
+                {saveError}
+              </div>
+            )}
+
+            {/* Edit actions */}
+            {editMode ? (
+              <div style={{ display: "flex", gap: 12 }}>
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={saving}
+                  style={{
+                    flex: 1,
+                    padding: "14px",
+                    borderRadius: 12,
+                    background: saving ? "rgba(0,212,255,0.3)" : "linear-gradient(135deg, #00BFFF, #0066FF)",
+                    border: "none",
+                    color: "#FFFFFF",
+                    fontSize: 14,
+                    fontWeight: 700,
+                    cursor: saving ? "default" : "pointer",
+                    transition: "opacity 0.2s",
+                  }}
+                >
+                  {saving ? "Saving..." : "Save Changes"}
+                </button>
+                <button
+                  type="button"
+                  onClick={cancelEdit}
+                  disabled={saving}
+                  style={{
+                    padding: "14px 24px",
+                    borderRadius: 12,
+                    background: "transparent",
+                    border: "1px solid rgba(255,255,255,0.2)",
+                    color: "rgba(255,255,255,0.7)",
+                    fontSize: 14,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              /* Logout */
+              <button
+                type="button"
+                onClick={handleLogout}
+                style={{
+                  width: "100%",
+                  padding: "16px",
+                  borderRadius: 12,
+                  background: "rgba(239,68,68,0.1)",
+                  border: "1px solid rgba(239,68,68,0.3)",
+                  color: "#EF4444",
+                  fontSize: 15,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  transition: "background 0.2s",
+                  marginTop: 8,
+                }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(239,68,68,0.18)"; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(239,68,68,0.1)"; }}
+              >
+                Log Out
+              </button>
+            )}
           </div>
         )}
       </div>

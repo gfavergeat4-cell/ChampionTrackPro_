@@ -29,6 +29,7 @@ import CoachHomeScreen from "../src/screens/CoachHomeScreen";
 import CoachTeamScreen from "../src/screens/CoachTeamScreen";
 import CoachProfileScreen from "../src/screens/CoachProfileScreen";
 import CoachScheduleScreen from "../src/screens/CoachScheduleScreen";
+import AthleteDetailScreen from "../src/screens/AthleteDetailScreen";
 
 const AuthStack = createNativeStackNavigator();
 const RootStack = createNativeStackNavigator();
@@ -331,6 +332,7 @@ function RootStackNavigator({ role, user, pendingDeepLink, navigationRef }) {
     return (
       <RootStack.Navigator screenOptions={{ headerShown: false }}>
         <RootStack.Screen name="CoachMain" component={CoachTabs} />
+        <RootStack.Screen name="AthleteDetail" component={AthleteDetailScreen} />
         <RootStack.Screen name="DebugTestQuestionnaire" component={DebugTestQuestionnaireScreen} />
         <RootStack.Screen 
           name="Questionnaire" 

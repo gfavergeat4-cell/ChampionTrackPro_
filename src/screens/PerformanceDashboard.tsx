@@ -37,6 +37,7 @@ interface PerformanceDashboardProps {
       role?: Role;
       teamId?: string;
       teamName?: string;
+      athleteId?: string;
     };
   };
 }
@@ -210,7 +211,10 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
   });
 
   const [members, setMembers] = useState<Member[]>([]);
-  const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([]);
+  const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>(() => {
+    const aid = route?.params?.athleteId;
+    return typeof aid === "string" && aid.trim() ? [aid.trim()] : [];
+  });
   const [selectedPositions, setSelectedPositions] = useState<string[]>([]);
 
   const [durationMode, setDurationMode] = useState<"preset" | "custom">("preset");
@@ -385,6 +389,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
           where("submittedAt", "<=", endTs)
         );
         const snap = await getDocs(qy);
+        console.log("[Dashboard] responses loaded:", snap.size, "| teamId:", selectedTeamId, "| range:", start.toISOString(), "→", end.toISOString());
         if (cancelled) return;
 
         const resps: RawResponse[] = [];
