@@ -43,6 +43,8 @@ export default function StitchQuestionnaireScreen() {
   const [isCheckingAccess, setIsCheckingAccess] = useState(true);
   const [accessDeniedReason, setAccessDeniedReason] = useState(null);
   const [trainingInfoForMessage, setTrainingInfoForMessage] = useState(null);
+  const [displayTitle, setDisplayTitle] = useState(null);
+  const [displayDate, setDisplayDate] = useState(null);
 
   useEffect(() => {
     const checkAccess = async () => {
@@ -83,6 +85,15 @@ export default function StitchQuestionnaireScreen() {
         const endUtc = trainingData?.endUtc;
         const endMillis = endUtc?.toMillis?.() ?? null;
         const displayTz = trainingData?.displayTz || "Europe/Paris";
+
+        // Extraire le titre et l'horaire réels du training
+        const rawTitle = trainingData?.title || trainingData?.summary || eventTitle || "Training";
+        const formatTime = (ts) => ts ? new Date(ts?.seconds ? ts.seconds * 1000 : ts).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : null;
+        const startFormatted = formatTime(trainingData?.startUtc);
+        const endFormatted = formatTime(trainingData?.endUtc);
+        const rawDate = (startFormatted && endFormatted) ? `${startFormatted} – ${endFormatted}` : (eventDate || "");
+        setDisplayTitle(rawTitle);
+        setDisplayDate(rawDate);
 
         // Stocker les informations du training pour l'affichage du message d'accès refusé
         setTrainingInfoForMessage({
@@ -981,7 +992,7 @@ export default function StitchQuestionnaireScreen() {
                   color: "rgba(255, 255, 255, 0.9)",
                   margin: 0,
                 }}>
-                  {eventTitle || "Practice"}
+                  {displayTitle || eventTitle || "Training"}
                 </h1>
                 <div style={{
                   position: "absolute",
@@ -997,7 +1008,7 @@ export default function StitchQuestionnaireScreen() {
                 color: "rgba(154, 163, 178, 0.7)",
                 margin: "8px 0 0 0",
               }}>
-                {eventDate || "2:00 PM – 3:30 PM"}
+                {displayDate || eventDate || ""}
               </p>
             </header>
 
