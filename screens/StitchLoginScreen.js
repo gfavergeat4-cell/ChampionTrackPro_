@@ -73,7 +73,7 @@ export default function StitchLoginScreen() {
           <img
             src="/logo/logo_bon.png"
             alt=""
-            style={{ width: 280, height: 140, objectFit: "contain", display: "block", margin: "0 auto" }}
+            style={{ width: 480, height: 240, objectFit: "contain", mixBlendMode: "screen", display: "block", margin: "0 auto" }}
           />
         </div>
 
