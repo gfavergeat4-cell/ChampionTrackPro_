@@ -588,8 +588,8 @@ export async function getEventsWithResponseStatus(
 
         // Log temporaire détaillé pour vérifier que les 4 états peuvent apparaître
         const nowMillis = now.toMillis();
-        const openTime = endMillisNormalized ? endMillisNormalized + 30 * 60 * 1000 : null;
-        const closeTime = endMillisNormalized ? endMillisNormalized + (30 + 300) * 60 * 1000 : null;
+        const openTime = endMillisNormalized ? endMillisNormalized : null;
+        const closeTime = endMillisNormalized ? endMillisNormalized + 300 * 60 * 1000 : null;
         console.log("[DBG][EVENT_STATE]", {
           id: event.id,
           title: event.title,

@@ -6,7 +6,7 @@ export type QuestionnaireWindow = {
   closeAt: DateTime;  // when it closes
 };
 
-const OPEN_DELAY_MINUTES = 30;
+const OPEN_DELAY_MINUTES = 0;
 const AVAILABLE_HOURS = 5;
 const QUESTIONNAIRE_WINDOW_MINUTES = AVAILABLE_HOURS * 60;
 
@@ -35,7 +35,7 @@ export type QuestionnaireStatus =
  */
 export type QuestionnaireState =
   | 'respond'      // Questionnaire disponible (30 min à 5 h après la fin)
-  | 'comingSoon'   // Training en cours ou dans les 30 premières minutes post-session
+  | 'comingSoon'   // Training en cours ou pas encore terminé
   | 'expired'      // Fenêtre dépassée (> 5 h après la fin)
   | 'completed';   // Questionnaire déjà répondu
 
@@ -66,7 +66,7 @@ export function computeQuestionnaireStatus(
   const openAtMillis = openAt.toMillis();
   const closeAtMillis = closeAt.toMillis();
 
-  // Le questionnaire s'ouvre 30 minutes après la fin de l'entraînement
+  // Le questionnaire s'ouvre immédiatement après la fin de l'entraînement
   if (nowMillis < openAtMillis) return 'not_open_yet';
   if (nowMillis > closeAtMillis) return 'closed';
   return 'open';

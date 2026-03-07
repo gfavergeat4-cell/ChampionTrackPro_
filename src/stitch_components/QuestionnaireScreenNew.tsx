@@ -171,11 +171,10 @@ export default function QuestionnaireScreen({
         
         if (status === 'not_open_yet') {
           const openAt = DateTime.fromMillis(endMillis, { zone: 'utc' })
-            .plus({ minutes: 30 })
             .setZone(eventData.displayTz || 'Europe/Paris');
           Alert.alert(
             "Questionnaire non disponible",
-            `Le questionnaire sera disponible à ${openAt.toFormat('HH:mm')} (30 minutes après la fin de l'entraînement).`,
+            `Le questionnaire sera disponible à ${openAt.toFormat('HH:mm')} (dès la fin de l'entraînement).`,
             [{ text: "OK", onPress: onBack }]
           );
         } else if (status === 'closed') {
