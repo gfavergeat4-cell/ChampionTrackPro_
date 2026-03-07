@@ -3,9 +3,11 @@ import { useNavigation } from "@react-navigation/native";
 import { View, Platform, Alert } from "react-native";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../services/firebaseConfig";
+import { useIsDesktop } from "../src/hooks/useIsDesktop";
 
 export default function StitchLoginScreen() {
   const navigation = useNavigation();
+  const isDesktop = useIsDesktop();
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
 
@@ -73,7 +75,7 @@ export default function StitchLoginScreen() {
           <img
             src="/logo/logo_bon.png"
             alt=""
-            style={{ width: 480, height: 240, objectFit: "contain", mixBlendMode: "screen", display: "block", margin: "0 auto" }}
+            style={{ width: isDesktop ? 480 : 260, height: isDesktop ? 240 : 130, objectFit: "contain", mixBlendMode: "screen", display: "block", margin: "0 auto" }}
           />
         </div>
 

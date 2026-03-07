@@ -3,9 +3,11 @@ import React from "react";
 import { useNavigation } from "@react-navigation/native";
 import { View, Platform } from "react-native";
 import PWAInstallBanner from "../src/components/PWAInstallBanner";
+import { useIsDesktop } from "../src/hooks/useIsDesktop";
 
 export default function StitchLandingScreen() {
   const navigation = useNavigation();
+  const isDesktop = useIsDesktop();
 
   const handleCreateAccount = () => navigation.navigate("CreateAccount");
   const handleLogin = () => navigation.navigate("Login");
@@ -31,8 +33,8 @@ export default function StitchLandingScreen() {
             src="/logo/logo_bon.png"
             alt=""
             style={{
-              width: 480,
-              height: 240,
+              width: isDesktop ? 480 : 260,
+              height: isDesktop ? 240 : 130,
               objectFit: 'contain',
               mixBlendMode: 'screen',
               display: 'block',
