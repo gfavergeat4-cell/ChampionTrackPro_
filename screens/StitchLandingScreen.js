@@ -35,12 +35,12 @@ export default function StitchLandingScreen() {
           }}
         >
           <Image
-            source={{ uri: '/logo/logo_final.jpeg' }}
+            source={{ uri: '/logo/logo_bon.png' }}
             style={{
-              width: 220,
-              height: 110,
+              width: 320,
+              height: 160,
               resizeMode: 'contain',
-              mixBlendMode: 'screen',
+              mixBlendMode: 'multiply',
             }}
           />
         </div>
