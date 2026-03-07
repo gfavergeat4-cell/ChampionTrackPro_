@@ -2,6 +2,7 @@
 import React from "react";
 import { useNavigation } from "@react-navigation/native";
 import { View, Platform } from "react-native";
+import PWAInstallBanner from "../src/components/PWAInstallBanner";
 
 export default function StitchLandingScreen() {
   const navigation = useNavigation();
@@ -11,6 +12,8 @@ export default function StitchLandingScreen() {
 
   if (Platform.OS === "web") {
     return (
+      <>
+      <PWAInstallBanner />
       <div
         style={{
           width: "100%",
@@ -100,6 +103,7 @@ export default function StitchLandingScreen() {
           </button>
         </div>
       </div>
+      </>
     );
   }
 

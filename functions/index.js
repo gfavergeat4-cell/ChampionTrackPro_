@@ -727,7 +727,7 @@ exports.sendQuestionnaireAvailableNotifications = functions
       console.log("[FCM] clickAction:", clickAction);
       const notifTitle = "Questionnaire available";
       const notifBody = `Rate your session: ${title}`;
-      const REMINDER_HOURS = 2;
+      const REMINDER_HOURS = 3;
       const dueAtReminder = admin.firestore.Timestamp.fromMillis(nowMs + REMINDER_HOURS * 60 * 60 * 1000);
 
       // Envoyer une notification Ã  chaque athlÃ¨te + planifier rappel 2h si non rÃ©pondu
