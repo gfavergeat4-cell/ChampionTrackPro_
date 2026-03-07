@@ -30,17 +30,18 @@ export default function StitchLandingScreen() {
             left: "50%",
             transform: "translate(-50%, -50%)",
             width: "100%",
-            padding: "0 24px",
-            boxSizing: "border-box",
+            alignItems: "center",
+            justifyContent: "center",
           }}
         >
           <Image
             source={{ uri: '/logo/logo_bon.png' }}
             style={{
-              width: 320,
-              height: 160,
+              width: 420,
+              height: 210,
               resizeMode: 'contain',
-              mixBlendMode: 'multiply',
+              mixBlendMode: 'screen',
+              alignSelf: 'center',
             }}
           />
         </div>
