@@ -2,6 +2,7 @@
 import React from "react";
 import { useNavigation } from "@react-navigation/native";
 import { View, Platform } from "react-native";
+import AnimatedLogo from '../src/components/AnimatedLogo';
 
 export default function StitchLandingScreen() {
   const navigation = useNavigation();
@@ -34,17 +35,7 @@ export default function StitchLandingScreen() {
             boxSizing: "border-box",
           }}
         >
-          <img
-            src="/logo/logo_clean.png"
-            alt=""
-            style={{
-              width: 420,
-              maxWidth: '92%',
-              height: 'auto',
-              display: 'block',
-              margin: '0 auto',
-            }}
-          />
+          <AnimatedLogo size={180} />
         </div>
 
         {/* Buttons pinned to bottom */}
