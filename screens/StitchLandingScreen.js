@@ -30,8 +30,9 @@ export default function StitchLandingScreen() {
             left: "50%",
             transform: "translate(-50%, -50%)",
             width: "100%",
-            alignItems: "center",
+            display: "flex",
             justifyContent: "center",
+            alignItems: "center",
           }}
         >
           <Image
@@ -41,7 +42,6 @@ export default function StitchLandingScreen() {
               height: 210,
               resizeMode: 'contain',
               mixBlendMode: 'screen',
-              alignSelf: 'center',
             }}
           />
         </div>
