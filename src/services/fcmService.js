@@ -48,14 +48,12 @@ export async function initializeFCM() {
     });
 
     if (!token) {
-      console.warn("[FCM] Token vide — verifie la VAPID key");
+      console.warn("[FCM] Token vide ï¿½ verifie la VAPID key");
       return null;
     }
 
     console.log("[FCM] Token obtenu:", token.substring(0, 20) + "...");
-    if (/Android|iPhone/i.test(navigator.userAgent)) {
-      alert("FCM Token mobile: " + token.substring(0, 40));
-    }
+    console.log("[FCM] Token mobile registered");
     await saveFCMToken(token);
 
     onMessage(messaging, (payload) => {
@@ -74,7 +72,7 @@ async function saveFCMToken(token) {
   const auth = getAuth(app);
   const user = auth.currentUser;
   if (!user) {
-    console.warn("[FCM] Aucun utilisateur connecte — token non sauvegarde");
+    console.warn("[FCM] Aucun utilisateur connecte ï¿½ token non sauvegarde");
     return;
   }
   const tokenData = {

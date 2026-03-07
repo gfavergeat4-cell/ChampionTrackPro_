@@ -724,6 +724,7 @@ exports.sendQuestionnaireAvailableNotifications = functions
 
       // URL de deep-link vers l'app web + questionnaire
       const clickAction = `https://champion-track-pro.vercel.app/?sessionId=${trainingId}&openQuestionnaire=1`;
+      console.log("[FCM] clickAction:", clickAction);
       const notifTitle = "Questionnaire available";
       const notifBody = `Rate your session: ${title}`;
       const REMINDER_HOURS = 2;
@@ -850,12 +851,14 @@ exports.sendQuestionnaireReminders = functions
   .pubsub.schedule("every 5 minutes")
   .timeZone("Europe/Paris")
   .onRun(async () => {
+    console.log("[REMINDER] Running at", new Date().toISOString());
     const now = admin.firestore.Timestamp.now();
     const remindersSnap = await db
       .collection("pendingQuestionnaireReminders")
-      .where("dueAt", "<=", now)
       .where("status", "==", "pending")
+      .where("dueAt", "<=", now)
       .get();
+    console.log("[REMINDER] Pending reminders found:", remindersSnap.docs.length);
 
     for (const docSnap of remindersSnap.docs) {
       const d = docSnap.data() || {};
