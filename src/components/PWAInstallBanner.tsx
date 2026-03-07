@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { Platform } from "react-native";
+import { registerWebPushTokenForCurrentUser } from "../services/webNotifications";
 
 const DISMISSED_KEY = "pwa-banner-dismissed";
 
 export default function PWAInstallBanner() {
   const [visible, setVisible] = useState(false);
+  const [deniedMsg, setDeniedMsg] = useState(false);
 
   useEffect(() => {
     if (Platform.OS !== "web" || typeof window === "undefined") return;
@@ -16,8 +18,10 @@ export default function PWAInstallBanner() {
     const isStandalone =
       window.matchMedia("(display-mode: standalone)").matches ||
       (window.navigator as any).standalone === true;
+    const alreadyGranted =
+      typeof Notification !== "undefined" && Notification.permission === "granted";
 
-    if (isIOS && !isStandalone) {
+    if (isIOS && isStandalone && !alreadyGranted) {
       setVisible(true);
     }
   }, []);
@@ -25,6 +29,20 @@ export default function PWAInstallBanner() {
   const handleDismiss = () => {
     localStorage.setItem(DISMISSED_KEY, "1");
     setVisible(false);
+  };
+
+  const handleEnableNotifications = async () => {
+    try {
+      await registerWebPushTokenForCurrentUser();
+      if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+        localStorage.setItem(DISMISSED_KEY, "1");
+        setVisible(false);
+      } else {
+        setDeniedMsg(true);
+      }
+    } catch {
+      setDeniedMsg(true);
+    }
   };
 
   if (!visible) return null;
@@ -77,7 +95,7 @@ export default function PWAInstallBanner() {
         </svg>
       </div>
 
-      {/* Text */}
+      {/* Text + button */}
       <div style={{ flex: 1 }}>
         <p
           style={{
@@ -90,37 +108,49 @@ export default function PWAInstallBanner() {
         >
           Enable Notifications
         </p>
-        <p
+
+        {deniedMsg ? (
+          <p
+            style={{
+              margin: "0 0 10px",
+              fontSize: 13,
+              color: "#FFB347",
+              lineHeight: 1.5,
+              fontFamily: "system-ui, -apple-system, sans-serif",
+            }}
+          >
+            Go to iPhone Settings → Notifications → ChampionTrackPro → Allow
+          </p>
+        ) : (
+          <p
+            style={{
+              margin: "0 0 10px",
+              fontSize: 13,
+              color: "rgba(255,255,255,0.6)",
+              lineHeight: 1.5,
+              fontFamily: "system-ui, -apple-system, sans-serif",
+            }}
+          >
+            Receive training alerts and reminders
+          </p>
+        )}
+
+        <button
+          onClick={handleEnableNotifications}
           style={{
-            margin: 0,
-            fontSize: 13,
-            color: "rgba(255,255,255,0.6)",
-            lineHeight: 1.5,
+            background: "#00D4FF",
+            color: "#000000",
+            border: "none",
+            borderRadius: 6,
+            padding: "10px 20px",
+            fontSize: 14,
+            fontWeight: 700,
+            cursor: "pointer",
             fontFamily: "system-ui, -apple-system, sans-serif",
           }}
         >
-          Tap{" "}
-          <svg
-            width="13"
-            height="13"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="rgba(255,255,255,0.8)"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            style={{ display: "inline", verticalAlign: "middle", marginBottom: 1 }}
-          >
-            <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-            <polyline points="16 6 12 2 8 6" />
-            <line x1="12" y1="2" x2="12" y2="15" />
-          </svg>{" "}
-          then{" "}
-          <span style={{ color: "#00D4FF", fontWeight: 600 }}>
-            &lsquo;Add to Home Screen&rsquo;
-          </span>{" "}
-          to receive training alerts
-        </p>
+          Enable Notifications
+        </button>
       </div>
 
       {/* Dismiss button */}
