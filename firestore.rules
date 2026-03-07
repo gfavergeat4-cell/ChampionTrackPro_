@@ -131,8 +131,8 @@ service cloud.firestore {
             let endUtc = training.data.endUtc;
             // Si pas de endUtc, on autorise (fallback pour compatibilité)
             return endUtc == null || (
-              request.time >= endUtc + duration.value(30, 'm') &&
-              request.time <= endUtc + duration.value(30, 'm') + duration.value(5, 'h')
+              request.time >= endUtc &&
+              request.time <= endUtc + duration.value(5, 'h')
             );
           }
 
