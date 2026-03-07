@@ -28,9 +28,9 @@ export default function StitchLandingScreen() {
             src="/logo/logo_bon.png"
             alt=""
             style={{
-              width: 320,
-              maxWidth: '80%',
-              height: 'auto',
+              width: 340,
+              height: 170,
+              objectFit: 'contain',
               display: 'block',
               margin: '0 auto',
             }}

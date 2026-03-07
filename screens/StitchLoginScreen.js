@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { View, Platform, Alert } from "react-native";
-import MobileViewport from "../src/components/MobileViewport";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../services/firebaseConfig";
 
@@ -11,58 +10,24 @@ export default function StitchLoginScreen() {
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
-    if (e) {
-      e.preventDefault();
-    }
-    
-    // Validation des champs
+    if (e) e.preventDefault();
     if (!formData.email || !formData.password) {
-      Alert.alert("Erreur", "Veuillez remplir tous les champs");
+      Alert.alert("Error", "Please fill in all fields");
       return;
     }
-
     setLoading(true);
-    
     try {
-      console.log("🔐 Tentative de connexion avec:", formData.email);
-      
-      // Authentification Firebase
-      const userCredential = await signInWithEmailAndPassword(
-        auth, 
-        formData.email.trim(), 
-        formData.password
-      );
-      
-      console.log("✅ Connexion réussie:", userCredential.user.email);
-      
-      // La navigation sera gérée automatiquement par l'AuthGate
-      // Pas besoin de naviguer manuellement
-      
+      await signInWithEmailAndPassword(auth, formData.email.trim(), formData.password);
     } catch (error) {
-      console.error("❌ Erreur de connexion:", error);
-      console.error("❌ Code d'erreur:", error.code);
-      console.error("❌ Message d'erreur:", error.message);
-      
-      let errorMessage = "Erreur lors de la connexion";
-      
-      if (error.code === "auth/user-not-found") {
-        errorMessage = "Aucun compte trouvé avec cette adresse email. Créez un compte d'abord.";
-      } else if (error.code === "auth/wrong-password") {
-        errorMessage = "Mot de passe incorrect";
-      } else if (error.code === "auth/invalid-credential") {
-        // Firebase v9+ utilise invalid-credential pour user-not-found ET wrong-password
-        errorMessage = "Email ou mot de passe incorrect. Vérifiez vos identifiants ou créez un compte.";
-      } else if (error.code === "auth/invalid-email") {
-        errorMessage = "Adresse email invalide";
-      } else if (error.code === "auth/too-many-requests") {
-        errorMessage = "Trop de tentatives. Veuillez réessayer plus tard";
-      } else if (error.code === "auth/network-request-failed") {
-        errorMessage = "Erreur de connexion. Vérifiez votre connexion internet";
-      } else {
-        errorMessage = `Erreur: ${error.message || error.code || "Erreur inconnue"}`;
-      }
-      
-      Alert.alert("Erreur de connexion", errorMessage);
+      let msg = "Login error";
+      if (error.code === "auth/user-not-found") msg = "No account found with this email.";
+      else if (error.code === "auth/wrong-password") msg = "Incorrect password.";
+      else if (error.code === "auth/invalid-credential") msg = "Invalid email or password.";
+      else if (error.code === "auth/invalid-email") msg = "Invalid email address.";
+      else if (error.code === "auth/too-many-requests") msg = "Too many attempts. Please try again later.";
+      else if (error.code === "auth/network-request-failed") msg = "Network error. Check your connection.";
+      else msg = error.message || error.code || "Unknown error";
+      Alert.alert("Login failed", msg);
     } finally {
       setLoading(false);
     }
@@ -70,51 +35,28 @@ export default function StitchLoginScreen() {
 
   if (Platform.OS === "web") {
     return (
-      <MobileViewport>
-        {/* Halo central */}
-        <div
-          style={{
-            position: "absolute",
-            left: "50%",
-            top: "25%",
-            transform: "translate(-50%, -50%)",
-            width: 750,
-            height: 260,
-            background:
-              "radial-gradient(circle, rgba(0,224,255,0.18) 0%, rgba(0,224,255,0) 70%)",
-            filter: "blur(60px)",
-            pointerEvents: "none",
-            zIndex: 1,
-          }}
-        />
-        {/* Bouton retour */}
+      <div style={{
+        width: "100%",
+        height: "100vh",
+        background: "radial-gradient(ellipse at 40% 30%, #0D2545 0%, #0A0F1E 65%)",
+        backgroundColor: "#0A0F1E",
+        position: "relative",
+        overflow: "hidden",
+        fontFamily: "'Inter', 'SF Pro Display', sans-serif",
+        WebkitFontSmoothing: "antialiased",
+        color: "#fff",
+      }}>
+
+        {/* Back button */}
         <button
           onClick={() => navigation.navigate("Landing")}
           style={{
-            position: "absolute",
-            top: 24,
-            left: 24,
-            zIndex: 10,
-            width: 40,
-            height: 40,
-            borderRadius: 20,
-            background: "rgba(26,26,26,0.8)",
+            position: "absolute", top: 24, left: 24, zIndex: 10,
+            width: 40, height: 40, borderRadius: 20,
+            background: "rgba(255,255,255,0.08)",
             border: "1px solid rgba(255,255,255,0.2)",
-            color: "#fff",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            cursor: "pointer",
-            transition: "all 0.2s ease",
-            backdropFilter: "blur(10px)",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = "rgba(26,26,26,0.9)";
-            e.currentTarget.style.borderColor = "rgba(0,224,255,0.5)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = "rgba(26,26,26,0.8)";
-            e.currentTarget.style.borderColor = "rgba(255,255,255,0.2)";
+            color: "#fff", display: "flex", alignItems: "center",
+            justifyContent: "center", cursor: "pointer",
           }}
         >
           <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -122,192 +64,118 @@ export default function StitchLoginScreen() {
           </svg>
         </button>
 
-        {/* Contenu */}
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            padding: 24,
-            color: "#fff",
-            WebkitFontSmoothing: "antialiased",
-            MozOsxFontSmoothing: "grayscale",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "flex-start",
-            gap: 24,
-            paddingTop: "25%",
-          }}
-        >
-          {/* Header – ChampionTrackPro logo */}
-          <div style={{ zIndex: 2, marginBottom: "40px" }}>
-            <img
-              src="/logo/logo_bon.png"
-              alt=""
-              style={{ width: 240, maxWidth: '80%', height: 'auto', display: 'block', margin: '0 auto' }}
-            />
-          </div>
+        {/* Logo */}
+        <div style={{
+          position: "absolute", top: "30%", left: "50%",
+          transform: "translate(-50%, -50%)",
+          width: "100%", display: "flex", justifyContent: "center",
+        }}>
+          <img
+            src="/logo/logo_bon.png"
+            alt=""
+            style={{ width: 280, height: 140, objectFit: "contain", display: "block", margin: "0 auto" }}
+          />
+        </div>
 
-          {/* Form */}
-          <main
-            style={{
-              width: "100%",
-              maxWidth: 420,
-              zIndex: 2,
-            }}
+        {/* Form + buttons */}
+        <div style={{
+          position: "absolute",
+          bottom: 0, left: "50%",
+          transform: "translateX(-50%)",
+          width: "100%", maxWidth: 420,
+          padding: "0 24px 40px",
+          boxSizing: "border-box",
+          display: "flex", flexDirection: "column", gap: 12,
+        }}>
+          <form
+            id="login-form"
+            onSubmit={handleSubmit}
+            style={{ display: "flex", flexDirection: "column", gap: 12 }}
+            autoComplete="off"
           >
-            <form
-              id="login-form"
-              onSubmit={handleSubmit}
-              style={{ display: "flex", flexDirection: "column", gap: 14 }}
+            <input
+              type="email"
+              placeholder="Email"
+              value={formData.email}
+              onChange={(e) => setFormData((p) => ({ ...p, email: e.target.value }))}
               autoComplete="off"
-            >
+              style={{
+                height: 52, width: "100%", boxSizing: "border-box",
+                backgroundColor: "#0D1526",
+                border: "1px solid rgba(0,212,255,0.14)",
+                borderRadius: 8, color: "#FFFFFF",
+                padding: "0 16px", fontSize: 15, outline: "none",
+              }}
+            />
+            <div style={{ position: "relative" }}>
               <input
-                type="email"
-                placeholder="Email or Username"
-                value={formData.email}
-                onChange={(e) =>
-                  setFormData((p) => ({ ...p, email: e.target.value }))
-                }
+                type="password"
+                placeholder="Password"
+                value={formData.password}
+                onChange={(e) => setFormData((p) => ({ ...p, password: e.target.value }))}
                 autoComplete="off"
-                autoCorrect="off"
-                autoCapitalize="off"
-                spellCheck={false}
-                style={inputStyle}
+                style={{
+                  height: 52, width: "100%", boxSizing: "border-box",
+                  backgroundColor: "#0D1526",
+                  border: "1px solid rgba(0,212,255,0.14)",
+                  borderRadius: 8, color: "#FFFFFF",
+                  padding: "0 48px 0 16px", fontSize: 15, outline: "none",
+                }}
               />
-
-              <div style={{ position: "relative" }}>
-                <input
-                  type="password"
-                  placeholder="Password"
-                  value={formData.password}
-                  onChange={(e) =>
-                    setFormData((p) => ({ ...p, password: e.target.value }))
-                  }
-                  autoComplete="off"
-                  autoCorrect="off"
-                  autoCapitalize="off"
-                  spellCheck={false}
-                  style={{ ...inputStyle, paddingRight: 48 }}
-                />
-                {/* œil déco */}
-                <div
-                  aria-hidden="true"
-                  style={{
-                    position: "absolute",
-                    right: 12,
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    color: "#9AA3B2",
-                    opacity: 0.85,
-                    pointerEvents: "none",
-                  }}
-                >
-                  <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-                    <path d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" strokeLinecap="round" strokeLinejoin="round"/>
-                    <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </div>
+              <div aria-hidden="true" style={{
+                position: "absolute", right: 14, top: "50%",
+                transform: "translateY(-50%)", color: "#9AA3B2", pointerEvents: "none",
+              }}>
+                <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                  <path d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
               </div>
+            </div>
 
-              <div style={{ textAlign: "right", marginTop: 2 }}>
-                <button
-                  type="button"
-                  onClick={() => {}}
-                  style={{
-                    fontSize: 14,
-                    fontWeight: 500,
-                    color: "#00D4FF",
-                    textDecoration: "underline",
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                  }}
-                >
-                  Forgot Password?
-                </button>
-              </div>
+            <div style={{ textAlign: "right" }}>
+              <button type="button" onClick={() => {}} style={{
+                fontSize: 13, color: "#00D4FF", textDecoration: "underline",
+                background: "none", border: "none", cursor: "pointer",
+              }}>
+                Forgot Password?
+              </button>
+            </div>
+          </form>
 
-            </form>
-          </main>
-
-          {/* Bouton LOG IN en bas */}
-          <div
+          <button
+            type="submit"
+            form="login-form"
+            onClick={(e) => { e.preventDefault(); handleSubmit(e); }}
+            disabled={loading}
             style={{
-              position: "absolute",
-              bottom: "15%",
-              left: 0,
-              right: 0,
-              padding: "0 24px env(safe-area-inset-bottom, 16px) 24px",
-              zIndex: 2,
+              width: "100%", height: 56, borderRadius: 8,
+              background: "linear-gradient(135deg, #00BFFF, #0066FF)",
+              boxShadow: "0 0 30px rgba(0,180,255,0.4)",
+              border: "none", color: "#fff",
+              fontWeight: 700, fontSize: 14, letterSpacing: "2px",
+              textTransform: "uppercase", cursor: loading ? "default" : "pointer",
+              opacity: loading ? 0.7 : 1, transition: "opacity 0.2s",
             }}
           >
-            <button 
-              type="submit" 
-              form="login-form"
-              onClick={(e) => {
-                e.preventDefault();
-                handleSubmit(e);
-              }}
-              style={{
-                ...primaryBtnStyle,
-                width: "100%",
-                marginBottom: 16,
-              }}
-              disabled={loading}
-            >
-              {loading ? "CONNEXION..." : "LOG IN"}
-            </button>
+            {loading ? "Logging in..." : "Log In"}
+          </button>
 
-            <div style={{ textAlign: "center", paddingBottom: 8 }}>
-              <p style={{ fontSize: 14, color: "#9CA3AF" }}>
-                Don't have an account?{" "}
-                <span
-                  onClick={() => navigation.navigate("CreateAccount")}
-                  style={{
-                    fontWeight: 500,
-                    color: "#00D4FF",
-                    cursor: "pointer",
-                    textDecoration: "underline",
-                  }}
-                >
-                  Create one
-                </span>
-              </p>
-            </div>
+          <div style={{ textAlign: "center" }}>
+            <p style={{ fontSize: 14, color: "#9CA3AF", margin: 0 }}>
+              Don't have an account?{" "}
+              <span
+                onClick={() => navigation.navigate("CreateAccount")}
+                style={{ color: "#00D4FF", cursor: "pointer", textDecoration: "underline" }}
+              >
+                Create one
+              </span>
+            </p>
           </div>
         </div>
-      </MobileViewport>
+      </div>
     );
   }
 
-  return <View style={{ flex: 1, backgroundColor: "#0E1528" }} />;
+  return <View style={{ flex: 1, backgroundColor: "#0A0F1E" }} />;
 }
-
-const inputStyle = {
-  height: "clamp(36px, 5vh, 44px)",
-  width: "100%",
-  borderRadius: 10,
-  padding: "0 14px",
-  background: "rgba(26,26,26,0.6)",
-  color: "#fff",
-  border: "1px solid transparent",
-  transition: "0.25s",
-  fontSize: "clamp(12px, 1.8vw, 14px)",
-};
-
-const primaryBtnStyle = {
-  width: "100%",
-  height: "clamp(40px, 6vh, 48px)",
-  borderRadius: 10,
-  textTransform: "uppercase",
-  fontWeight: 700,
-  fontSize: "clamp(12px, 2vw, 14px)",
-  letterSpacing: "0.06em",
-  color: "#fff",
-  backgroundImage: "linear-gradient(to right, #00D4FF, #4A67FF)",
-  boxShadow: "0 4px 20px rgba(0,224,255,0.30), 0 0 24px rgba(74,103,255,0.20)",
-  transition: "opacity 0.2s ease",
-  border: "none",
-  cursor: "pointer",
-};
