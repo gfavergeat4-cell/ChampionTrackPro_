@@ -198,9 +198,9 @@ export default function CoachHomeScreen() {
         {/* Logo */}
         <div style={{ paddingTop: 24, paddingBottom: 28 }}>
           <img
-            src="/logo/logo_clean.png"
+            src="/logo/logo_bon.png"
             alt=""
-            style={{ width: 300, maxWidth: '80%', height: 'auto', display: 'block', margin: '0 auto' }}
+            style={{ width: 240, maxWidth: '80%', height: 'auto', display: 'block', margin: '0 auto' }}
           />
         </div>
 

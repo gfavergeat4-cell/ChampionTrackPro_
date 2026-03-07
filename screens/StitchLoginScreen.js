@@ -142,15 +142,9 @@ export default function StitchLoginScreen() {
           {/* Header – ChampionTrackPro logo */}
           <div style={{ zIndex: 2, marginBottom: "40px" }}>
             <img
-              src="/logo/logo_clean.png"
+              src="/logo/logo_bon.png"
               alt=""
-              style={{
-                width: 300,
-                maxWidth: '80%',
-                height: 'auto',
-                display: 'block',
-                margin: '0 auto',
-              }}
+              style={{ width: 240, maxWidth: '80%', height: 'auto', display: 'block', margin: '0 auto' }}
             />
           </div>
 

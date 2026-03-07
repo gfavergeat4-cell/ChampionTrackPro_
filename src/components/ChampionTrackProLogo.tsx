@@ -7,7 +7,7 @@ export default function ChampionTrackProLogo() {
   if (Platform.OS === "web") {
     return (
       <img
-        src="/logo/logo_clean.png"
+        src="/logo/logo_bon.png"
         alt=""
         style={{ width: 300, maxWidth: "80%", height: "auto", display: "block", margin: "0 auto" }}
       />

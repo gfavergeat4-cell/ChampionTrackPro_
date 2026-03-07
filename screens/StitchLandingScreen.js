@@ -1,7 +1,7 @@
 // screens/StitchLandingScreen.js
 import React from "react";
 import { useNavigation } from "@react-navigation/native";
-import { View, Image, Platform } from "react-native";
+import { View, Platform } from "react-native";
 
 export default function StitchLandingScreen() {
   const navigation = useNavigation();
@@ -23,25 +23,16 @@ export default function StitchLandingScreen() {
         }}
       >
         {/* Logo centered at 38% */}
-        <div
-          style={{
-            position: "absolute",
-            top: "38%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            width: "100%",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-        >
-          <Image
-            source={{ uri: '/logo/logo_bon.png' }}
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flex: 1, position: 'absolute', top: '38%', left: '50%', transform: 'translate(-50%, -50%)', width: '100%' }}>
+          <img
+            src="/logo/logo_bon.png"
+            alt=""
             style={{
-              width: 420,
-              height: 210,
-              resizeMode: 'contain',
-              mixBlendMode: 'screen',
+              width: 320,
+              maxWidth: '80%',
+              height: 'auto',
+              display: 'block',
+              margin: '0 auto',
             }}
           />
         </div>
