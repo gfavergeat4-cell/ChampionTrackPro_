@@ -71,11 +71,13 @@ export async function registerWebPushTokenForCurrentUser(): Promise<void> {
   // Afficher l'Ã©tat de dÃ©bogage
   debugWebPushStatus();
 
-  // Demander la permission
-  const permission = await Notification.requestPermission();
-  if (permission !== "granted") {
-    console.log("[WEB PUSH] Notification permission not granted:", permission);
-    return;
+  // Demander la permission uniquement si pas encore accordée
+  if (Notification.permission !== "granted") {
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") {
+      console.log("[WEB PUSH] Notification permission not granted:", permission);
+      return;
+    }
   }
 
   console.log("[WEB PUSH] Notification permission granted");

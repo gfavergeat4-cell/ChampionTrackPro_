@@ -47,9 +47,12 @@ export default function StitchProfileScreen() {
   }, []);
 
   useEffect(() => {
-    if (Platform.OS === 'web' && typeof Notification !== 'undefined') {
-      setNotifPermission(Notification.permission);
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+    if (typeof Notification === 'undefined') {
+      setNotifPermission('denied');
+      return;
     }
+    setNotifPermission(Notification.permission);
   }, []);
 
   useEffect(() => {

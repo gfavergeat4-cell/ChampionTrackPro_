@@ -28,10 +28,12 @@ export async function initializeFCM() {
       return null;
     }
 
-    const permission = await Notification.requestPermission();
-    if (permission !== "granted") {
-      console.warn("[FCM] Permission refusee:", permission);
-      return null;
+    if (Notification.permission !== "granted") {
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        console.warn("[FCM] Permission refusee:", permission);
+        return null;
+      }
     }
 
     const registration = await navigator.serviceWorker.register(
