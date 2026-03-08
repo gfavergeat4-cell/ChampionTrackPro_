@@ -923,3 +923,83 @@ exports.sendQuestionnaireReminders = functions
     return null;
   });
 
+exports.sendTestNotification = functions
+  .region(REGION)
+  .https.onCall(async (data, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError("unauthenticated", "Login required");
+    }
+
+    const uid = context.auth.uid;
+    const { teamId, trainingId } = data;
+
+    // Récupère les tokens FCM de l'utilisateur
+    const userDoc = await db.collection("users").doc(uid).get();
+    const tokens = (userDoc.data() || {}).fcmWebTokens || [];
+
+    if (!tokens.length) {
+      throw new functions.https.HttpsError("not-found", "no_token");
+    }
+
+    // Récupère le training test
+    const trainingDoc = await db
+      .collection("teams").doc(teamId)
+      .collection("trainings").doc(trainingId)
+      .get();
+
+    if (!trainingDoc.exists) {
+      throw new functions.https.HttpsError("not-found", "training_not_found");
+    }
+
+    const clickAction = `https://champion-track-pro.vercel.app/?sessionId=${trainingId}&openQuestionnaire=1`;
+
+    const message = {
+      tokens,
+      notification: {
+        title: "🧪 Test Notification",
+        body: "Tap to open your test questionnaire",
+      },
+      data: {
+        url: clickAction,
+        clickAction,
+        trainingId,
+        teamId,
+        tag: "ctpro-test",
+      },
+      webpush: {
+        fcmOptions: { link: clickAction },
+        notification: {
+          icon: "https://champion-track-pro.vercel.app/icons/icon-192.png",
+          tag: "ctpro-test",
+          requireInteraction: true,
+        },
+      },
+    };
+
+    const response = await admin.messaging().sendEachForMulticast(message);
+
+    // Nettoie les tokens invalides
+    const invalidTokens = [];
+    response.responses.forEach((resp, idx) => {
+      if (
+        !resp.success &&
+        (resp.error?.code === "messaging/invalid-registration-token" ||
+          resp.error?.code === "messaging/registration-token-not-registered")
+      ) {
+        invalidTokens.push(tokens[idx]);
+      }
+    });
+    if (invalidTokens.length) {
+      const validTokens = tokens.filter((t) => !invalidTokens.includes(t));
+      await db.collection("users").doc(uid).update({ fcmWebTokens: validTokens });
+    }
+
+    // Marque le training comme notifié
+    await db
+      .collection("teams").doc(teamId)
+      .collection("trainings").doc(trainingId)
+      .update({ questionnaireNotified: true });
+
+    console.log(`[TEST NOTIF] Sent to ${response.successCount}/${tokens.length} tokens for uid=${uid}`);
+    return { success: true, sent: response.successCount };
+  });

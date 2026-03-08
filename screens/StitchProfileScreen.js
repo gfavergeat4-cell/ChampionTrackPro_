@@ -595,7 +595,7 @@ export default function StitchProfileScreen() {
                   </button>
                   {notifTestStatus === 'success' && (
                     <div style={{ fontSize: "13px", color: "#00FFC2", lineHeight: 1.5 }}>
-                      ✅ Test sent! You'll receive a notification in ~1 minute. Tap it to open a test questionnaire.
+                      ✅ Notification sent! It should appear in a few seconds.
                     </div>
                   )}
                   {notifTestStatus === 'no_token' && (

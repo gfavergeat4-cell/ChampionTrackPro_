@@ -1,5 +1,6 @@
 import { doc, getDoc, setDoc, Timestamp } from "firebase/firestore";
-import { auth, db } from "../../web/firebaseConfig.web";
+import { getFunctions, httpsCallable } from "firebase/functions";
+import { auth, db, app } from "../../web/firebaseConfig.web";
 
 export interface NotificationTestResult {
   success: boolean;
@@ -36,9 +37,14 @@ export async function testNotificationFlow(
     createdBy: uid,
   });
 
+  // 3. Send notification immediately via Cloud Function
+  const functions = getFunctions(app);
+  const sendTestNotif = httpsCallable(functions, "sendTestNotification");
+  await sendTestNotif({ teamId, trainingId });
+
   return {
     success: true,
     trainingId,
-    message: "Training test créé — notification dans ~1 minute",
+    message: "Notification sent! Check your device.",
   };
 }
