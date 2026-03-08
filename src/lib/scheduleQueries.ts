@@ -298,6 +298,7 @@ export async function getEventsForDateRange(options: ScheduleQueryOptions): Prom
     });
     
     const events = snapshot.docs
+      .filter(docSnap => !docSnap.data().isTestSession)
       .map(adaptTrainingSnapshot)
       .filter((event): event is FirestoreEvent => Boolean(event));
     
@@ -833,7 +834,7 @@ export async function getUpcomingTrainings(
     });
 
     // Utiliser getEventsWithResponseStatus qui calcule déjà questionnaireStatus
-    const events = await getEventsWithResponseStatus(
+    const allEvents = await getEventsWithResponseStatus(
       {
         teamId,
         startDate,
@@ -841,6 +842,8 @@ export async function getUpcomingTrainings(
       },
       userId
     );
+    // Exclure les sessions de test (créées par testNotificationFlow)
+    const events = allEvents.filter(ev => !(ev as any).isTestSession && !(ev as any).isTest);
 
     // Filtrer selon les règles d'affichage :
     // - Training futur → Coming Soon (à afficher)
