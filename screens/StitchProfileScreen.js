@@ -26,7 +26,8 @@ export default function StitchProfileScreen() {
     position: "",
   });
   const [profileImage, setProfileImage] = useState(null);
-  const [notifTestStatus, setNotifTestStatus] = useState('idle'); // 'idle' | 'loading' | 'success' | 'no_token'
+  const [notifTestStatus, setNotifTestStatus] = useState('idle'); // 'idle' | 'loading' | 'success' | 'denied'
+  const [notifPermission, setNotifPermission] = useState('default'); // 'default' | 'granted' | 'denied'
 
   const notify = (title, message) => {
     if (Platform.OS === "web" && typeof window !== "undefined") {
@@ -43,6 +44,12 @@ export default function StitchProfileScreen() {
   const outlineColor = "rgba(43, 201, 255, 0.3)";
   useEffect(() => {
     loadUserData();
+  }, []);
+
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof Notification !== 'undefined') {
+      setNotifPermission(Notification.permission);
+    }
   }, []);
 
   useEffect(() => {
@@ -557,17 +564,39 @@ export default function StitchProfileScreen() {
                     Test that you'll receive training alerts
                   </div>
                   <button
-                    disabled={notifTestStatus === 'loading'}
+                    disabled={notifTestStatus === 'loading' || notifPermission === 'denied'}
                     onClick={async () => {
                       if (!auth.currentUser || !userData?.teamId) return;
+                      const perm = Platform.OS === 'web' && typeof Notification !== 'undefined'
+                        ? Notification.permission
+                        : 'denied';
+
+                      // CAS 3 — bloqué par l'utilisateur
+                      if (perm === 'denied') return;
+
                       setNotifTestStatus('loading');
                       try {
-                        const result = await testNotificationFlow(auth.currentUser.uid, userData.teamId);
-                        if (result.error === 'no_token') {
-                          setNotifTestStatus('no_token');
-                        } else {
+                        if (perm === 'default') {
+                          // CAS 1 — permission jamais demandée : requestPermission() dans la callstack directe du tap
+                          const granted = await Notification.requestPermission();
+                          setNotifPermission(granted);
+                          if (granted !== 'granted') {
+                            setNotifTestStatus('denied');
+                            return;
+                          }
+                          await registerWebPushTokenForCurrentUser();
+                          await testNotificationFlow(auth.currentUser.uid, userData.teamId);
                           setNotifTestStatus('success');
-                          setTimeout(() => setNotifTestStatus('idle'), 3000);
+                          setTimeout(() => setNotifTestStatus('idle'), 4000);
+                        } else {
+                          // CAS 2 — permission déjà accordée
+                          let result = await testNotificationFlow(auth.currentUser.uid, userData.teamId);
+                          if (result.error === 'no_token') {
+                            await registerWebPushTokenForCurrentUser();
+                            result = await testNotificationFlow(auth.currentUser.uid, userData.teamId);
+                          }
+                          setNotifTestStatus('success');
+                          setTimeout(() => setNotifTestStatus('idle'), 4000);
                         }
                       } catch {
                         setNotifTestStatus('idle');
@@ -578,11 +607,17 @@ export default function StitchProfileScreen() {
                       padding: "12px 20px",
                       borderRadius: "12px",
                       background: "transparent",
-                      border: `1px solid ${notifTestStatus === 'loading' ? 'rgba(0,212,255,0.3)' : '#00D4FF'}`,
-                      color: notifTestStatus === 'loading' ? 'rgba(0,212,255,0.5)' : '#00D4FF',
+                      border: `1px solid ${
+                        notifPermission === 'denied' ? 'rgba(255,255,255,0.15)'
+                        : notifTestStatus === 'loading' ? 'rgba(0,212,255,0.3)'
+                        : '#00D4FF'
+                      }`,
+                      color: notifPermission === 'denied' ? 'rgba(255,255,255,0.3)'
+                        : notifTestStatus === 'loading' ? 'rgba(0,212,255,0.5)'
+                        : '#00D4FF',
                       fontSize: "14px",
                       fontWeight: "600",
-                      cursor: notifTestStatus === 'loading' ? 'default' : 'pointer',
+                      cursor: notifTestStatus === 'loading' || notifPermission === 'denied' ? 'default' : 'pointer',
                       transition: "all 0.2s",
                       display: "flex",
                       alignItems: "center",
@@ -591,39 +626,22 @@ export default function StitchProfileScreen() {
                       pointerEvents: "auto",
                     }}
                   >
-                    {notifTestStatus === 'loading' ? '⏳ Sending...' : '🔔 Send Test Notification'}
+                    {notifTestStatus === 'loading'
+                      ? '⏳ Sending...'
+                      : notifPermission === 'denied'
+                        ? '🔕 Notifications Blocked'
+                        : notifPermission === 'granted'
+                          ? '🔔 Send Test Notification'
+                          : '🔔 Enable Notifications'}
                   </button>
                   {notifTestStatus === 'success' && (
                     <div style={{ fontSize: "13px", color: "#00FFC2", lineHeight: 1.5 }}>
-                      ✅ Notification sent! It should appear in a few seconds.
+                      ✅ Test sent! Check your device.
                     </div>
                   )}
-                  {notifTestStatus === 'no_token' && (
-                    <div>
-                      <div style={{ fontSize: "13px", color: "#FFB347", lineHeight: 1.5, marginBottom: "10px" }}>
-                        Notifications not enabled. Please enable them first to receive alerts.
-                      </div>
-                      <button
-                        onClick={async () => {
-                          try {
-                            await registerWebPushTokenForCurrentUser();
-                            setNotifTestStatus('idle');
-                          } catch { /* ignore */ }
-                        }}
-                        style={{
-                          padding: "10px 20px",
-                          borderRadius: "10px",
-                          background: "#00D4FF",
-                          color: "#000",
-                          border: "none",
-                          fontSize: "13px",
-                          fontWeight: 700,
-                          cursor: "pointer",
-                          pointerEvents: "auto",
-                        }}
-                      >
-                        Enable Notifications
-                      </button>
+                  {notifTestStatus === 'denied' && (
+                    <div style={{ fontSize: "13px", color: "#FFB347", lineHeight: 1.5 }}>
+                      Notifications blocked. Go to Settings → Notifications → ChampionTrackPro → Allow
                     </div>
                   )}
                 </div>
