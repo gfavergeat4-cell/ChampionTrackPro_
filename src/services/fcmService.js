@@ -96,23 +96,30 @@ async function saveFCMToken(token) {
 }
 
 function showForegroundNotification(payload) {
-  const title = payload?.notification?.title || payload?.data?.title || "ChampionTrackPro";
-  const body = payload?.notification?.body || payload?.data?.body || "";
-  const url = payload?.data?.url || payload?.data?.clickAction || "/";
-  if (Notification.permission === "granted") {
-    const notif = new Notification(title, {
+  const title = payload?.notification?.title
+    || payload?.data?.title
+    || "ChampionTrackPro";
+  const body = payload?.notification?.body
+    || payload?.data?.body
+    || "";
+  const url = payload?.data?.url
+    || payload?.data?.clickAction
+    || "/";
+
+  if (Notification.permission !== "granted") return;
+
+  navigator.serviceWorker.ready.then((reg) => {
+    reg.showNotification(title, {
       body,
       icon: "/icons/icon-192.png",
       badge: "/icons/icon-192.png",
       tag: payload?.data?.tag || "ctpro-foreground",
+      requireInteraction: true,
       data: { url },
     });
-    notif.onclick = () => {
-      window.focus();
-      window.location.href = url;
-      notif.close();
-    };
-  }
+  }).catch((err) => {
+    console.warn("[FCM] showNotification via SW failed:", err);
+  });
 }
 
 
