@@ -567,15 +567,22 @@ export default function StitchProfileScreen() {
                     Test that you'll receive training alerts
                   </div>
                   <button
-                    disabled={notifTestStatus === 'loading' || notifPermission === 'denied'}
+                    disabled={notifTestStatus === 'loading'}
                     onClick={async () => {
                       if (!auth.currentUser || !userData?.teamId) return;
                       const perm = Platform.OS === 'web' && typeof Notification !== 'undefined'
                         ? Notification.permission
                         : 'denied';
 
-                      // CAS 3 — bloqué par l'utilisateur
-                      if (perm === 'denied') return;
+                      // CAS 3 — bloqué : affiche les instructions pour débloquer
+                      // requestPermission() n'a aucun effet quand permission === 'denied'
+                      if (perm === 'denied') {
+                        if (typeof navigator !== 'undefined' && /Android/.test(navigator.userAgent)) {
+                          try { window.location.href = 'app-settings:'; } catch {}
+                        }
+                        setNotifTestStatus('denied');
+                        return;
+                      }
 
                       setNotifTestStatus('loading');
                       try {
@@ -611,16 +618,16 @@ export default function StitchProfileScreen() {
                       borderRadius: "12px",
                       background: "transparent",
                       border: `1px solid ${
-                        notifPermission === 'denied' ? 'rgba(255,255,255,0.15)'
+                        notifPermission === 'denied' ? '#FFB800'
                         : notifTestStatus === 'loading' ? 'rgba(0,212,255,0.3)'
                         : '#00D4FF'
                       }`,
-                      color: notifPermission === 'denied' ? 'rgba(255,255,255,0.3)'
+                      color: notifPermission === 'denied' ? '#FFB800'
                         : notifTestStatus === 'loading' ? 'rgba(0,212,255,0.5)'
                         : '#00D4FF',
                       fontSize: "14px",
                       fontWeight: "600",
-                      cursor: notifTestStatus === 'loading' || notifPermission === 'denied' ? 'default' : 'pointer',
+                      cursor: notifTestStatus === 'loading' ? 'default' : 'pointer',
                       transition: "all 0.2s",
                       display: "flex",
                       alignItems: "center",
@@ -632,7 +639,7 @@ export default function StitchProfileScreen() {
                     {notifTestStatus === 'loading'
                       ? '⏳ Sending...'
                       : notifPermission === 'denied'
-                        ? '🔕 Notifications Blocked'
+                        ? '🔕 Notifications Blocked — Tap to fix'
                         : notifPermission === 'granted'
                           ? '🔔 Send Test Notification'
                           : '🔔 Enable Notifications'}
@@ -643,8 +650,15 @@ export default function StitchProfileScreen() {
                     </div>
                   )}
                   {notifTestStatus === 'denied' && (
-                    <div style={{ fontSize: "13px", color: "#FFB347", lineHeight: 1.5 }}>
-                      Notifications blocked. Go to Settings → Notifications → ChampionTrackPro → Allow
+                    <div style={{ fontSize: "13px", color: "#FFB347", lineHeight: 1.5, whiteSpace: "pre-line" }}>
+                      {typeof navigator !== 'undefined' && /Android/.test(navigator.userAgent)
+                        ? "To enable notifications:\n1. Tap the 🔒 lock icon in your browser address bar\n2. Tap 'Notifications' → 'Allow'\nOr: Settings → Apps → Chrome → Notifications → champion-track-pro.vercel.app → Allow"
+                        : typeof navigator !== 'undefined' && /iPhone|iPad|iPod/.test(navigator.userAgent)
+                          ? (typeof window !== 'undefined' &&
+                              (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone)
+                              ? "To enable notifications:\nGo to Settings → Notifications → ChampionTrackPro → Allow"
+                              : "Install the app first:\nTap Share ↑ then 'Add to Home Screen'")
+                          : "To enable notifications, check your browser or OS notification settings."}
                     </div>
                   )}
                 </div>
