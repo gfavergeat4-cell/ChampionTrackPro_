@@ -48,11 +48,26 @@ export default function StitchProfileScreen() {
 
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof window === 'undefined') return;
-    if (typeof Notification === 'undefined') {
-      setNotifPermission('denied');
-      return;
-    }
-    setNotifPermission(Notification.permission);
+
+    const checkPermission = () => {
+      if (typeof Notification === 'undefined') {
+        setNotifPermission('denied');
+        return;
+      }
+      setNotifPermission(Notification.permission);
+    };
+
+    // Lecture initiale
+    checkPermission();
+
+    // Relecture quand l'utilisateur revient sur l'onglet/app
+    document.addEventListener('visibilitychange', checkPermission);
+    window.addEventListener('focus', checkPermission);
+
+    return () => {
+      document.removeEventListener('visibilitychange', checkPermission);
+      window.removeEventListener('focus', checkPermission);
+    };
   }, []);
 
   useEffect(() => {
@@ -652,13 +667,13 @@ export default function StitchProfileScreen() {
                   {notifTestStatus === 'denied' && (
                     <div style={{ fontSize: "13px", color: "#FFB347", lineHeight: 1.5, whiteSpace: "pre-line" }}>
                       {typeof navigator !== 'undefined' && /Android/.test(navigator.userAgent)
-                        ? "To enable notifications:\n1. Tap the 🔒 lock icon in your browser address bar\n2. Tap 'Notifications' → 'Allow'\nOr: Settings → Apps → Chrome → Notifications → champion-track-pro.vercel.app → Allow"
+                        ? "To enable notifications:\n1. Tap the 🔒 lock icon in your browser address bar\n2. Tap 'Notifications' → 'Allow'\nOr: Settings → Apps → Chrome → Notifications → champion-track-pro.vercel.app → Allow\n\nAfter enabling, come back here and tap again to refresh."
                         : typeof navigator !== 'undefined' && /iPhone|iPad|iPod/.test(navigator.userAgent)
                           ? (typeof window !== 'undefined' &&
                               (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone)
-                              ? "To enable notifications:\nGo to Settings → Notifications → ChampionTrackPro → Allow"
+                              ? "To enable notifications:\nGo to Settings → Notifications → ChampionTrackPro → Allow\n\nAfter enabling, come back here and tap again to refresh."
                               : "Install the app first:\nTap Share ↑ then 'Add to Home Screen'")
-                          : "To enable notifications, check your browser or OS notification settings."}
+                          : "To enable notifications, check your browser or OS notification settings.\n\nAfter enabling, come back here and tap again to refresh."}
                     </div>
                   )}
                 </div>
