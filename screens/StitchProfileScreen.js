@@ -8,6 +8,8 @@ import { auth, db } from "../services/firebaseConfig";
 import { CommonActions } from "@react-navigation/native";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import UnifiedAthleteNavigation from "../src/stitch_components/UnifiedAthleteNavigation";
+import { testNotificationFlow } from "../src/services/notificationTest";
+import { registerWebPushTokenForCurrentUser } from "../src/services/webNotifications";
 
 export default function StitchProfileScreen() {
   const navigation = useNavigation();
@@ -24,6 +26,7 @@ export default function StitchProfileScreen() {
     position: "",
   });
   const [profileImage, setProfileImage] = useState(null);
+  const [notifTestStatus, setNotifTestStatus] = useState('idle'); // 'idle' | 'loading' | 'success' | 'no_token'
 
   const notify = (title, message) => {
     if (Platform.OS === "web" && typeof window !== "undefined") {
@@ -524,6 +527,106 @@ export default function StitchProfileScreen() {
 
                   {/* Phone (previously used for SMS opt-in) — fields kept in Firestore but no longer editable here */}
             </div>
+
+                {/* Notifications Section */}
+                <div style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "12px",
+                  background: formSurface,
+                  border: "1px solid rgba(255, 255, 255, 0.04)",
+                  borderRadius: "20px",
+                  padding: "24px",
+                  boxShadow: "0 25px 45px rgba(0, 0, 0, 0.45)",
+                  marginBottom: "20px",
+                }}>
+                  <div style={{
+                    fontSize: "13px",
+                    letterSpacing: "0.12em",
+                    textTransform: "uppercase",
+                    color: "#7E90AB",
+                    marginBottom: "-4px",
+                  }}>
+                    Notifications
+                  </div>
+                  <div style={{
+                    fontSize: "13px",
+                    color: "rgba(255,255,255,0.5)",
+                    marginBottom: "4px",
+                  }}>
+                    Test that you'll receive training alerts
+                  </div>
+                  <button
+                    disabled={notifTestStatus === 'loading'}
+                    onClick={async () => {
+                      if (!auth.currentUser || !userData?.teamId) return;
+                      setNotifTestStatus('loading');
+                      try {
+                        const result = await testNotificationFlow(auth.currentUser.uid, userData.teamId);
+                        if (result.error === 'no_token') {
+                          setNotifTestStatus('no_token');
+                        } else {
+                          setNotifTestStatus('success');
+                          setTimeout(() => setNotifTestStatus('idle'), 3000);
+                        }
+                      } catch {
+                        setNotifTestStatus('idle');
+                      }
+                    }}
+                    style={{
+                      width: "100%",
+                      padding: "12px 20px",
+                      borderRadius: "12px",
+                      background: "transparent",
+                      border: `1px solid ${notifTestStatus === 'loading' ? 'rgba(0,212,255,0.3)' : '#00D4FF'}`,
+                      color: notifTestStatus === 'loading' ? 'rgba(0,212,255,0.5)' : '#00D4FF',
+                      fontSize: "14px",
+                      fontWeight: "600",
+                      cursor: notifTestStatus === 'loading' ? 'default' : 'pointer',
+                      transition: "all 0.2s",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "8px",
+                      pointerEvents: "auto",
+                    }}
+                  >
+                    {notifTestStatus === 'loading' ? '⏳ Sending...' : '🔔 Send Test Notification'}
+                  </button>
+                  {notifTestStatus === 'success' && (
+                    <div style={{ fontSize: "13px", color: "#00FFC2", lineHeight: 1.5 }}>
+                      ✅ Test sent! You'll receive a notification in ~1 minute. Tap it to open a test questionnaire.
+                    </div>
+                  )}
+                  {notifTestStatus === 'no_token' && (
+                    <div>
+                      <div style={{ fontSize: "13px", color: "#FFB347", lineHeight: 1.5, marginBottom: "10px" }}>
+                        Notifications not enabled. Please enable them first to receive alerts.
+                      </div>
+                      <button
+                        onClick={async () => {
+                          try {
+                            await registerWebPushTokenForCurrentUser();
+                            setNotifTestStatus('idle');
+                          } catch { /* ignore */ }
+                        }}
+                        style={{
+                          padding: "10px 20px",
+                          borderRadius: "10px",
+                          background: "#00D4FF",
+                          color: "#000",
+                          border: "none",
+                          fontSize: "13px",
+                          fontWeight: 700,
+                          cursor: "pointer",
+                          pointerEvents: "auto",
+                        }}
+                      >
+                        Enable Notifications
+                      </button>
+                    </div>
+                  )}
+                </div>
 
                 {/* Action Buttons */}
                 <div style={{

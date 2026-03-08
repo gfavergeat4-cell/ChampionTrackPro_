@@ -117,7 +117,13 @@ service cloud.firestore {
       match /trainings/{trainingId} {
         // Lecture autorisée si: admin, coach membre, OU (signedIn ET (teamId dans users/{uid}.teamId OU membership existe))
         allow read: if canReadTrainings(teamId);
-        allow create, update, delete: if isAdmin();
+        allow create: if isAdmin() || (
+          signedIn() &&
+          isTeamMember(teamId) &&
+          request.resource.data.isTestSession == true &&
+          request.resource.data.createdBy == request.auth.uid
+        );
+        allow update, delete: if isAdmin();
 
         match /responses/{responseId} {
           function trainingExists() {
@@ -129,10 +135,13 @@ service cloud.firestore {
           function isQuestionnaireWindowOpen() {
             let training = get(/databases/$(database)/documents/teams/$(teamId)/trainings/$(trainingId));
             let endUtc = training.data.endUtc;
-            // Si pas de endUtc, on autorise (fallback pour compatibilité)
-            return endUtc == null || (
-              request.time >= endUtc &&
-              request.time <= endUtc + duration.value(5, 'h')
+            let isTest = training.data.isTestSession == true;
+            // Sessions test : toujours ouvertes
+            return isTest || (
+              endUtc == null || (
+                request.time >= endUtc &&
+                request.time <= endUtc + duration.value(5, 'h')
+              )
             );
           }
 

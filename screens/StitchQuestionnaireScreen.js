@@ -41,6 +41,7 @@ export default function StitchQuestionnaireScreen() {
   // Vérifier si le questionnaire est accessible (fenêtre temporelle + déjà complété)
   const [isAccessible, setIsAccessible] = useState(false);
   const [isCheckingAccess, setIsCheckingAccess] = useState(true);
+  const [isTestSession, setIsTestSession] = useState(false);
   const [accessDeniedReason, setAccessDeniedReason] = useState(null);
   const [trainingInfoForMessage, setTrainingInfoForMessage] = useState(null);
   const [displayTitle, setDisplayTitle] = useState(null);
@@ -95,6 +96,9 @@ export default function StitchQuestionnaireScreen() {
         setDisplayTitle(rawTitle);
         setDisplayDate(rawDate);
 
+        const isTest = trainingData?.isTestSession === true;
+        setIsTestSession(isTest);
+
         // Stocker les informations du training pour l'affichage du message d'accès refusé
         setTrainingInfoForMessage({
           endMillis,
@@ -133,7 +137,10 @@ export default function StitchQuestionnaireScreen() {
         });
 
         // Vérifier si l'accès est autorisé
-        if (status === 'completed') {
+        if (isTest && status !== 'completed') {
+          setIsAccessible(true);
+          setAccessDeniedReason(null);
+        } else if (status === 'completed') {
           setAccessDeniedReason("already_completed");
           setIsAccessible(false);
         } else if (status === 'not_open_yet') {
@@ -243,6 +250,7 @@ export default function StitchQuestionnaireScreen() {
           values: sliderValues, // Encapsuler les valeurs dans un objet values
           eventTitle: eventTitle || "Training Session",
           eventDate: eventDate || new Date().toISOString(),
+          ...(isTestSession ? { isTest: true } : {}),
         }
       );
 
@@ -961,12 +969,31 @@ export default function StitchQuestionnaireScreen() {
             </button>
           </div>
 
+          {/* Test session banner */}
+          {isTestSession && (
+            <div style={{
+              margin: "8px 24px 0",
+              padding: "10px 16px",
+              borderRadius: "10px",
+              background: "rgba(255, 184, 0, 0.08)",
+              border: "1px solid #FFB800",
+              color: "#FFB800",
+              fontSize: "13px",
+              fontWeight: 600,
+              textAlign: "center",
+              zIndex: 20,
+              position: "relative",
+            }}>
+              🧪 Test Session — This response won't affect your stats
+            </div>
+          )}
+
           {/* Main Content */}
-          <div 
-            style={{ 
-              flex: 1, 
-              padding: "0 24px", 
-              paddingTop: "24px", 
+          <div
+            style={{
+              flex: 1,
+              padding: "0 24px",
+              paddingTop: "24px",
               paddingBottom: "140px", 
               zIndex: 10, 
               overflowY: "auto",
@@ -1255,7 +1282,9 @@ export default function StitchQuestionnaireScreen() {
                   </svg>
                 </div>
                 <div style={{ fontSize: "18px", fontWeight: 700, color: "#FFFFFF", marginBottom: "8px" }}>
-                  Your response has been successfully submitted.
+                  {isTestSession
+                    ? "✅ Test complete! Notifications are working correctly."
+                    : "Your response has been successfully submitted."}
                 </div>
                 <div style={{ fontSize: "14px", color: "rgba(255,255,255,0.7)" }}>
                   Redirecting to your dashboard...

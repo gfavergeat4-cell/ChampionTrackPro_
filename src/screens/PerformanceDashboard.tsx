@@ -396,6 +396,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
         snap.forEach((d) => {
           const data = d.data() as any;
           if (!data || !data.userId || !data.trainingId) return;
+          if (data.isTest) return;
           resps.push({
             ...(data as RawResponse),
           });

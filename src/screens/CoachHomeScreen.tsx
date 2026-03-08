@@ -92,7 +92,7 @@ export default function CoachHomeScreen() {
               where("startUtc", ">=", weekStartTs)
             )
           );
-          weekCount = weekSnap.size;
+          weekCount = weekSnap.docs.filter(d => !(d.data() as any).isTestSession).length;
         } catch { /* ignore */ }
         if (!cancelled) setWeekTrainings(weekCount);
 
@@ -102,12 +102,13 @@ export default function CoachHomeScreen() {
             query(
               collection(db, "teams", tid, "trainings"),
               orderBy("startUtc", "desc"),
-              limit(1)
+              limit(5)
             )
           );
 
-          if (!lastTrainingSnap.empty && memberCount > 0) {
-            const lastTrainingId = lastTrainingSnap.docs[0].id;
+          const realTrainingDocs = lastTrainingSnap.docs.filter(d => !(d.data() as any).isTestSession);
+          if (realTrainingDocs.length > 0 && memberCount > 0) {
+            const lastTrainingId = realTrainingDocs[0].id;
 
             // Fetch all members to build uid→name map
             const membersSnap = await getDocs(collection(db, "teams", tid, "members"));
