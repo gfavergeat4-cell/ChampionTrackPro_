@@ -10,6 +10,7 @@ import { doc, getDoc, updateDoc } from "firebase/firestore";
 import UnifiedAthleteNavigation from "../src/stitch_components/UnifiedAthleteNavigation";
 import { testNotificationFlow } from "../src/services/notificationTest";
 import { registerWebPushTokenForCurrentUser } from "../src/services/webNotifications";
+import { initializeFCM } from "../src/services/fcmService";
 
 export default function StitchProfileScreen() {
   const navigation = useNavigation();
@@ -615,13 +616,27 @@ export default function StitchProfileScreen() {
                           setTimeout(() => setNotifTestStatus('idle'), 4000);
                         } else {
                           // CAS 2 — permission déjà accordée
+                          // S'assure que onMessage handler est bien enregistré
+                          try {
+                            await initializeFCM();
+                          } catch (e) {
+                            console.warn('[NOTIF] initializeFCM failed:', e);
+                          }
+
                           let result = await testNotificationFlow(auth.currentUser.uid, userData.teamId);
+
                           if (result.error === 'no_token') {
                             await registerWebPushTokenForCurrentUser();
                             result = await testNotificationFlow(auth.currentUser.uid, userData.teamId);
                           }
-                          setNotifTestStatus('success');
-                          setTimeout(() => setNotifTestStatus('idle'), 4000);
+
+                          if (result.success) {
+                            setNotifTestStatus('success');
+                            setTimeout(() => setNotifTestStatus('idle'), 4000);
+                          } else {
+                            setNotifTestStatus('idle');
+                            console.error('[NOTIF] Test failed after retry:', result.error);
+                          }
                         }
                       } catch {
                         setNotifTestStatus('idle');

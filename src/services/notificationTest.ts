@@ -42,6 +42,10 @@ export async function testNotificationFlow(
   const sendTestNotif = httpsCallable(functions, "sendTestNotification");
   await sendTestNotif({ teamId, trainingId });
 
+  // Force background mode pour déclencher onBackgroundMessage
+  // si onMessage foreground n'est pas disponible
+  console.log('[TEST] Notification sent — minimize the app to see it');
+
   return {
     success: true,
     trainingId,

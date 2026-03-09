@@ -111,6 +111,7 @@ function showForegroundNotification(payload) {
   if (Notification.permission !== "granted") return;
 
   navigator.serviceWorker.ready.then((reg) => {
+    console.log('[FCM] showNotification via SW — firing');
     reg.showNotification(title, {
       body,
       icon: "/icons/icon-192.png",
@@ -118,6 +119,10 @@ function showForegroundNotification(payload) {
       tag: payload?.data?.tag || "ctpro-foreground",
       requireInteraction: true,
       data: { url },
+    }).then(() => {
+      console.log('[FCM] showNotification resolved');
+    }).catch((err) => {
+      console.error('[FCM] showNotification failed:', err);
     });
   }).catch((err) => {
     console.warn("[FCM] showNotification via SW failed:", err);
