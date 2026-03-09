@@ -30,7 +30,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#00E0FF',
+    color: '#00D4FF',
     textAlign: 'center',
     marginBottom: 10,
     fontFamily: Platform.OS === 'web' ? "'Inter', sans-serif" : 'System',
@@ -44,7 +44,7 @@ const styles = StyleSheet.create({
   },
   status: {
     fontSize: 18,
-    color: '#00E0FF',
+    color: '#00D4FF',
     textAlign: 'center',
     marginBottom: 20,
     fontFamily: Platform.OS === 'web' ? "'Inter', sans-serif" : 'System',

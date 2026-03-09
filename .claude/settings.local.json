@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",
+      "Bash(npx vercel:*)",
+      "Bash(echo:*)",
+      "Bash(npm run:*)",
+      "Bash(gh api:*)",
+      "Bash(npx firebase:*)",
+      "Bash(sed:*)",
+      "Bash(node:*)",
+      "Bash(ls:*)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); tokens=d.get\\(''tokens'',{}\\); print\\(tokens.get\\(''access_token'',''''\\)[:20] if tokens.get\\(''access_token''\\) else ''no token''\\)\")",
+      "Read(//c/Users/gabfa/ChampionTrackPro/$APPDATA/**)",
+      "Bash(cmd:*)",
+      "Bash(python3:*)",
+      "Bash(npx:*)",
+      "Bash(git:*)",
+      "Bash(firebase deploy:*)",
+      "Bash(xargs sed:*)",
+      "Bash(firebase functions:log:*)",
+      "Bash(firebase auth:export:*)",
+      "Bash(GOOGLE_CLOUD_PROJECT=championtrackpro node:*)",
+      "Bash(firebase:*)",
+      "Bash(gcloud auth list)",
+      "Bash(gcloud auth:*)",
+      "Read(//c/Users/gabfa/AppData/Roaming/gcloud/**)",
+      "Read(//c/Users/gabfa/.config/gcloud/**)",
+      "Bash(rm:*)"
+    ]
+  }
+}
