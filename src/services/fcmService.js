@@ -1,6 +1,6 @@
 import { initializeApp, getApps } from "firebase/app";
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
-import { getFirestore, doc, setDoc, serverTimestamp, arrayUnion } from "firebase/firestore";
+import { getFirestore, doc, setDoc, arrayUnion } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
@@ -50,7 +50,7 @@ export async function initializeFCM() {
     });
 
     if (!token) {
-      console.warn("[FCM] Token vide � verifie la VAPID key");
+      console.warn("[FCM] Token vide - verifie la VAPID key");
       return null;
     }
 
@@ -71,30 +71,24 @@ export async function initializeFCM() {
 }
 
 async function saveFCMToken(token) {
-  const auth = getAuth(app);
-  const user = auth.currentUser;
-  if (!user) {
-    console.warn("[FCM] Aucun utilisateur connecte � token non sauvegarde");
-    return;
+  try {
+    const auth = getAuth(app);
+    const user = auth.currentUser;
+    if (!user) return;
+    await setDoc(
+      doc(db, "users", user.uid),
+      {
+        fcmWebTokens: arrayUnion(token),
+        fcmToken: token,
+        fcmTokenUpdatedAt: new Date().toISOString(),
+      },
+      { merge: true }
+    );
+    console.log('[FCM] Token saved to Firestore');
+  } catch (err) {
+    console.warn('[FCM] Could not save token to Firestore:', err.message);
+    // Ne pas bloquer — le token est quand même valide pour cette session
   }
-  const tokenData = {
-    token,
-    userId: user.uid,
-    platform: "web",
-    userAgent: navigator.userAgent,
-    updatedAt: serverTimestamp(),
-  };
-  await setDoc(
-    doc(db, "users", user.uid, "fcmTokens", token.substring(0, 20)),
-    tokenData,
-    { merge: true }
-  );
-  await setDoc(
-    doc(db, "users", user.uid),
-    { fcmWebTokens: arrayUnion(token), fcmToken: token, fcmTokenUpdatedAt: serverTimestamp() },
-    { merge: true }
-  );
-  console.log("[FCM] Token sauvegarde en Firestore pour", user.uid);
 }
 
 function showForegroundNotification(payload) {
@@ -128,5 +122,3 @@ function showForegroundNotification(payload) {
     console.warn("[FCM] showNotification via SW failed:", err);
   });
 }
-
-

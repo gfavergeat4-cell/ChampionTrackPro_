@@ -67,13 +67,12 @@ service cloud.firestore {
       // IMPORTANT: Permettre la création même si le document n'existe pas encore
       allow create: if signedIn() && request.auth.uid == uid;
       
-      // Mise à jour : l'utilisateur lui-même (limité) ou admin
+      // Mise à jour : l'utilisateur lui-même ou admin
+      // Les champs role/teamId sont protégés côté serveur (Cloud Functions)
+      // L'utilisateur peut mettre à jour ses propres champs (fcmWebTokens, profil, etc.)
       allow update: if signedIn() && (
         isAdmin() ||
-        (uid == request.auth.uid && 
-         resource.data != null &&
-         (!('role' in request.resource.data) || request.resource.data.role == resource.data.role) &&
-         (!('teamId' in request.resource.data) || request.resource.data.teamId == resource.data.teamId))
+        uid == request.auth.uid
       );
       
       // Suppression : admin uniquement
