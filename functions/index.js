@@ -819,24 +819,16 @@ exports.sendQuestionnaireAvailableNotifications = functions
             `[NOTIF][FCM] training ${trainingId}, user ${uid}, success ${resp.successCount}, failure ${resp.failureCount}`
           );
           
-          // Nettoyer les tokens invalides
+          // FIX 5: Nettoyer tous les tokens en échec via arrayRemove
           if (resp.failureCount > 0) {
-            const invalidTokens = [];
-            resp.responses.forEach((resp, idx) => {
-              if (!resp.success) {
-                if (resp.error?.code === "messaging/invalid-registration-token" ||
-                    resp.error?.code === "messaging/registration-token-not-registered") {
-                  invalidTokens.push(tokens[idx]);
-                }
-              }
-            });
-            
-            if (invalidTokens.length > 0) {
-              const userRef = db.collection("users").doc(uid);
-              const currentTokens = userData.fcmWebTokens || [];
-              const updatedTokens = currentTokens.filter(t => !invalidTokens.includes(t));
-              await userRef.update({ fcmWebTokens: updatedTokens });
-              console.log(`[NOTIF][FCM] Removed ${invalidTokens.length} invalid tokens for user ${uid}`);
+            const failedTokens = resp.responses
+              .map((r, i) => !r.success ? tokens[i] : null)
+              .filter(Boolean);
+            if (failedTokens.length > 0) {
+              await db.collection("users").doc(uid).update({
+                fcmWebTokens: admin.firestore.FieldValue.arrayRemove(...failedTokens),
+              });
+              console.log(`[FCM] Removed ${failedTokens.length} invalid tokens for ${uid}`);
             }
           }
           
@@ -952,7 +944,19 @@ exports.sendQuestionnaireReminders = functions
             },
           },
         };
-        await admin.messaging().sendEachForMulticast(message);
+        const reminderResp = await admin.messaging().sendEachForMulticast(message);
+        // FIX 5: Nettoyer tous les tokens en échec via arrayRemove
+        if (reminderResp.failureCount > 0) {
+          const failedTokens = reminderResp.responses
+            .map((r, i) => !r.success ? tokens[i] : null)
+            .filter(Boolean);
+          if (failedTokens.length > 0) {
+            await db.collection("users").doc(userId).update({
+              fcmWebTokens: admin.firestore.FieldValue.arrayRemove(...failedTokens),
+            });
+            console.log(`[FCM] Removed ${failedTokens.length} invalid tokens for ${userId}`);
+          }
+        }
         await reminderRef.update({ status: "reminded", remindedAt: admin.firestore.FieldValue.serverTimestamp() });
       } catch (err) {
         console.error("[NOTIF][REMINDER] Error for", docSnap.id, err);
@@ -1016,20 +1020,17 @@ exports.sendTestNotification = functions
 
     const response = await admin.messaging().sendEachForMulticast(message);
 
-    // Nettoie les tokens invalides
-    const invalidTokens = [];
-    response.responses.forEach((resp, idx) => {
-      if (
-        !resp.success &&
-        (resp.error?.code === "messaging/invalid-registration-token" ||
-          resp.error?.code === "messaging/registration-token-not-registered")
-      ) {
-        invalidTokens.push(tokens[idx]);
+    // FIX 5: Nettoyer tous les tokens en échec via arrayRemove
+    if (response.failureCount > 0) {
+      const failedTokens = response.responses
+        .map((r, i) => !r.success ? tokens[i] : null)
+        .filter(Boolean);
+      if (failedTokens.length > 0) {
+        await db.collection("users").doc(uid).update({
+          fcmWebTokens: admin.firestore.FieldValue.arrayRemove(...failedTokens),
+        });
+        console.log(`[FCM] Removed ${failedTokens.length} invalid tokens for ${uid}`);
       }
-    });
-    if (invalidTokens.length) {
-      const validTokens = tokens.filter((t) => !invalidTokens.includes(t));
-      await db.collection("users").doc(uid).update({ fcmWebTokens: validTokens });
     }
 
     // Marque le training comme notifié
