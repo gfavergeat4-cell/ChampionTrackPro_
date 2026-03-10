@@ -226,12 +226,32 @@ exports.syncIcsNow = functions
     memory: '256MB'
   })
   .https.onCall(async (data, context) => {
-    // CORS is automatically handled by onCall functions
+    // Auth required
+    if (!context.auth) {
+      throw new functions.https.HttpsError("unauthenticated", "Authentication required");
+    }
+
     const teamId = data && data.teamId ? data.teamId : null;
     if (!teamId) {
       throw new functions.https.HttpsError("invalid-argument", "teamId requis");
     }
-    
+
+    // FIX VULN-05: verify caller is coach or admin of this team
+    const userDoc = await db.collection("users").doc(context.auth.uid).get();
+    if (!userDoc.exists) {
+      throw new functions.https.HttpsError("permission-denied", "User not found");
+    }
+    const userRole = (userDoc.data() || {}).role;
+    if (userRole !== "admin" && userRole !== "coach") {
+      throw new functions.https.HttpsError("permission-denied", "Coach or admin role required");
+    }
+    if (userRole === "coach") {
+      const memberDoc = await db.collection("teams").doc(teamId).collection("members").doc(context.auth.uid).get();
+      if (!memberDoc.exists) {
+        throw new functions.https.HttpsError("permission-denied", "Not a member of this team");
+      }
+    }
+
     try {
       const result = await syncTeam(teamId);
       return result;
@@ -493,7 +513,25 @@ exports.importTeamCalendarFromUrlCallable = functions
     if (!context.auth) {
       throw new functions.https.HttpsError("unauthenticated", "Authentication required");
     }
+
     const { teamId, icsUrl } = data || {};
+
+    // FIX VULN-05: verify caller is coach or admin of this team
+    const userDoc = await db.collection("users").doc(context.auth.uid).get();
+    if (!userDoc.exists) {
+      throw new functions.https.HttpsError("permission-denied", "User not found");
+    }
+    const userRole = (userDoc.data() || {}).role;
+    if (userRole !== "admin" && userRole !== "coach") {
+      throw new functions.https.HttpsError("permission-denied", "Coach or admin role required");
+    }
+    if (userRole === "coach" && teamId) {
+      const memberDoc = await db.collection("teams").doc(teamId).collection("members").doc(context.auth.uid).get();
+      if (!memberDoc.exists) {
+        throw new functions.https.HttpsError("permission-denied", "Not a member of this team");
+      }
+    }
+
     try {
       return await importTeamCalendarCore(teamId, icsUrl);
     } catch (error) {
