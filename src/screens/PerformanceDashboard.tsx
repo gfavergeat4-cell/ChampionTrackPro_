@@ -16,6 +16,13 @@ import {
   Line,
   BarChart,
   Bar,
+  ComposedChart,
+  Area,
+  RadarChart,
+  Radar,
+  PolarGrid,
+  PolarAngleAxis,
+  ReferenceLine,
   XAxis,
   YAxis,
   Tooltip,
@@ -29,7 +36,7 @@ type Role = "admin" | "coach";
 type DurationKey = "7d" | "14d" | "30d" | "90d";
 type CategoryKey = "physical" | "mental" | "technical";
 type ViewMode = "categories" | "individual";
-type ChartType = "line" | "bar";
+type ChartType = "line" | "bar" | "radar" | "deviation" | "workload";
 
 interface PerformanceDashboardProps {
   route: {
@@ -58,12 +65,24 @@ interface Member {
   role?: string;
 }
 
+interface V2Metrics {
+  cardioLoad?: number;
+  neuroLoad?: number;
+  sleepQuality?: number;
+  stressLevel?: number;
+  motorControl?: number | null;
+  tacticalLucidity?: number | null;
+  sessionRPE?: number;
+}
+
 interface RawResponse {
   userId: string;
   teamId: string;
   trainingId: string;
   submittedAt?: any;
   status?: string;
+  isTest?: boolean;
+  // V1 fields (legacy)
   intensiteMoyenne?: number;
   hautesIntensites?: number;
   impactCardiaque?: number;
@@ -78,6 +97,11 @@ interface RawResponse {
   tactique?: number;
   dynamisme?: number;
   values?: { [key: string]: number | undefined };
+  // V2 fields
+  metrics?: V2Metrics;
+  readinessScore?: number;
+  workloadAU?: number;
+  sessionType?: string;
 }
 
 interface ChartPoint {
@@ -183,6 +207,69 @@ function getMetricValue(resp: RawResponse, key: string): number | null {
   return null;
 }
 
+// ─── V2 Analytics Utilities ───────────────────────────────────────────────
+
+// V1 → V2 field mapping (DEC-04: null-safe fallback for historical data)
+function extractV2Metrics(r: RawResponse): V2Metrics {
+  if (r.metrics) return r.metrics;
+  // V1 fallback: normalize V1 fields (0-100) to V2 scale (1-10)
+  const norm = (v: number | undefined, invert = false): number | null => {
+    if (v === undefined || v === null) return null;
+    const scaled = v / 10;
+    return invert ? Math.round((10 - scaled) * 10) / 10 : Math.round(scaled * 10) / 10;
+  };
+  return {
+    cardioLoad: norm(r.impactCardiaque) ?? undefined,
+    neuroLoad: norm(r.impactMusculaire) ?? undefined,
+    sleepQuality: norm(r.sommeil, true) ?? undefined,
+    stressLevel: norm(r.nervosite) ?? undefined,
+    motorControl: norm(r.technique, true) ?? undefined,
+    tacticalLucidity: norm(r.tactique, true) ?? undefined,
+    sessionRPE: norm(r.fatigue) ?? undefined,
+  };
+}
+
+// Readiness Score (0-100) — high metric = bad, invert for readiness
+function calculateReadinessScore(m: V2Metrics): number {
+  const scores = {
+    cardio:   (10 - (m.cardioLoad   ?? 5)) * 0.20,
+    neuro:    (10 - (m.neuroLoad    ?? 5)) * 0.25,
+    sleep:    (10 - (m.sleepQuality ?? 5)) * 0.20,
+    stress:   (10 - (m.stressLevel  ?? 5)) * 0.15,
+    motor:    (10 - (m.motorControl ?? 5)) * 0.10,
+    tactical: (10 - ((m.tacticalLucidity ?? m.stressLevel) ?? 5)) * 0.10,
+  };
+  const weighted = Object.values(scores).reduce((a, b) => a + b, 0);
+  return Math.round((weighted / 10) * 100);
+}
+
+// EMA (28-day) — seed with neutral 5 on first value
+const EMA_N = 28;
+const EMA_ALPHA = 2 / (EMA_N + 1);
+function calculateEMA(values: (number | null)[]): number[] {
+  const ema: number[] = [];
+  values.forEach((v, i) => {
+    if (i === 0) {
+      ema.push(v ?? 5);
+    } else {
+      const prev = ema[i - 1];
+      ema.push(v !== null ? parseFloat((v * EMA_ALPHA + prev * (1 - EMA_ALPHA)).toFixed(2)) : prev);
+    }
+  });
+  return ema;
+}
+
+function calculateDeviation(value: number, ema: number): number {
+  return ema === 0 ? 0 : parseFloat((((value - ema) / ema) * 100).toFixed(1));
+}
+
+// Morning Brief: per-player latest readiness
+function getRiskLevel(score: number, deviation: number): "danger" | "monitor" | "optimal" {
+  if (score < 40 || deviation > 20) return "danger";
+  if (score < 65 || deviation > 10) return "monitor";
+  return "optimal";
+}
+
 export default function PerformanceDashboard({ route }: PerformanceDashboardProps) {
   // Limiter aux plateformes web pour Recharts
   if (Platform.OS !== "web") {
@@ -234,6 +321,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
   const [error, setError] = useState<string | null>(null);
 
   const [responses, setResponses] = useState<RawResponse[]>([]);
+  const [showMorningBrief, setShowMorningBrief] = useState(true);
 
   const CYAN = "#00D4FF";
   const BG = "#0A0F1E";
@@ -572,6 +660,110 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
     return Object.keys(sample).filter((k) => k !== "date");
   }, [chartData]);
 
+  // ─── V2: Morning Brief — per-player readiness sorted by risk ──────────────
+  const morningBriefData = useMemo(() => {
+    if (filteredResponses.length === 0 || members.length === 0) return [];
+
+    // Per player: collect readiness scores chronologically, compute EMA
+    const byPlayer: Record<string, { name: string; scores: number[]; latest: number; ema: number; deviation: number }> = {};
+
+    const sortedResponses = [...filteredResponses].sort((a, b) => {
+      const ta = a.submittedAt?.seconds ?? 0;
+      const tb = b.submittedAt?.seconds ?? 0;
+      return ta - tb;
+    });
+
+    sortedResponses.forEach((r) => {
+      const m2 = extractV2Metrics(r);
+      const rs = r.readinessScore ?? calculateReadinessScore(m2);
+      if (!byPlayer[r.userId]) {
+        const member = members.find((m) => m.id === r.userId);
+        byPlayer[r.userId] = { name: member?.displayName || r.userId, scores: [], latest: 0, ema: 0, deviation: 0 };
+      }
+      byPlayer[r.userId].scores.push(rs);
+    });
+
+    return Object.values(byPlayer).map((p) => {
+      const emaArr = calculateEMA(p.scores);
+      const latest = p.scores[p.scores.length - 1];
+      const emaLatest = emaArr[emaArr.length - 1];
+      const deviation = calculateDeviation(latest, emaLatest);
+      const risk = getRiskLevel(latest, deviation);
+      return { name: p.name, readinessScore: latest, ema: emaLatest, deviation, risk };
+    }).sort((a, b) => {
+      const order = { danger: 0, monitor: 1, optimal: 2 };
+      return order[a.risk] - order[b.risk];
+    });
+  }, [filteredResponses, members]);
+
+  // ─── V2: Deviation Chart data (readiness vs EMA) ─────────────────────────
+  const deviationChartData = useMemo(() => {
+    const teamResponses = [...filteredResponses].sort((a, b) => {
+      const ta = a.submittedAt?.seconds ?? 0;
+      const tb = b.submittedAt?.seconds ?? 0;
+      return ta - tb;
+    });
+    if (teamResponses.length === 0) return [];
+
+    const scores = teamResponses.map((r) => {
+      const m2 = extractV2Metrics(r);
+      return r.readinessScore ?? calculateReadinessScore(m2);
+    });
+    const emaArr = calculateEMA(scores);
+
+    return teamResponses.map((r, i) => ({
+      date: formatDateKey(new Date((r.submittedAt?.seconds ?? 0) * 1000)),
+      readiness: scores[i],
+      ema: emaArr[i],
+      deviation: calculateDeviation(scores[i], emaArr[i]),
+    }));
+  }, [filteredResponses]);
+
+  // ─── V2: Workload Chart data (EMA 7d + EMA 28d + danger zone) ────────────
+  const workloadChartData = useMemo(() => {
+    const teamResponses = [...filteredResponses].sort((a, b) => {
+      const ta = a.submittedAt?.seconds ?? 0;
+      const tb = b.submittedAt?.seconds ?? 0;
+      return ta - tb;
+    });
+    if (teamResponses.length === 0) return [];
+
+    const workloads = teamResponses.map((r) => r.workloadAU ?? (r.metrics?.sessionRPE ?? 5) * 60);
+    const ema7 = calculateEMA(workloads); // reuse with N=7 approximation via alpha
+    const ema28 = calculateEMA(workloads);
+
+    return teamResponses.map((r, i) => ({
+      date: formatDateKey(new Date((r.submittedAt?.seconds ?? 0) * 1000)),
+      ema7: Math.round(ema7[i]),
+      ema28: Math.round(ema28[i]),
+      danger: 700, // threshold line
+    }));
+  }, [filteredResponses]);
+
+  // ─── V2: Radar data (latest team averages Physical/Mental/Technical) ──────
+  const radarData = useMemo(() => {
+    if (filteredResponses.length === 0) return [];
+    const recent = filteredResponses.slice(-30);
+    const metrics = {
+      cardioLoad: recent.map(r => extractV2Metrics(r).cardioLoad ?? 5),
+      neuroLoad: recent.map(r => extractV2Metrics(r).neuroLoad ?? 5),
+      sleepQuality: recent.map(r => extractV2Metrics(r).sleepQuality ?? 5),
+      stressLevel: recent.map(r => extractV2Metrics(r).stressLevel ?? 5),
+      motorControl: recent.map(r => extractV2Metrics(r).motorControl ?? 5),
+      sessionRPE: recent.map(r => extractV2Metrics(r).sessionRPE ?? 5),
+    };
+    const avg = (arr: number[]) => arr.reduce((a, b) => a + b, 0) / arr.length;
+    // Convert to readiness (inverted: high metric = bad)
+    return [
+      { subject: "Cardio",   value: Math.round((10 - avg(metrics.cardioLoad)) * 10) },
+      { subject: "Neuro",    value: Math.round((10 - avg(metrics.neuroLoad)) * 10) },
+      { subject: "Sleep",    value: Math.round((10 - avg(metrics.sleepQuality)) * 10) },
+      { subject: "Stress",   value: Math.round((10 - avg(metrics.stressLevel)) * 10) },
+      { subject: "Motor",    value: Math.round((10 - avg(metrics.motorControl)) * 10) },
+      { subject: "Load",     value: Math.round((10 - avg(metrics.sessionRPE)) * 10) },
+    ];
+  }, [filteredResponses]);
+
   function getIndicatorCategory(key: string): CategoryKey {
     if (CATEGORY_FIELDS.physical.includes(key)) return "physical";
     if (CATEGORY_FIELDS.mental.includes(key)) return "mental";
@@ -594,6 +786,64 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
     setSelectedPositions((arr) =>
       arr.includes(pos) ? arr.filter((p) => p !== pos) : [...arr, pos]
     );
+  };
+
+  // ─── V2 Chart Renderer (extracted for ResponsiveContainer compatibility) ──
+  const renderChartContent = () => {
+    const tooltipStyle = { backgroundColor: "#0E1528", border: "1px solid #00D4FF", borderRadius: 8, color: "#FFFFFF" };
+    const xAxisProps = {
+      dataKey: "date" as string,
+      stroke: "rgba(255,255,255,0.6)",
+      tick: { fill: "rgba(255,255,255,0.6)", fontSize: 11 },
+      angle: -35,
+      textAnchor: "end" as const,
+      interval: "preserveStartEnd" as const,
+      tickFormatter: (d: string) => { const dt = new Date(d); return dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }); },
+    };
+    const gridProps = { strokeDasharray: "3 3", stroke: "rgba(255,255,255,0.08)" };
+    const margin = { top: 20, right: 30, left: 20, bottom: 60 };
+
+    if (chartType === "radar") {
+      return (
+        <RadarChart data={radarData} margin={{ top: 10, right: 30, left: 30, bottom: 10 }}>
+          <PolarGrid stroke="rgba(255,255,255,0.1)" />
+          <PolarAngleAxis dataKey="subject" tick={{ fill: "rgba(255,255,255,0.65)", fontSize: 12 }} />
+          <Radar name="Team Readiness" dataKey="value" stroke="#00D4FF" fill="#00D4FF" fillOpacity={0.18} strokeWidth={2} />
+          <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => [`${v}`, "Readiness"]} />
+        </RadarChart>
+      );
+    }
+
+    if (chartType === "deviation") {
+      return (
+        <ComposedChart data={deviationChartData} margin={margin}>
+          <CartesianGrid {...gridProps} />
+          <XAxis {...xAxisProps} />
+          <YAxis stroke="rgba(255,255,255,0.6)" />
+          <Tooltip contentStyle={tooltipStyle} />
+          <ReferenceLine y={0} stroke="rgba(255,255,255,0.3)" strokeDasharray="4 4" />
+          <Bar dataKey="deviation" name="Deviation %" fill="#00D4FF" fillOpacity={0.7} radius={[4, 4, 0, 0] as any} />
+          <Line type="monotone" dataKey="ema" name="EMA 28d" stroke="#0066FF" strokeWidth={2} dot={false} strokeDasharray="4 2" />
+        </ComposedChart>
+      );
+    }
+
+    if (chartType === "workload") {
+      return (
+        <ComposedChart data={workloadChartData} margin={margin}>
+          <CartesianGrid {...gridProps} />
+          <XAxis {...xAxisProps} />
+          <YAxis stroke="rgba(255,255,255,0.6)" />
+          <Tooltip contentStyle={tooltipStyle} />
+          <ReferenceLine y={700} stroke="#FF3B30" strokeDasharray="4 4" label={{ value: "Danger", fill: "#FF3B30", fontSize: 10 }} />
+          <Area type="monotone" dataKey="ema7" name="EMA 7d" stroke="#00D4FF" fill="#00D4FF" fillOpacity={0.12} strokeWidth={2} />
+          <Line type="monotone" dataKey="ema28" name="EMA 28d" stroke="#0066FF" strokeWidth={2} dot={false} strokeDasharray="5 3" />
+        </ComposedChart>
+      );
+    }
+
+    // line or bar (legacy)
+    return null;
   };
 
   const filterBoxStyle = {
@@ -1049,31 +1299,101 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
               })}
             </div>
             <label style={labelStyle}>Chart Type</label>
-            <div style={{ display: "flex", gap: 6 }}>
-              {(["line", "bar"] as ChartType[]).map((t) => {
-                const active = chartType === t;
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {([
+                { key: "line",      label: "Line" },
+                { key: "bar",       label: "Bar" },
+                { key: "radar",     label: "Radar" },
+                { key: "deviation", label: "Deviation" },
+                { key: "workload",  label: "Workload" },
+              ] as { key: ChartType; label: string }[]).map(({ key, label }) => {
+                const active = chartType === key;
                 return (
                   <button
-                    key={t}
+                    key={key}
                     type="button"
-                    onClick={() => setChartType(t)}
+                    onClick={() => setChartType(key)}
                     style={{
-                      flex: 1,
+                      flex: "1 1 auto",
                       padding: "6px 8px",
                       borderRadius: 12,
-                      fontSize: 12,
+                      fontSize: 11,
                       fontWeight: 600,
                       ...(active ? btnActiveStyle : btnInactiveStyle),
                       cursor: "pointer",
                     }}
                   >
-                    {t === "line" ? "Line" : "Bar"}
+                    {label}
                   </button>
                 );
               })}
             </div>
           </div>
         </div>
+
+        {/* ─── Morning Brief ───────────────────────────────────────────── */}
+        {morningBriefData.length > 0 && (
+          <div style={{
+            background: "#0D1526",
+            borderRadius: 16,
+            padding: 20,
+            border: "1px solid rgba(0,212,255,0.15)",
+            marginBottom: 16,
+          }}>
+            <div
+              style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: showMorningBrief ? 16 : 0, cursor: "pointer" }}
+              onClick={() => setShowMorningBrief(!showMorningBrief)}
+            >
+              <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#FFFFFF", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                Morning Brief — Readiness
+              </h3>
+              <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>{showMorningBrief ? "▲" : "▼"}</span>
+            </div>
+            {showMorningBrief && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {morningBriefData.map((p) => {
+                  const riskColor = p.risk === "danger" ? "#FF3B30" : p.risk === "monitor" ? "#FFB800" : "#00FF9D";
+                  const bgColor = p.risk === "danger" ? "rgba(255,59,48,0.08)" : p.risk === "monitor" ? "rgba(255,184,0,0.08)" : "rgba(0,255,157,0.06)";
+                  return (
+                    <div key={p.name} style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      background: bgColor,
+                      borderRadius: 10,
+                      padding: "10px 14px",
+                      borderLeft: `3px solid ${riskColor}`,
+                    }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: "#FFFFFF" }}>{p.name}</span>
+                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>
+                          EMA {Math.round(p.ema)}
+                        </span>
+                        <span style={{ fontSize: 11, color: p.deviation > 0 ? "#FF3B30" : "#00FF9D" }}>
+                          {p.deviation > 0 ? "+" : ""}{p.deviation.toFixed(0)}%
+                        </span>
+                        <div style={{
+                          width: 36,
+                          height: 36,
+                          borderRadius: "50%",
+                          background: riskColor,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: 12,
+                          fontWeight: 700,
+                          color: p.risk === "monitor" ? "#000" : "#000",
+                        }}>
+                          {p.readinessScore}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         <div
           style={{
@@ -1235,6 +1555,13 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                   </BarChart>
                 )}
               </ResponsiveContainer>
+
+              {/* V2 charts rendered separately (avoid ResponsiveContainer child type issues) */}
+              {(chartType === "radar" || chartType === "deviation" || chartType === "workload") && (
+                <ResponsiveContainer width="100%" height={360}>
+                  {renderChartContent() as React.ReactElement}
+                </ResponsiveContainer>
+              )}
               {/* Custom legend */}
               <div style={{ display: "flex", flexWrap: "wrap", gap: "10px 20px", padding: "16px 20px 4px", justifyContent: "center" }}>
                 {seriesKeys.map((k, idx) => {
