@@ -29,6 +29,8 @@ export default function StitchProfileScreen() {
   const [profileImage, setProfileImage] = useState(null);
   const [notifTestStatus, setNotifTestStatus] = useState('idle'); // 'idle' | 'loading' | 'success' | 'denied'
   const [notifPermission, setNotifPermission] = useState('default'); // 'default' | 'granted' | 'denied'
+  const [logoTapCount, setLogoTapCount] = useState(0); // FIX 3: 5x tap to reveal test button
+  const [showTestButton, setShowTestButton] = useState(false); // FIX 3
 
   const notify = (title, message) => {
     if (Platform.OS === "web" && typeof window !== "undefined") {
@@ -327,7 +329,14 @@ export default function StitchProfileScreen() {
                   gap: "18px",
                   marginBottom: "28px"
                 }}>
-                  <div style={{
+                  <div
+                    onClick={() => {
+                      // FIX 3: 5× tap on avatar reveals test notification button
+                      const next = logoTapCount + 1;
+                      setLogoTapCount(next);
+                      if (next >= 5) { setShowTestButton(true); setLogoTapCount(0); }
+                    }}
+                    style={{
                     width: "120px",
                     height: "120px",
                     borderRadius: "50%",
@@ -336,7 +345,8 @@ export default function StitchProfileScreen() {
                     alignItems: "center",
                     justifyContent: "center",
                     background: "linear-gradient(145deg, rgba(43, 201, 255, 0.3), rgba(9, 30, 53, 0.95))",
-                    boxShadow: "0 18px 40px rgba(0, 0, 0, 0.45), inset 0 0 18px rgba(43, 201, 255, 0.18)"
+                    boxShadow: "0 18px 40px rgba(0, 0, 0, 0.45), inset 0 0 18px rgba(43, 201, 255, 0.18)",
+                    cursor: "default",
                   }}>
                     {profileImage ? (
                       <img 
@@ -554,7 +564,7 @@ export default function StitchProfileScreen() {
                   {/* Phone (previously used for SMS opt-in) — fields kept in Firestore but no longer editable here */}
             </div>
 
-                {/* Notifications Section */}
+                {/* FIX 3: Simplified Notifications Section */}
                 <div style={{
                   display: "flex",
                   flexDirection: "column",
@@ -571,125 +581,102 @@ export default function StitchProfileScreen() {
                     letterSpacing: "0.12em",
                     textTransform: "uppercase",
                     color: "#7E90AB",
-                    marginBottom: "-4px",
+                    marginBottom: "4px",
                   }}>
                     Notifications
                   </div>
-                  <div style={{
-                    fontSize: "13px",
-                    color: "rgba(255,255,255,0.5)",
-                    marginBottom: "4px",
-                  }}>
-                    Test that you'll receive training alerts
-                  </div>
-                  <button
-                    disabled={notifTestStatus === 'loading'}
-                    onClick={async () => {
-                      if (!auth.currentUser || !userData?.teamId) return;
-                      const perm = Platform.OS === 'web' && typeof Notification !== 'undefined'
-                        ? Notification.permission
-                        : 'denied';
 
-                      // CAS 3 — bloqué : affiche les instructions pour débloquer
-                      // requestPermission() n'a aucun effet quand permission === 'denied'
-                      if (perm === 'denied') {
-                        if (typeof navigator !== 'undefined' && /Android/.test(navigator.userAgent)) {
-                          try { window.location.href = 'app-settings:'; } catch {}
-                        }
+                  {/* Status row */}
+                  {notifPermission === 'granted' ? (
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                      <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#00FF9D", flexShrink: 0, display: "inline-block" }} />
+                      <div>
+                        <div style={{ fontSize: "14px", fontWeight: 600, color: "#fff" }}>Active</div>
+                        <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.4)" }}>You'll be alerted after each session</div>
+                      </div>
+                    </div>
+                  ) : notifPermission === 'denied' ? (
+                    <button
+                      onClick={() => {
                         setNotifTestStatus('denied');
-                        return;
-                      }
+                      }}
+                      style={{ display: "flex", alignItems: "center", gap: "10px", background: "none", border: "none", cursor: "pointer", padding: 0, textAlign: "left" }}
+                    >
+                      <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#FFB800", flexShrink: 0, display: "inline-block" }} />
+                      <div>
+                        <div style={{ fontSize: "14px", fontWeight: 600, color: "#FFB800" }}>Blocked — Check Settings</div>
+                        <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.4)" }}>Tap for platform-specific instructions</div>
+                      </div>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={async () => {
+                        if (typeof Notification === 'undefined') return;
+                        const result = await Notification.requestPermission();
+                        setNotifPermission(result);
+                        if (result === 'granted') {
+                          try { await registerWebPushTokenForCurrentUser(); } catch (e) { console.warn('[NOTIF]', e); }
+                        }
+                      }}
+                      style={{ display: "flex", alignItems: "center", gap: "10px", background: "none", border: "none", cursor: "pointer", padding: 0, textAlign: "left" }}
+                    >
+                      <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#FF3B30", flexShrink: 0, display: "inline-block" }} />
+                      <div>
+                        <div style={{ fontSize: "14px", fontWeight: 600, color: "#FF3B30" }}>Inactive — Tap to enable</div>
+                        <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.4)" }}>You won't receive session alerts</div>
+                      </div>
+                    </button>
+                  )}
 
-                      setNotifTestStatus('loading');
-                      try {
-                        if (perm === 'default') {
-                          // CAS 1 — permission jamais demandée : requestPermission() dans la callstack directe du tap
-                          const granted = await Notification.requestPermission();
-                          setNotifPermission(granted);
-                          if (granted !== 'granted') {
-                            setNotifTestStatus('denied');
-                            return;
-                          }
-                          await registerWebPushTokenForCurrentUser();
-                          await testNotificationFlow(auth.currentUser.uid, userData.teamId);
-                          setNotifTestStatus('success');
-                          setTimeout(() => setNotifTestStatus('idle'), 4000);
-                        } else {
-                          // CAS 2 — permission déjà accordée
-                          // S'assure que onMessage handler est bien enregistré
-                          try {
-                            await initializeFCM();
-                          } catch (e) {
-                            console.warn('[NOTIF] initializeFCM failed:', e);
-                          }
+                  {/* Platform instructions for blocked state */}
+                  {notifTestStatus === 'denied' && (
+                    <div style={{ fontSize: "12px", color: "#FFB347", lineHeight: 1.6, whiteSpace: "pre-line", marginTop: "4px" }}>
+                      {typeof navigator !== 'undefined' && /Android/.test(navigator.userAgent)
+                        ? "Settings → Apps → Chrome → Notifications → champion-track-pro.vercel.app → Allow"
+                        : typeof navigator !== 'undefined' && /iPhone|iPad|iPod/.test(navigator.userAgent)
+                          ? (typeof window !== 'undefined' && (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone)
+                              ? "Settings → Notifications → ChampionTrackPro → Allow"
+                              : "Install the app first: Tap Share ↑ then 'Add to Home Screen'")
+                          : "Check your browser or OS notification settings."}
+                    </div>
+                  )}
 
+                  {/* Test button: coach/admin only, or via 5× logo tap */}
+                  {(userData?.role === 'coach' || userData?.role === 'admin' || showTestButton) && (
+                    <button
+                      disabled={notifTestStatus === 'loading'}
+                      onClick={async () => {
+                        if (!auth.currentUser || !userData?.teamId) return;
+                        setNotifTestStatus('loading');
+                        try {
+                          try { await initializeFCM(); } catch (e) { console.warn('[NOTIF] initializeFCM:', e); }
                           let result = await testNotificationFlow(auth.currentUser.uid, userData.teamId);
-
                           if (result.error === 'no_token') {
                             await registerWebPushTokenForCurrentUser();
                             result = await testNotificationFlow(auth.currentUser.uid, userData.teamId);
                           }
-
-                          if (result.success) {
-                            setNotifTestStatus('success');
-                            setTimeout(() => setNotifTestStatus('idle'), 4000);
-                          } else {
-                            setNotifTestStatus('idle');
-                            console.error('[NOTIF] Test failed after retry:', result.error);
-                          }
-                        }
-                      } catch {
-                        setNotifTestStatus('idle');
-                      }
-                    }}
-                    style={{
-                      width: "100%",
-                      padding: "12px 20px",
-                      borderRadius: "12px",
-                      background: "transparent",
-                      border: `1px solid ${
-                        notifPermission === 'denied' ? '#FFB800'
-                        : notifTestStatus === 'loading' ? 'rgba(0,212,255,0.3)'
-                        : '#00D4FF'
-                      }`,
-                      color: notifPermission === 'denied' ? '#FFB800'
-                        : notifTestStatus === 'loading' ? 'rgba(0,212,255,0.5)'
-                        : '#00D4FF',
-                      fontSize: "14px",
-                      fontWeight: "600",
-                      cursor: notifTestStatus === 'loading' ? 'default' : 'pointer',
-                      transition: "all 0.2s",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: "8px",
-                      pointerEvents: "auto",
-                    }}
-                  >
-                    {notifTestStatus === 'loading'
-                      ? '⏳ Sending...'
-                      : notifPermission === 'denied'
-                        ? '🔕 Notifications Blocked — Tap to fix'
-                        : notifPermission === 'granted'
-                          ? '🔔 Send Test Notification'
-                          : '🔔 Enable Notifications'}
-                  </button>
-                  {notifTestStatus === 'success' && (
-                    <div style={{ fontSize: "13px", color: "#00FFC2", lineHeight: 1.5 }}>
-                      ✅ Test sent! Check your device.
-                    </div>
+                          setNotifTestStatus(result.success ? 'success' : 'idle');
+                          if (result.success) setTimeout(() => setNotifTestStatus('idle'), 4000);
+                        } catch { setNotifTestStatus('idle'); }
+                      }}
+                      style={{
+                        marginTop: "8px",
+                        width: "100%",
+                        padding: "10px 16px",
+                        borderRadius: "10px",
+                        background: "transparent",
+                        border: "1px solid rgba(0,212,255,0.4)",
+                        color: "#00D4FF",
+                        fontSize: "13px",
+                        fontWeight: 600,
+                        cursor: notifTestStatus === 'loading' ? 'default' : 'pointer',
+                      }}
+                    >
+                      {notifTestStatus === 'loading' ? '⏳ Sending...' : '🔔 Send Test Notification'}
+                    </button>
                   )}
-                  {notifTestStatus === 'denied' && (
-                    <div style={{ fontSize: "13px", color: "#FFB347", lineHeight: 1.5, whiteSpace: "pre-line" }}>
-                      {typeof navigator !== 'undefined' && /Android/.test(navigator.userAgent)
-                        ? "To enable notifications:\n1. Tap the 🔒 lock icon in your browser address bar\n2. Tap 'Notifications' → 'Allow'\nOr: Settings → Apps → Chrome → Notifications → champion-track-pro.vercel.app → Allow\n\nAfter enabling, come back here and tap again to refresh."
-                        : typeof navigator !== 'undefined' && /iPhone|iPad|iPod/.test(navigator.userAgent)
-                          ? (typeof window !== 'undefined' &&
-                              (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone)
-                              ? "To enable notifications:\nGo to Settings → Notifications → ChampionTrackPro → Allow\n\nAfter enabling, come back here and tap again to refresh."
-                              : "Install the app first:\nTap Share ↑ then 'Add to Home Screen'")
-                          : "To enable notifications, check your browser or OS notification settings.\n\nAfter enabling, come back here and tap again to refresh."}
-                    </div>
+                  {notifTestStatus === 'success' && (
+                    <div style={{ fontSize: "13px", color: "#00FFC2" }}>✅ Test sent! Check your device.</div>
                   )}
                 </div>
 
