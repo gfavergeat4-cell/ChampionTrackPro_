@@ -6,6 +6,7 @@ import { onAuthStateChanged, setPersistence, browserLocalPersistence } from "fir
 import { auth, db } from "../services/firebaseConfig";
 import { doc, getDoc, setDoc, updateDoc, increment, serverTimestamp, onSnapshot } from "firebase/firestore";
 import SplashScreen from "../src/components/SplashScreen";
+import OnboardingNotifScreen from "../src/screens/OnboardingNotifScreen";
 
 // Import Stitch screens
 import LandingScreen from "../screens/StitchLandingScreen";
@@ -279,7 +280,7 @@ function CoachTabs() {
 }
 
 // Root Stack Navigator with role-based routing
-function RootStackNavigator({ role, user, pendingDeepLink, navigationRef }) {
+function RootStackNavigator({ role, user, pendingDeepLink, navigationRef, onboardingComplete, onOnboardingComplete }) {
   console.log("role from firestore:", role);
   console.log("[ROOT] role at render =", role, "| type:", typeof role);
   console.log("[ROOT] user =", user?.email);
@@ -348,12 +349,16 @@ function RootStackNavigator({ role, user, pendingDeepLink, navigationRef }) {
   
   if (normalizedRole === 'athlete') {
     console.log("Rendering AthleteTabs");
+    // FIX 1: show onboarding notif screen on first login
+    if (!onboardingComplete) {
+      return <OnboardingNotifScreen onComplete={onOnboardingComplete} />;
+    }
     return (
       <RootStack.Navigator screenOptions={{ headerShown: false }}>
         <RootStack.Screen name="AthleteMain" component={AthleteTabs} />
         <RootStack.Screen name="DebugTestQuestionnaire" component={DebugTestQuestionnaireScreen} />
-        <RootStack.Screen 
-          name="Questionnaire" 
+        <RootStack.Screen
+          name="Questionnaire"
           component={QuestionnaireScreen}
           options={{
             presentation: "modal",
@@ -387,7 +392,8 @@ function AuthGate({ pendingDeepLink, navigationRef }) {
     loading: true,
     user: null,
     userRole: null,
-    authReady: false
+    authReady: false,
+    onboardingComplete: true, // default true to avoid flash for existing users
   });
   const unsubDocRef = React.useRef(null);
 
@@ -447,8 +453,9 @@ function AuthGate({ pendingDeepLink, navigationRef }) {
             }
           }
 
-          console.log("👤 User state:", { user: u?.email, role });
-          setState({ loading: false, user: u, userRole: role, authReady: true });
+          const onboardingComplete = userDoc.exists() ? (userDoc.data()?.onboardingComplete ?? false) : false;
+          console.log("👤 User state:", { user: u?.email, role, onboardingComplete });
+          setState({ loading: false, user: u, userRole: role, authReady: true, onboardingComplete });
 
           // FIX 2: increment loginCount on each app open
           try {
@@ -480,7 +487,7 @@ function AuthGate({ pendingDeepLink, navigationRef }) {
           console.error("❌ Error fetching user role:", error);
           const role = u.email === "gabfavergeat@gmail.com" ? "admin" : "athlete";
           console.log("🔄 Fallback role detection:", role);
-          setState({ loading: false, user: u, userRole: role, authReady: true });
+          setState({ loading: false, user: u, userRole: role, authReady: true, onboardingComplete: true });
         }
       } else {
         console.log("👤 No user logged in");
@@ -508,6 +515,8 @@ function AuthGate({ pendingDeepLink, navigationRef }) {
       user={state.user}
       pendingDeepLink={pendingDeepLink}
       navigationRef={navigationRef}
+      onboardingComplete={state.onboardingComplete}
+      onOnboardingComplete={() => setState(prev => ({ ...prev, onboardingComplete: true }))}
     />
   );
 }
