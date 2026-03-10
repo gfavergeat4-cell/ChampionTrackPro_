@@ -521,10 +521,18 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
   }, [members, selectedPositions]);
 
   const filteredResponses = useMemo(() => {
-    if (selectedPlayerIds.length === 0) return responses;
-    const set = new Set(selectedPlayerIds);
-    return responses.filter((r) => set.has(r.userId));
-  }, [responses, selectedPlayerIds]);
+    // When specific players are selected, filter by those players
+    if (selectedPlayerIds.length > 0) {
+      const set = new Set(selectedPlayerIds);
+      return responses.filter((r) => set.has(r.userId));
+    }
+    // When positions are selected but no specific players, filter by position
+    if (selectedPositions.length > 0) {
+      const positionUids = new Set(membersFilteredByPosition.map((m) => m.id));
+      return responses.filter((r) => positionUids.has(r.userId));
+    }
+    return responses;
+  }, [responses, selectedPlayerIds, selectedPositions, membersFilteredByPosition]);
 
   const activeFields = useMemo(() => {
     if (indicatorMode === "category") return CATEGORY_FIELDS[category];
@@ -851,7 +859,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
     background: "#0D1526",
     borderRadius: 12,
     padding: 12,
-    border: "1px solid rgba(0,212,255,0.2)",
+    border: "1px solid rgba(0,212,255,0.14)",
   } as const;
   const labelStyle = { fontSize: 12, color: "rgba(255,255,255,0.6)", marginBottom: 6, display: "block" as const };
   const checkboxStyle = { accentColor: CYAN };
@@ -929,8 +937,8 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
               onClick={() => { setShowPositionDropdown(false); setOpenIndicators(false); setShowPlayerDropdown((v) => !v); }}
               style={{
                 width: "100%",
-                background: "#0E1528",
-                border: "1px solid rgba(0,212,255,0.3)",
+                background: "#0D1526",
+                border: "1px solid rgba(0,212,255,0.14)",
                 borderRadius: 8,
                 padding: "10px 14px",
                 cursor: "pointer",
@@ -1000,8 +1008,8 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
               onClick={() => { setShowPlayerDropdown(false); setOpenIndicators(false); setShowPositionDropdown((v) => !v); }}
               style={{
                 width: "100%",
-                background: "#0E1528",
-                border: "1px solid rgba(0,212,255,0.3)",
+                background: "#0D1526",
+                border: "1px solid rgba(0,212,255,0.14)",
                 borderRadius: 8,
                 padding: "10px 14px",
                 cursor: "pointer",
