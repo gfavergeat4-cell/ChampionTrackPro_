@@ -99,6 +99,17 @@ export default function StitchQuestionnaireScreen() {
         const isTest = trainingData?.isTestSession === true;
         setIsTestSession(isTest);
 
+        // V2: extract sessionType (default "conditioning" per DEC-03)
+        const sType = trainingData?.sessionType || "conditioning";
+        setSessionType(sType);
+
+        // V2: calculate duration in minutes
+        const startMs = trainingData?.startUtc?.toMillis?.() ?? null;
+        if (startMs && endMillis) {
+          const durationMin = Math.max(1, Math.round((endMillis - startMs) / (1000 * 60)));
+          setTrainingDuration(durationMin);
+        }
+
         // Stocker les informations du training pour l'affichage du message d'accès refusé
         setTrainingInfoForMessage({
           endMillis,
@@ -181,77 +192,83 @@ export default function StitchQuestionnaireScreen() {
     }
   }, [isCheckingAccess, isAccessible, accessDeniedReason, navigation]);
   
-  const painToggle = false; // legacy flag disabled (pain module removed)
-  const [sliderValues, setSliderValues] = useState({
-    averageIntensity: 50,
-    highIntensity: 50,
-    cardiacImpact: 50,
-    muscularImpact: 50,
-    fatigue: 50,
-    technique: 50,
-    tactics: 50,
-    dynamism: 50,
-    nervousness: 50,
-    concentration: 50,
-    confidence: 50,
-    wellBeing: 50,
-    sleepQuality: 50,
+  // V2 metrics state (1-10, high = bad/fatigue per PRD)
+  const [sessionType, setSessionType] = useState("conditioning"); // default per DEC-03
+  const [trainingDuration, setTrainingDuration] = useState(60); // minutes
+  const [metrics, setMetrics] = useState({
+    cardioLoad: 5,
+    neuroLoad: 5,
+    sleepQuality: 5,
+    stressLevel: 5,
+    motorControl: 5,
+    tacticalLucidity: 5,
+    sessionRPE: 5,
   });
+  const [hasFriction, setHasFriction] = useState(false);
+  const [frictionType, setFrictionType] = useState("Physical Fatigue");
+  const [frictionFrequency, setFrictionFrequency] = useState(5);
+  const [frictionImpact, setFrictionImpact] = useState(5);
+  const [frictionDistraction, setFrictionDistraction] = useState(5);
+  const [draggingKey, setDraggingKey] = useState(null);
+
+  // V2: Readiness Score calculation (high metric = bad, so invert for readiness)
+  const calculateReadiness = (m) => {
+    const scores = {
+      cardio: (10 - m.cardioLoad) * 0.20,
+      neuro: (10 - m.neuroLoad) * 0.25,
+      sleep: (10 - m.sleepQuality) * 0.20,
+      stress: (10 - m.stressLevel) * 0.15,
+      motor: (10 - m.motorControl) * 0.10,
+      tactical: (10 - (m.tacticalLucidity ?? m.stressLevel)) * 0.10,
+    };
+    const weighted = Object.values(scores).reduce((a, b) => a + b, 0);
+    return Math.round((weighted / 10) * 100);
+  };
 
   const handleSubmit = async () => {
     if (isSubmitting) return;
-      
+
     setSubmitError(null);
     setIsSubmitting(true);
 
     try {
-      console.log("Questionnaire submitted:", { 
-        sessionId, 
-        sliderValues 
-      });
-
       if (!auth.currentUser) {
-        throw new Error("Utilisateur non connecté");
+        throw new Error("User not logged in");
       }
 
-      // Récupérer l'ID de l'équipe de l'utilisateur
       const userDoc = await getDoc(doc(db, "users", auth.currentUser.uid));
-      
-      if (!userDoc.exists()) {
-        throw new Error("Profil utilisateur non trouvé");
-      }
+      if (!userDoc.exists()) throw new Error("User profile not found");
 
-      const userData = userDoc.data();
-      console.log("🔍 Données utilisateur:", userData);
-      const teamId = userData.teamId;
-      console.log("🔍 Team ID:", teamId);
+      const teamId = userDoc.data().teamId;
+      if (!teamId) throw new Error("No team associated");
 
-      if (!teamId) {
-        throw new Error("Aucune équipe associée");
-      }
+      // Build V2 schema
+      const activeMetrics = {
+        cardioLoad: metrics.cardioLoad,
+        neuroLoad: metrics.neuroLoad,
+        sleepQuality: metrics.sleepQuality,
+        stressLevel: metrics.stressLevel,
+        motorControl: sessionType !== "conditioning" ? metrics.motorControl : null,
+        tacticalLucidity: sessionType === "scrimmage" ? metrics.tacticalLucidity : null,
+        sessionRPE: metrics.sessionRPE,
+      };
 
-      // Sauvegarder la réponse dans Firestore
-      // Utiliser trainings/ au lieu de events/ (canonique)
-      // Utiliser la fonction standardisée saveQuestionnaireResponse
-      console.log("🔍 Sauvegarde questionnaire", {
-        teamId,
-        trainingId: sessionId,
-        uid: auth.currentUser.uid,
-        sliderValuesKeys: Object.keys(sliderValues),
-      });
-      console.log("🔍 Chemin Firestore: teams/", teamId, "/trainings/", sessionId, "/responses/", auth.currentUser.uid);
+      const responsePayload = {
+        metrics: activeMetrics,
+        readinessScore: calculateReadiness(activeMetrics),
+        workloadAU: metrics.sessionRPE * trainingDuration,
+        sessionType,
+        hasFriction,
+        ...(hasFriction ? { frictionType, frictionFrequency, frictionImpact, frictionDistraction } : {}),
+        isTest: isTestSession || false,
+      };
 
       const { saveQuestionnaireResponse } = await import("../src/lib/responses");
       await saveQuestionnaireResponse(
         teamId,
-        sessionId, // trainingId (sessionId est l'ID du training)
+        sessionId,
         auth.currentUser.uid,
-        {
-          values: sliderValues, // Encapsuler les valeurs dans un objet values
-          eventTitle: eventTitle || "Training Session",
-          eventDate: eventDate || new Date().toISOString(),
-          ...(isTestSession ? { isTest: true } : {}),
-        }
+        responsePayload
       );
 
       console.log("✅ Réponse sauvegardée dans Firestore");
@@ -287,8 +304,27 @@ export default function StitchQuestionnaireScreen() {
   console.log("🔍 Event date:", eventDate);
   console.log("🔍 Session ID:", sessionId);
 
-  const handleSliderChange = (key, value) => {
-    setSliderValues(prev => ({ ...prev, [key]: value }));
+  // V2 question definitions
+  const QUESTIONS = {
+    cardioLoad:       { question: "How did your lungs handle the pace today?",         leftAnchor: "Never out of breath",    rightAnchor: "Completely Gassed" },
+    neuroLoad:        { question: "How bouncy and explosive did your legs feel?",       leftAnchor: "Bouncy / Explosive",     rightAnchor: "Heavy / Glued to the floor" },
+    sleepQuality:     { question: "How restorative was your sleep last night?",         leftAnchor: "Deep / Woke up fresh",   rightAnchor: "Terrible / Restless" },
+    stressLevel:      { question: "What's your current stress level? (school + hoops)", leftAnchor: "Completely relaxed",     rightAnchor: "Overwhelmed" },
+    motorControl:     { question: "How did your shot and handle feel today?",           leftAnchor: "Pure / Automatic",       rightAnchor: "Clumsy / Bricking" },
+    tacticalLucidity: { question: "How well did you process defensive rotations?",      leftAnchor: "Reading the floor",      rightAnchor: "Lost / A step behind" },
+    sessionRPE:       { question: "Overall, how hard was today's session?",             leftAnchor: "Active Recovery",        rightAnchor: "Hardest session ever" },
+  };
+
+  const QUESTION_SETS = {
+    conditioning: ["cardioLoad", "neuroLoad", "sleepQuality", "stressLevel", "sessionRPE"],
+    skill:        ["cardioLoad", "neuroLoad", "sleepQuality", "stressLevel", "motorControl", "sessionRPE"],
+    scrimmage:    ["cardioLoad", "neuroLoad", "sleepQuality", "stressLevel", "motorControl", "tacticalLucidity", "sessionRPE"],
+  };
+
+  const activeQuestions = QUESTION_SETS[sessionType] || QUESTION_SETS.conditioning;
+
+  const handleMetricChange = (key, value) => {
+    setMetrics(prev => ({ ...prev, [key]: value }));
   };
 
 
@@ -389,6 +425,56 @@ export default function StitchQuestionnaireScreen() {
         @keyframes ctpFadeIn {
             from { opacity: 0; transform: translateY(12px); }
             to { opacity: 1; transform: translateY(0); }
+        }
+        .slider-v2 {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 100%;
+          height: 6px;
+          background: rgba(255,255,255,0.1);
+          outline: none;
+          border-radius: 9999px;
+        }
+        .slider-v2::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 24px;
+          height: 24px;
+          background: linear-gradient(135deg, #00BFFF, #0066FF);
+          cursor: pointer;
+          border-radius: 50%;
+          box-shadow: 0 0 10px rgba(0, 191, 255, 0.5);
+          transition: transform 100ms ease-out, box-shadow 100ms ease-out;
+        }
+        .slider-v2:active::-webkit-slider-thumb {
+          transform: scale(1.15);
+          box-shadow: 0 0 18px rgba(0, 191, 255, 0.7);
+        }
+        .slider-v2::-moz-range-thumb {
+          width: 24px;
+          height: 24px;
+          background: linear-gradient(135deg, #00BFFF, #0066FF);
+          cursor: pointer;
+          border-radius: 50%;
+          border: none;
+          box-shadow: 0 0 10px rgba(0, 191, 255, 0.5);
+        }
+        .slider-v2::-moz-range-track {
+          height: 6px;
+          background: rgba(255,255,255,0.1);
+          border-radius: 9999px;
+        }
+        .friction-select {
+          width: 100%;
+          background: rgba(255,255,255,0.05);
+          border: 1px solid rgba(0,212,255,0.2);
+          border-radius: 10px;
+          color: #FFFFFF;
+          padding: 12px 14px;
+          font-size: 14px;
+          font-family: 'DM Sans', system-ui, sans-serif;
+          outline: none;
+          cursor: pointer;
         }
       `;
       document.head.appendChild(style);
@@ -1046,132 +1132,163 @@ export default function StitchQuestionnaireScreen() {
               gap: "16px", 
               paddingBottom: "48px"
             }}>
-              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                {/* Slider Sections */}
-                {[
-                  { key: "averageIntensity", label: "Average Intensity", description: "Average of all effort intensities." },
-                  { key: "highIntensity", label: "High Intensity", description: "Average of the most intense effort phases." },
-                  { key: "cardiacImpact", label: "Cardiac Impact", description: "Average of cardiovascular solicitations." },
-                  { key: "muscularImpact", label: "Muscular Impact", description: "Average of muscular solicitations." },
-                  { key: "fatigue", label: "Fatigue", description: "Decrease in available physical resources." },
-                ].map((section, index) => (
-                  <div 
-                    key={section.key} 
-                    style={{
-                      background: "#141A24",
-                      borderRadius: "16px",
-                      padding: "16px",
-                      border: "1px solid rgba(0, 224, 255, 0.1)",
-                      boxShadow: "inset 0 0 0 1px rgba(0, 224, 255, 0.1)",
-                      animationDelay: `${50 * (index + 1)}ms`,
-                    }}
-                    className="card-animate"
-                  >
-                    <div style={{ marginBottom: "12px" }}>
-                      <label 
-                        htmlFor={section.key} 
-                        style={{
-                          fontSize: "18px",
-                          fontWeight: "600",
-                          color: "white",
-                          margin: 0,
-                        }}
-                      >
-                        {section.label}
-                      </label>
+              {/* V2 SemanticSliders — conditional by sessionType */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+                {activeQuestions.map((key, index) => {
+                  const q = QUESTIONS[key];
+                  const value = metrics[key];
+                  const isDragging = draggingKey === key;
+                  const thumbPct = ((value - 1) / 9) * 100;
+                  return (
+                    <div
+                      key={key}
+                      style={{
+                        background: "#141A24",
+                        borderRadius: "16px",
+                        padding: "20px 16px 16px",
+                        border: "1px solid rgba(0,212,255,0.12)",
+                        animationDelay: `${50 * (index + 1)}ms`,
+                        position: "relative",
+                      }}
+                      className="card-animate"
+                    >
+                      {/* Floating value tooltip during drag */}
+                      {isDragging && (
+                        <div style={{
+                          position: "absolute",
+                          top: 8,
+                          left: `calc(${thumbPct}% + 16px - 16px)`,
+                          background: "linear-gradient(135deg, #00BFFF, #0066FF)",
+                          color: "#FFFFFF",
+                          borderRadius: 6,
+                          padding: "2px 10px",
+                          fontSize: 13,
+                          fontWeight: 700,
+                          pointerEvents: "none",
+                          zIndex: 10,
+                          whiteSpace: "nowrap",
+                        }}>
+                          {value}
+                        </div>
+                      )}
                       <p style={{
-                        fontSize: "14px",
-                        color: "rgba(154, 163, 178, 0.7)",
-                        margin: "4px 0 0 0",
+                        margin: "0 0 16px",
+                        fontSize: 15,
+                        fontWeight: 600,
+                        color: "#FFFFFF",
+                        fontFamily: "'DM Sans', system-ui, sans-serif",
+                        lineHeight: 1.4,
                       }}>
-                        {section.description}
+                        {q.question}
                       </p>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                      <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{ color: "#9AA3B2" }}>
-                        <path d="M18 12H6" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
                       <input
                         type="range"
-                        id={section.key}
-                        min="0"
-                        max="100"
-                        value={sliderValues[section.key]}
-                        onChange={(e) => handleSliderChange(section.key, parseInt(e.target.value))}
-                        className="slider"
+                        min="1" max="10"
+                        value={value}
+                        onChange={(e) => handleMetricChange(key, parseInt(e.target.value))}
+                        onMouseDown={() => setDraggingKey(key)}
+                        onTouchStart={() => setDraggingKey(key)}
+                        onMouseUp={() => setDraggingKey(null)}
+                        onTouchEnd={() => setDraggingKey(null)}
+                        className="slider-v2"
                       />
-                      <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{ color: "#9AA3B2" }}>
-                        <path d="M12 6v12M18 12H6" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
+                        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.38)", fontFamily: "'DM Sans', system-ui", maxWidth: "44%" }}>
+                          {q.leftAnchor}
+                        </span>
+                        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.38)", fontFamily: "'DM Sans', system-ui", textAlign: "right", maxWidth: "44%" }}>
+                          {q.rightAnchor}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
-
-              {/* Additional Slider Sections */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                {[
-                  { key: "technique", label: "Technique", description: "Quality of technical execution." },
-                  { key: "tactics", label: "Tactics", description: "Quality of tactical decisions." },
-                  { key: "dynamism", label: "Dynamism", description: "Level of energy and enthusiasm." },
-                  { key: "nervousness", label: "Nervousness", description: "Level of stress and anxiety." },
-                  { key: "concentration", label: "Concentration", description: "Ability to maintain focus." },
-                  { key: "confidence", label: "Confidence", description: "Level of self-assurance." },
-                  { key: "wellBeing", label: "Well-being", description: "Overall feeling of wellness." },
-                  { key: "sleepQuality", label: "Sleep Quality", description: "Quality of rest during the last 24 hours." },
-                ].map((section, index) => (
-                  <div 
-                    key={section.key} 
-                    style={{
-                      background: "#141A24",
-                      borderRadius: "16px",
-                      padding: "16px",
-                      border: "1px solid rgba(0, 224, 255, 0.1)",
-                      boxShadow: "inset 0 0 0 1px rgba(0, 224, 255, 0.1)",
-                      animationDelay: `${50 * (index + 7)}ms`,
-                    }}
-                    className="card-animate"
-                  >
-                    <div style={{ marginBottom: "12px" }}>
-                      <label 
-                        htmlFor={section.key} 
-                        style={{
-                          fontSize: "18px",
-                          fontWeight: "600",
-                          color: "white",
-                          margin: 0,
-                        }}
-                      >
-                        {section.label}
-                      </label>
-                      <p style={{
-                        fontSize: "14px",
-                        color: "rgba(154, 163, 178, 0.7)",
-                        margin: "4px 0 0 0",
-                      }}>
-                        {section.description}
-                      </p>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                      <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{ color: "#9AA3B2" }}>
-                        <path d="M18 12H6" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                      <input
-                        type="range"
-                        id={section.key}
-                        min="0"
-                        max="100"
-                        value={sliderValues[section.key]}
-                        onChange={(e) => handleSliderChange(section.key, parseInt(e.target.value))}
-                        className="slider"
-                      />
-                      <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{ color: "#9AA3B2" }}>
-                        <path d="M12 6v12M18 12H6" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    </div>
+              {/* Friction Matrix */}
+              <div style={{
+                marginTop: 4,
+                background: "#141A24",
+                borderRadius: 16,
+                padding: "20px 16px",
+                border: "1px solid rgba(255,184,0,0.15)",
+              }}>
+                {/* hasFriction toggle */}
+                <div
+                  onClick={() => setHasFriction(!hasFriction)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    cursor: "pointer",
+                  }}
+                >
+                  <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "#FFFFFF", fontFamily: "'DM Sans', system-ui" }}>
+                    Anything holding you back?
+                  </p>
+                  <div style={{
+                    width: 44,
+                    height: 24,
+                    borderRadius: 12,
+                    background: hasFriction ? "#FFB800" : "rgba(255,255,255,0.12)",
+                    position: "relative",
+                    transition: "background 0.2s",
+                    flexShrink: 0,
+                  }}>
+                    <div style={{
+                      position: "absolute",
+                      top: 3,
+                      left: hasFriction ? 23 : 3,
+                      width: 18,
+                      height: 18,
+                      borderRadius: "50%",
+                      background: "#FFFFFF",
+                      transition: "left 0.2s",
+                      boxShadow: "0 1px 4px rgba(0,0,0,0.3)",
+                    }} />
                   </div>
-                ))}
+                </div>
+
+                {hasFriction && (
+                  <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 16 }}>
+                    {/* frictionType */}
+                    <div>
+                      <p style={{ margin: "0 0 8px", fontSize: 13, color: "rgba(255,255,255,0.6)", fontFamily: "'DM Sans', system-ui" }}>
+                        What type of friction?
+                      </p>
+                      <select
+                        value={frictionType}
+                        onChange={(e) => setFrictionType(e.target.value)}
+                        className="friction-select"
+                      >
+                        <option value="Physical Fatigue">Physical Fatigue</option>
+                        <option value="Academic/Life Stress">Academic / Life Stress</option>
+                        <option value="Court Confusion">Court Confusion</option>
+                        <option value="Mental/Emotional">Mental / Emotional</option>
+                      </select>
+                    </div>
+
+                    {/* frictionFrequency */}
+                    {[
+                      { key: "frictionFrequency", val: frictionFrequency, setter: setFrictionFrequency, left: "Rarely", right: "Constantly" },
+                      { key: "frictionImpact", val: frictionImpact, setter: setFrictionImpact, left: "Barely noticeable", right: "Severely limiting" },
+                      { key: "frictionDistraction", val: frictionDistraction, setter: setFrictionDistraction, left: "Not worried", right: "Highly distracted" },
+                    ].map(({ key, val, setter, left, right }) => (
+                      <div key={key}>
+                        <input
+                          type="range" min="1" max="10"
+                          value={val}
+                          onChange={(e) => setter(parseInt(e.target.value))}
+                          className="slider-v2"
+                        />
+                        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}>
+                          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.38)", fontFamily: "'DM Sans', system-ui" }}>{left}</span>
+                          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.38)", fontFamily: "'DM Sans', system-ui", textAlign: "right" }}>{right}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </main>
 
