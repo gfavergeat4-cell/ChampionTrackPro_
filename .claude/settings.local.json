@@ -26,7 +26,9 @@
       "Bash(gcloud auth:*)",
       "Read(//c/Users/gabfa/AppData/Roaming/gcloud/**)",
       "Read(//c/Users/gabfa/.config/gcloud/**)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(pdftotext:*)",
+      "Bash(npm install:*)"
     ]
   }
 }

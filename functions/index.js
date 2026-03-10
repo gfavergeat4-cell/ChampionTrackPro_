@@ -769,16 +769,21 @@ exports.sendQuestionnaireAvailableNotifications = functions
       const dueAtReminder = admin.firestore.Timestamp.fromMillis(nowMs + REMINDER_HOURS * 60 * 60 * 1000);
 
       // Envoyer une notification Ã  chaque athlÃ¨te + planifier rappel 2h si non rÃ©pondu
+      // DEBT-04: batch-fetch all user docs in one round-trip instead of O(N) sequential reads
+      const memberUids = membersSnap.docs.map((m) => m.id);
+      const userRefs = memberUids.map((uid) => db.collection("users").doc(uid));
+      const userDocs = await db.getAll(...userRefs);
+      const userDataMap = new Map();
+      userDocs.forEach((d) => { if (d.exists) userDataMap.set(d.id, d.data() || {}); });
+
       for (const memberDoc of membersSnap.docs) {
         const uid = memberDoc.id;
-        const userDoc = await db.collection("users").doc(uid).get();
-        
-        if (!userDoc.exists) {
+        if (!userDataMap.has(uid)) {
           console.warn("[NOTIF][CRON] User", uid, "not found");
           continue;
         }
 
-        const userData = userDoc.data() || {};
+        const userData = userDataMap.get(uid);
         const tokens = userData.fcmWebTokens || [];
 
         if (tokens.length === 0) {
@@ -1306,4 +1311,48 @@ exports.lookupTeamByCode = functions
     }
 
     throw new functions.https.HttpsError("not-found", "Invalid code. Check the code provided by your team.");
+  });
+
+/**
+ * DEBT-03 — cleanupOldReminders
+ * Weekly cleanup of pendingQuestionnaireReminders where status != "pending"
+ * and dueAt < 30 days ago. Deletes in batches of 500.
+ */
+exports.cleanupOldReminders = functions
+  .region(REGION)
+  .pubsub.schedule("every 168 hours")
+  .timeZone("Europe/Paris")
+  .onRun(async () => {
+    const now = Date.now();
+    const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+    const cutoff = admin.firestore.Timestamp.fromMillis(now - thirtyDaysMs);
+
+    console.log("[CLEANUP] Running reminder cleanup, cutoff:", new Date(now - thirtyDaysMs).toISOString());
+
+    // Query only by dueAt to avoid compound inequality (status != + dueAt <)
+    const snap = await db
+      .collection("pendingQuestionnaireReminders")
+      .where("dueAt", "<", cutoff)
+      .limit(500)
+      .get();
+
+    if (snap.empty) {
+      console.log("[CLEANUP] No old reminders to delete");
+      return null;
+    }
+
+    // Filter client-side: skip docs still pending (edge case — shouldn't exist after 30d)
+    const toDelete = snap.docs.filter((d) => d.data().status !== "pending");
+
+    if (toDelete.length === 0) {
+      console.log("[CLEANUP] All old docs still pending — skipping");
+      return null;
+    }
+
+    const batch = db.batch();
+    toDelete.forEach((doc) => batch.delete(doc.ref));
+    await batch.commit();
+
+    console.log(`[CLEANUP] Deleted ${toDelete.length} old reminders`);
+    return null;
   });
