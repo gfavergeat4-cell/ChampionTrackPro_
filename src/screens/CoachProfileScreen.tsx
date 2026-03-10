@@ -2,9 +2,9 @@ import React, { useEffect, useRef, useState } from "react";
 import { Platform, View, Text, ActivityIndicator } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { signOut } from "firebase/auth";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { auth, db, storage } from "../lib/firebase";
+import { doc, getDoc, updateDoc, setDoc } from "firebase/firestore";
+import { updateProfile } from "firebase/auth";
+import { auth, db } from "../lib/firebase";
 import { useIsDesktop } from "../hooks/useIsDesktop";
 import { CommonActions } from "@react-navigation/native";
 
@@ -25,9 +25,10 @@ export default function CoachProfileScreen() {
   const [editMode, setEditMode] = useState(false);
   const [editName, setEditName] = useState("");
   const [editPhone, setEditPhone] = useState("");
-  const [editPhotoURL, setEditPhotoURL] = useState<string | null>(null);
+  const [editPhotoBase64, setEditPhotoBase64] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -41,7 +42,8 @@ export default function CoachProfileScreen() {
         const userData = (userSnap.data() as any) || {};
         if (!cancelled) {
           setFullName(userData.fullName || userData.displayName || "");
-          setPhotoURL(userData.photoURL || null);
+          // photoBase64 takes priority over photoURL (storage-based)
+          setPhotoURL(userData.photoBase64 || userData.photoURL || null);
         }
 
         const tid: string | null = userData.teamId || null;
@@ -84,8 +86,9 @@ export default function CoachProfileScreen() {
   const startEdit = () => {
     setEditName(fullName);
     setEditPhone("");
-    setEditPhotoURL(photoURL);
+    setEditPhotoBase64(null);
     setSaveError(null);
+    setSuccessMsg(null);
     setEditMode(true);
   };
 
@@ -94,19 +97,20 @@ export default function CoachProfileScreen() {
     setSaveError(null);
   };
 
-  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const user = auth.currentUser;
-    if (!user) return;
-    try {
-      const storageRef = ref(storage, `profiles/${user.uid}/avatar.jpg`);
-      await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(storageRef);
-      setEditPhotoURL(url);
-    } catch (err: any) {
-      setSaveError("Photo upload failed: " + (err?.message || String(err)));
+    const MAX_BYTES = 500 * 1024;
+    if (file.size > MAX_BYTES) {
+      setSaveError("Image too large, please use a smaller photo (max 500 KB)");
+      return;
     }
+    setSaveError(null);
+    const reader = new FileReader();
+    reader.onload = () => {
+      setEditPhotoBase64(reader.result as string);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSave = async () => {
@@ -114,16 +118,22 @@ export default function CoachProfileScreen() {
     if (!user) return;
     setSaving(true);
     setSaveError(null);
+    setSuccessMsg(null);
     try {
-      const updates: Record<string, any> = {
-        fullName: editName.trim() || fullName,
-      };
-      if (editPhotoURL) updates.photoURL = editPhotoURL;
+      const newName = editName.trim() || fullName;
+      const updates: Record<string, any> = { displayName: newName, fullName: newName };
+      if (editPhotoBase64) updates.photoBase64 = editPhotoBase64;
 
-      await updateDoc(doc(db, "users", user.uid), updates);
-      setFullName(updates.fullName);
-      if (editPhotoURL) setPhotoURL(editPhotoURL);
+      // Update Firebase Auth profile
+      await updateProfile(user, { displayName: newName });
+      // Update Firestore (merge to preserve other fields)
+      await setDoc(doc(db, "users", user.uid), updates, { merge: true });
+
+      setFullName(newName);
+      if (editPhotoBase64) setPhotoURL(editPhotoBase64);
       setEditMode(false);
+      setSuccessMsg("Profile updated ✅");
+      setTimeout(() => setSuccessMsg(null), 3000);
     } catch (err: any) {
       setSaveError(err?.message || String(err));
     } finally {
@@ -200,9 +210,9 @@ export default function CoachProfileScreen() {
             }}>
               {/* Avatar */}
               <div style={{ position: "relative", flexShrink: 0 }}>
-                {(editMode ? editPhotoURL : photoURL) ? (
+                {(editMode ? (editPhotoBase64 || photoURL) : photoURL) ? (
                   <img
-                    src={(editMode ? editPhotoURL : photoURL)!}
+                    src={(editMode ? (editPhotoBase64 || photoURL) : photoURL)!}
                     alt="avatar"
                     style={{ width: 56, height: 56, borderRadius: "50%", objectFit: "cover", border: "2px solid rgba(0,212,255,0.4)" }}
                   />
@@ -378,6 +388,13 @@ export default function CoachProfileScreen() {
                 </div>
               </div>
             ) : null}
+
+            {/* Success message */}
+            {successMsg && (
+              <div style={{ color: "#00FF9D", fontSize: 13, padding: "8px 12px", background: "rgba(0,255,157,0.08)", border: "1px solid rgba(0,255,157,0.2)", borderRadius: 8 }}>
+                {successMsg}
+              </div>
+            )}
 
             {/* Save error */}
             {saveError && (
