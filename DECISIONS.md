@@ -113,4 +113,18 @@ However, to avoid breaking the current join flow in V2 Phase 2, the conservative
 ## DEC-13 — AthleteDetailScreen: standalone vs. PerformanceDashboard wrapper
 **Context:** Existing `AthleteDetailScreen.tsx` wrapped `PerformanceDashboard` with `athleteId` as route param. This showed the full team-level dashboard UI (duration controls, view toggles) instead of a focused individual view.
 **Decision:** Full standalone implementation with dedicated collectionGroup data-fetching and purpose-built charts (gauge, EMA trendline, radar, session table). PerformanceDashboard dependency removed.
-**Tradeoff:** Code duplication of EMA/metric utilities. Future refactor should extract to `src/utils/analytics.ts`.
+**Tradeoff:** Code duplication of EMA/metric utilities. Resolved in DEC-13 follow-up: `src/utils/analytics.ts` created, both files now import from it.
+
+---
+
+## DEC-14 — Coach photo storage: base64 in Firestore vs Firebase Storage
+**Context:** TASK 3 — `CoachProfileScreen` originally used Firebase Storage (`uploadBytes`, `getDownloadURL`) for photo upload.
+**Decision:** Save photo as base64 data URL in `users/{uid}.photoBase64` (Firestore). Enforce 500 KB client-side limit. Rationale: eliminates Storage dependency, no CORS config required, no additional billing dimension for low-traffic coach profile edits.
+**Tradeoff:** 500 KB base64 ≈ 667 KB in Firestore document (limit 1 MB). Upgrade to Storage CDN if document size becomes a concern at scale.
+
+---
+
+## DEC-15 — 6h reminder gated by status=="reminded", not by creation time
+**Context:** TASK 1 — `sendQuestionnaireSecondReminder` queries `status == "reminded" AND secondReminderDueAt <= now`. This means the 6h reminder is skipped if the 3h reminder was never sent (e.g. user had no tokens at T+3h).
+**Decision:** Acceptable. `secondReminderDueAt` is set to `now + 6h` at session-end notification time, so the window is relative to session end. The `status == "reminded"` gate prevents duplicate reminders and ensures logical sequencing.
+**Tradeoff:** Users who had no FCM tokens at T+3h (status never "reminded") also miss the T+6h reminder. Acceptable: absence of tokens at 3h implies absence at 6h as well in most cases.
