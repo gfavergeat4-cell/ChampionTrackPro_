@@ -1041,3 +1041,156 @@ exports.sendTestNotification = functions
     console.log(`[TEST NOTIF] Sent to ${response.successCount}/${tokens.length} tokens for uid=${uid}`);
     return { success: true, sent: response.successCount };
   });
+
+/**
+ * PHASE 5 — AI Data Lake
+ * Triggered on user deletion: anonymizes all athlete responses and writes
+ * to ai_training_dataset collection (Admin SDK only — client access: false).
+ *
+ * Logic:
+ * 1. Query all teams/{teamId}/trainings/{trainingId}/responses/{uid}
+ * 2. Strip uid, teamId, name, email - keep only wellness metrics
+ * 3. Inject sport, position, ageAtLog (computed from birthYear if available)
+ * 4. Write to ai_training_dataset via batch
+ * 5. Hard-delete original response documents
+ */
+exports.anonymizePlayerDataForAI = functions
+  .region(REGION)
+  .auth.user().onDelete(async (user) => {
+    const uid = user.uid;
+    console.log("[AI_LAKE] User deleted, anonymizing data for uid:", uid);
+
+    try {
+      // Fetch user profile before it disappears (already deleted from Auth, but Firestore may still have it)
+      let userProfile = {};
+      try {
+        const userDoc = await db.collection("users").doc(uid).get();
+        if (userDoc.exists) {
+          userProfile = userDoc.data() || {};
+        }
+      } catch (e) {
+        console.warn("[AI_LAKE] Could not fetch user profile:", e.message);
+      }
+
+      const position = userProfile.position || userProfile.poste || null;
+      const birthYear = userProfile.birthYear || null;
+      const sport = "basketball";
+
+      // Find all teams (brute force — no index on uid across teams)
+      const teamsSnap = await db.collection("teams").get();
+      let totalAnonymized = 0;
+      let totalDeleted = 0;
+
+      for (const teamDoc of teamsSnap.docs) {
+        const teamId = teamDoc.id;
+
+        // Check if user was a member of this team
+        const memberSnap = await db
+          .collection("teams").doc(teamId)
+          .collection("members").doc(uid)
+          .get();
+
+        if (!memberSnap.exists) continue;
+
+        // Query all trainings in this team
+        const trainingsSnap = await db
+          .collection("teams").doc(teamId)
+          .collection("trainings")
+          .get();
+
+        const batch = db.batch();
+        let batchCount = 0;
+
+        for (const trainingDoc of trainingsSnap.docs) {
+          const trainingId = trainingDoc.id;
+          const responseRef = db
+            .collection("teams").doc(teamId)
+            .collection("trainings").doc(trainingId)
+            .collection("responses").doc(uid);
+
+          const responseSnap = await responseRef.get();
+          if (!responseSnap.exists) continue;
+
+          const responseData = responseSnap.data() || {};
+          if (responseData.isTest) {
+            // Skip test responses
+            batch.delete(responseRef);
+            batchCount++;
+            continue;
+          }
+
+          // Compute ageAtLog from birthYear and submittedAt
+          let ageAtLog = null;
+          if (birthYear && responseData.submittedAt) {
+            const submittedYear = new Date(responseData.submittedAt.seconds * 1000).getFullYear();
+            ageAtLog = submittedYear - birthYear;
+          }
+
+          // Build anonymized record (strip all PII)
+          const anonymized = {
+            // Context
+            sport,
+            position,
+            ageAtLog,
+            sessionType: responseData.sessionType || "conditioning",
+            submittedAt: responseData.submittedAt || null,
+            // V2 metrics (if present)
+            ...(responseData.metrics ? { metrics: responseData.metrics } : {}),
+            readinessScore: responseData.readinessScore || null,
+            workloadAU: responseData.workloadAU || null,
+            // Friction data (if present)
+            ...(responseData.hasFriction ? {
+              hasFriction: true,
+              frictionType: responseData.frictionType || null,
+              frictionFrequency: responseData.frictionFrequency || null,
+              frictionImpact: responseData.frictionImpact || null,
+              frictionDistraction: responseData.frictionDistraction || null,
+            } : { hasFriction: false }),
+            // V1 legacy fields (kept for historical analysis)
+            ...(responseData.values ? { legacyValues: responseData.values } : {}),
+            // Metadata (no PII)
+            anonymizedAt: admin.firestore.FieldValue.serverTimestamp(),
+          };
+
+          // Write to ai_training_dataset
+          const aiRef = db.collection("ai_training_dataset").doc();
+          batch.set(aiRef, anonymized);
+
+          // Hard-delete original response
+          batch.delete(responseRef);
+
+          batchCount++;
+          totalAnonymized++;
+          totalDeleted++;
+
+          // Commit batch every 400 ops
+          if (batchCount >= 400) {
+            await batch.commit();
+            batchCount = 0;
+          }
+        }
+
+        if (batchCount > 0) {
+          await batch.commit();
+        }
+
+        // Remove member doc
+        await db.collection("teams").doc(teamId).collection("members").doc(uid).delete();
+        console.log(`[AI_LAKE] Team ${teamId}: anonymized ${totalAnonymized}, deleted ${totalDeleted}`);
+      }
+
+      // Delete user Firestore doc
+      try {
+        await db.collection("users").doc(uid).delete();
+        console.log("[AI_LAKE] User Firestore doc deleted for uid:", uid);
+      } catch (e) {
+        console.warn("[AI_LAKE] Could not delete user Firestore doc:", e.message);
+      }
+
+      console.log(`[AI_LAKE] Complete — anonymized ${totalAnonymized} responses for uid: ${uid}`);
+      return null;
+    } catch (err) {
+      console.error("[AI_LAKE] Error anonymizing data for uid:", uid, err);
+      return null;
+    }
+  });
