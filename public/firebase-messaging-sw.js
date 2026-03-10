@@ -1,4 +1,4 @@
-﻿importScripts("https://www.gstatic.com/firebasejs/10.12.4/firebase-app-compat.js");
+importScripts("https://www.gstatic.com/firebasejs/10.12.4/firebase-app-compat.js");
 importScripts("https://www.gstatic.com/firebasejs/10.12.4/firebase-messaging-compat.js");
 
 self.addEventListener("install", () => self.skipWaiting());
@@ -18,25 +18,36 @@ const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
   console.log("[SW] Background message received:", payload);
-  const title = payload?.notification?.title || payload?.data?.title || "Questionnaire disponible";
-  const body = payload?.notification?.body || payload?.data?.body || "Appuie pour remplir ton questionnaire.";
+  const title = payload?.notification?.title || payload?.data?.title || "ChampionTrackPro ⚡";
+  const body = payload?.notification?.body || payload?.data?.body || "Tell us — how did that session hit you?";
   const data = payload?.data || {};
-  const url = data.url || data.clickAction || "/";
+  const trainingId = data.trainingId;
+  const teamId = data.teamId;
+  const url = trainingId
+    ? `/?screen=questionnaire&trainingId=${trainingId}&teamId=${teamId}`
+    : data.url || data.clickAction || "/";
+
   return self.registration.showNotification(title, {
     body,
-    icon: "/icons/icon-192.png",
-    badge: "/icons/icon-192.png",
-    vibrate: [200, 100, 200],
-    requireInteraction: true,
-    renotify: true,
-    tag: data.tag || "ctpro-questionnaire",
-    data: { url },
+    icon: "/icons/icon-192-v2.png",
+    badge: "/icons/badge-72.png",
+    tag: trainingId ? `questionnaire-${trainingId}` : (data.tag || "ctpro-questionnaire"),
+    renotify: false,
+    requireInteraction: false,
+    silent: false,
+    data: { url, trainingId, teamId },
+    actions: [{ action: "open_questionnaire", title: "Tell us →" }],
   });
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = event.notification?.data?.url || "/";
+  const trainingId = event.notification?.data?.trainingId;
+  const teamId = event.notification?.data?.teamId;
+  const url = trainingId
+    ? `/?screen=questionnaire&trainingId=${trainingId}&teamId=${teamId}`
+    : (event.notification?.data?.url || "/");
+
   event.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {

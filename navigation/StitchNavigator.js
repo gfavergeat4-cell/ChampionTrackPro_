@@ -287,10 +287,10 @@ function RootStackNavigator({ role, user, pendingDeepLink, navigationRef }) {
   // Après auth + rôle athlete, ouvrir le questionnaire si un deep link est en attente
   React.useEffect(() => {
     if (pendingDeepLink?.current && String(role || '').trim().toLowerCase() === 'athlete') {
-      const sessionId = pendingDeepLink.current;
+      const params = pendingDeepLink.current;
       const t = setTimeout(() => {
         if (navigationRef?.current?.isReady()) {
-          navigationRef.current.navigate('Questionnaire', { sessionId });
+          navigationRef.current.navigate('Questionnaire', params);
           pendingDeepLink.current = null;
         }
       }, 3000);
@@ -507,21 +507,32 @@ export default function StitchNavigator() {
   const navigationRef = React.useRef(null);
   const pendingDeepLink = React.useRef(null);
 
-  // Deep link : au démarrage stocker sessionId en ref, puis navigation après auth dans RootStackNavigator
+  // Deep link : au démarrage stocker params en ref, puis navigation après auth dans RootStackNavigator
   React.useEffect(() => {
     if (typeof window === "undefined") return;
 
     const startUrl = new URL(window.location.href);
     const startSessionId = startUrl.searchParams.get("sessionId");
     const startOpenQ = startUrl.searchParams.get("openQuestionnaire");
-    if (startSessionId && startOpenQ === "1") {
-      pendingDeepLink.current = startSessionId;
+    const startScreen = startUrl.searchParams.get("screen");
+    const startTrainingId = startUrl.searchParams.get("trainingId");
+    const startTeamId = startUrl.searchParams.get("teamId");
+
+    // FIX 4: new URL format /?screen=questionnaire&trainingId=X&teamId=Y
+    if (startScreen === "questionnaire" && startTrainingId) {
+      pendingDeepLink.current = { trainingId: startTrainingId, teamId: startTeamId };
+      window.history.replaceState({}, "", "/");
+    } else if (startSessionId && startOpenQ === "1") {
+      pendingDeepLink.current = { sessionId: startSessionId };
       window.history.replaceState({}, "", "/");
     }
 
     const handleDeepLink = () => {
       const pathname = window.location.pathname || "";
       const url = new URL(window.location.href);
+      const screen = url.searchParams.get("screen");
+      const trainingId = url.searchParams.get("trainingId");
+      const teamId = url.searchParams.get("teamId");
       const sessionId = url.searchParams.get("sessionId");
       const openQuestionnaire = url.searchParams.get("openQuestionnaire");
 
@@ -534,13 +545,28 @@ export default function StitchNavigator() {
         return;
       }
 
-      if (sessionId && openQuestionnaire === "1") {
-        pendingDeepLink.current = sessionId;
+      // FIX 4: new deep link format
+      if (screen === "questionnaire" && trainingId) {
+        pendingDeepLink.current = { trainingId, teamId };
         window.history.replaceState({}, "", window.location.pathname || "/");
         if (navigationRef.current?.isReady()) {
           setTimeout(() => {
             if (navigationRef.current?.isReady() && pendingDeepLink.current) {
-              navigationRef.current.navigate("Questionnaire", { sessionId: pendingDeepLink.current });
+              navigationRef.current.navigate("Questionnaire", pendingDeepLink.current);
+              pendingDeepLink.current = null;
+            }
+          }, 1000);
+        }
+        return;
+      }
+
+      if (sessionId && openQuestionnaire === "1") {
+        pendingDeepLink.current = { sessionId };
+        window.history.replaceState({}, "", window.location.pathname || "/");
+        if (navigationRef.current?.isReady()) {
+          setTimeout(() => {
+            if (navigationRef.current?.isReady() && pendingDeepLink.current) {
+              navigationRef.current.navigate("Questionnaire", pendingDeepLink.current);
               pendingDeepLink.current = null;
             }
           }, 1000);

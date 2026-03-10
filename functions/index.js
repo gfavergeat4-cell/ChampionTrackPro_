@@ -760,11 +760,11 @@ exports.sendQuestionnaireAvailableNotifications = functions
         continue;
       }
 
-      // URL de deep-link vers l'app web + questionnaire
-      const clickAction = `https://champion-track-pro.vercel.app/?sessionId=${trainingId}&openQuestionnaire=1`;
+      // FIX 4: deep link URL direct vers questionnaire
+      const clickAction = `https://champion-track-pro.vercel.app/?screen=questionnaire&trainingId=${trainingId}&teamId=${teamId}`;
       console.log("[FCM] clickAction:", clickAction);
-      const notifTitle = "Questionnaire available";
-      const notifBody = `Rate your session: ${title}`;
+      const notifTitle = "ChampionTrackPro ⚡";
+      const notifBody = "Tell us — how did that session hit you?";
       const REMINDER_HOURS = 3;
       const dueAtReminder = admin.firestore.Timestamp.fromMillis(nowMs + REMINDER_HOURS * 60 * 60 * 1000);
 
@@ -788,27 +788,41 @@ exports.sendQuestionnaireAvailableNotifications = functions
 
         const message = {
           tokens,
-          data: {
-            title: notifTitle,
-            body: notifBody,
-            url: clickAction,
-            clickAction,
-            trainingId,
-            teamId,
-            tag: "ctpro-questionnaire",
-          },
           notification: {
             title: notifTitle,
             body: notifBody,
           },
+          data: {
+            trainingId,
+            teamId,
+            url: clickAction,
+            tag: `questionnaire-${trainingId}`,
+          },
+          android: {
+            priority: "high",
+            notification: {
+              priority: "high",
+              defaultSound: true,
+              channelId: "ctpro-questionnaire",
+              color: "#00D4FF",
+            },
+          },
+          apns: {
+            headers: { "apns-priority": "10" },
+            payload: { aps: { sound: "default", badge: 1 } },
+          },
           webpush: {
+            headers: { Urgency: "high" },
             fcmOptions: { link: clickAction },
             notification: {
-              icon: "https://champion-track-pro.vercel.app/icons/icon-192.png",
-              badge: "https://champion-track-pro.vercel.app/icons/icon-192.png",
-              tag: "ctpro-questionnaire",
-              requireInteraction: true,
-              renotify: true,
+              icon: "https://champion-track-pro.vercel.app/icons/icon-192-v2.png",
+              badge: "https://champion-track-pro.vercel.app/icons/badge-72.png",
+              tag: `questionnaire-${trainingId}`,
+              renotify: false,
+              requireInteraction: false,
+              silent: false,
+              data: { url: clickAction, trainingId, teamId },
+              actions: [{ action: "open_questionnaire", title: "Tell us →" }],
             },
           },
         };
@@ -918,29 +932,45 @@ exports.sendQuestionnaireReminders = functions
           continue;
         }
 
+        // FIX 4: deep link URL + new copywriting for reminder
+        const reminderUrl = `https://champion-track-pro.vercel.app/?screen=questionnaire&trainingId=${trainingId}&teamId=${teamId}`;
         const message = {
           tokens,
+          notification: {
+            title: "Still got 60 seconds? ⏱",
+            body: "Your coach needs your data to make tomorrow better for everyone.",
+          },
           data: {
-            title: notificationTitle,
-            body: notificationBody,
-            url: clickAction,
-            clickAction,
             trainingId,
             teamId,
-            tag: "ctpro-questionnaire-reminder",
+            url: reminderUrl,
+            tag: `questionnaire-${trainingId}`,
           },
-          notification: {
-            title: notificationTitle,
-            body: notificationBody,
+          android: {
+            priority: "high",
+            notification: {
+              priority: "high",
+              defaultSound: true,
+              channelId: "ctpro-questionnaire",
+              color: "#00D4FF",
+            },
+          },
+          apns: {
+            headers: { "apns-priority": "10" },
+            payload: { aps: { sound: "default", badge: 1 } },
           },
           webpush: {
-            fcmOptions: { link: clickAction },
+            headers: { Urgency: "high" },
+            fcmOptions: { link: reminderUrl },
             notification: {
-              icon: "https://champion-track-pro.vercel.app/icons/icon-192.png",
-              badge: "https://champion-track-pro.vercel.app/icons/icon-192.png",
-              tag: "ctpro-questionnaire-reminder",
-              requireInteraction: true,
-              renotify: true,
+              icon: "https://champion-track-pro.vercel.app/icons/icon-192-v2.png",
+              badge: "https://champion-track-pro.vercel.app/icons/badge-72.png",
+              tag: `questionnaire-${trainingId}`,
+              renotify: false,
+              requireInteraction: false,
+              silent: false,
+              data: { url: reminderUrl, trainingId, teamId },
+              actions: [{ action: "open_questionnaire", title: "Tell us →" }],
             },
           },
         };
@@ -993,7 +1023,8 @@ exports.sendTestNotification = functions
       throw new functions.https.HttpsError("not-found", "training_not_found");
     }
 
-    const clickAction = `https://champion-track-pro.vercel.app/?sessionId=${trainingId}&openQuestionnaire=1`;
+    // FIX 4: deep link URL format
+    const clickAction = `https://champion-track-pro.vercel.app/?screen=questionnaire&trainingId=${trainingId}&teamId=${teamId}`;
 
     const message = {
       tokens,
@@ -1002,18 +1033,30 @@ exports.sendTestNotification = functions
         body: "Tap to open your test questionnaire",
       },
       data: {
-        url: clickAction,
-        clickAction,
         trainingId,
         teamId,
-        tag: "ctpro-test",
+        url: clickAction,
+        tag: `questionnaire-${trainingId}`,
+      },
+      android: {
+        priority: "high",
+        notification: { priority: "high", defaultSound: true, channelId: "ctpro-questionnaire" },
+      },
+      apns: {
+        headers: { "apns-priority": "10" },
+        payload: { aps: { sound: "default" } },
       },
       webpush: {
+        headers: { Urgency: "high" },
         fcmOptions: { link: clickAction },
         notification: {
-          icon: "https://champion-track-pro.vercel.app/icons/icon-192.png",
-          tag: "ctpro-test",
-          requireInteraction: true,
+          icon: "https://champion-track-pro.vercel.app/icons/icon-192-v2.png",
+          badge: "https://champion-track-pro.vercel.app/icons/badge-72.png",
+          tag: `questionnaire-${trainingId}`,
+          requireInteraction: false,
+          silent: false,
+          data: { url: clickAction, trainingId, teamId },
+          actions: [{ action: "open_questionnaire", title: "Tell us →" }],
         },
       },
     };
