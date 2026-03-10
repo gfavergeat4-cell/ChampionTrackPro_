@@ -12,6 +12,7 @@ import {
   doc,
 } from "firebase/firestore";
 import { db } from "../../services/firebaseConfig";
+import { calculateEMA, calculateReadiness } from "../utils/analytics";
 import {
   LineChart,
   Line,
@@ -55,45 +56,10 @@ function formatDateShort(ts: any): string {
   return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
 }
 
-const EMA_N = 28;
-const EMA_ALPHA = 2 / (EMA_N + 1);
-
-function calculateEMA(values: number[]): number[] {
-  const ema: number[] = [];
-  for (let i = 0; i < values.length; i++) {
-    if (i === 0) {
-      ema.push(values[0]);
-    } else {
-      ema.push(parseFloat((values[i] * EMA_ALPHA + ema[i - 1] * (1 - EMA_ALPHA)).toFixed(2)));
-    }
-  }
-  return ema;
-}
-
-function calculateEMA7(values: number[]): number[] {
-  const alpha = 2 / (7 + 1);
-  const ema: number[] = [];
-  for (let i = 0; i < values.length; i++) {
-    if (i === 0) {
-      ema.push(values[0]);
-    } else {
-      ema.push(parseFloat((values[i] * alpha + ema[i - 1] * (1 - alpha)).toFixed(2)));
-    }
-  }
-  return ema;
-}
+// calculateEMA and calculateReadiness imported from ../utils/analytics
 
 function getMetric(r: any, key: string): number {
   return r?.metrics?.[key] ?? r?.values?.[key] ?? r?.[key] ?? 5;
-}
-
-function calculateReadiness(r: any): number {
-  const cardio = getMetric(r, "cardioLoad");
-  const neuro = getMetric(r, "neuroLoad");
-  const sleep = getMetric(r, "sleepQuality");
-  const stress = getMetric(r, "stressLevel");
-  const raw = (10 - cardio + 10 - neuro + sleep + 10 - stress) / 4;
-  return Math.max(0, Math.min(10, raw));
 }
 
 interface SessionRow {
@@ -210,7 +176,7 @@ export default function AthleteDetailScreen() {
     const recent = sortedAsc.slice(-7);
     if (recent.length === 0) return 0;
     const scores = recent.map((r) => {
-      const rs = r.readinessScore ?? calculateReadiness(r) * 10;
+      const rs = r.readinessScore ?? calculateReadiness(r?.metrics ?? {});
       return typeof rs === "number" ? rs : 50;
     });
     return Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
@@ -220,13 +186,13 @@ export default function AthleteDetailScreen() {
   const emaTrendData = useMemo(() => {
     if (sortedAsc.length === 0) return [];
     const scores = sortedAsc.map((r) => {
-      const rs = r.readinessScore ?? calculateReadiness(r) * 10;
+      const rs = r.readinessScore ?? calculateReadiness(r?.metrics ?? {});
       return typeof rs === "number" ? rs : 50;
     });
     const workloads = sortedAsc.map((r) => r.workloadAU ?? (getMetric(r, "sessionRPE") * 60));
-    const ema28 = calculateEMA(scores);
-    const ema7 = calculateEMA7(workloads);
-    const ema28w = calculateEMA(workloads);
+    const ema28 = calculateEMA(scores, 28);
+    const ema7 = calculateEMA(workloads, 7);
+    const ema28w = calculateEMA(workloads, 28);
 
     return sortedAsc.map((r, i) => ({
       date: formatDateShort(r.submittedAt),
@@ -260,7 +226,7 @@ export default function AthleteDetailScreen() {
       id: r.id,
       date: r.submittedAt,
       sessionType: r.sessionType || r.trainingType || "Training",
-      readinessScore: r.readinessScore ?? Math.round(calculateReadiness(r) * 10),
+      readinessScore: r.readinessScore ?? Math.round(calculateReadiness(r?.metrics ?? {})),
       workloadAU: r.workloadAU ?? Math.round(getMetric(r, "sessionRPE") * 60),
       hasFriction: !!(r.hasFriction || r.frictionType || r.pain),
       frictionType: r.frictionType || (r.hasFriction ? "Friction" : undefined),

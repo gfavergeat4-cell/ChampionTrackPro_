@@ -11,6 +11,8 @@ import {
   Timestamp,
 } from "firebase/firestore";
 import { auth, db } from "../../services/firebaseConfig";
+import { calculateEMA, calculateDeviation, calculateReadiness, extractV2Metrics } from "../utils/analytics";
+import type { V2Metrics, RawResponse } from "../utils/analytics";
 import {
   LineChart,
   Line,
@@ -65,44 +67,7 @@ interface Member {
   role?: string;
 }
 
-interface V2Metrics {
-  cardioLoad?: number;
-  neuroLoad?: number;
-  sleepQuality?: number;
-  stressLevel?: number;
-  motorControl?: number | null;
-  tacticalLucidity?: number | null;
-  sessionRPE?: number;
-}
-
-interface RawResponse {
-  userId: string;
-  teamId: string;
-  trainingId: string;
-  submittedAt?: any;
-  status?: string;
-  isTest?: boolean;
-  // V1 fields (legacy)
-  intensiteMoyenne?: number;
-  hautesIntensites?: number;
-  impactCardiaque?: number;
-  impactMusculaire?: number;
-  fatigue?: number;
-  concentration?: number;
-  confiance?: number;
-  bienEtre?: number;
-  nervosite?: number;
-  sommeil?: number;
-  technique?: number;
-  tactique?: number;
-  dynamisme?: number;
-  values?: { [key: string]: number | undefined };
-  // V2 fields
-  metrics?: V2Metrics;
-  readinessScore?: number;
-  workloadAU?: number;
-  sessionType?: string;
-}
+// V2Metrics and RawResponse imported from ../utils/analytics
 
 interface ChartPoint {
   date: string;
@@ -205,62 +170,6 @@ function getMetricValue(resp: RawResponse, key: string): number | null {
     return resp.values[key] as number;
   }
   return null;
-}
-
-// ─── V2 Analytics Utilities ───────────────────────────────────────────────
-
-// V1 → V2 field mapping (DEC-04: null-safe fallback for historical data)
-function extractV2Metrics(r: RawResponse): V2Metrics {
-  if (r.metrics) return r.metrics;
-  // V1 fallback: normalize V1 fields (0-100) to V2 scale (1-10)
-  const norm = (v: number | undefined, invert = false): number | null => {
-    if (v === undefined || v === null) return null;
-    const scaled = v / 10;
-    return invert ? Math.round((10 - scaled) * 10) / 10 : Math.round(scaled * 10) / 10;
-  };
-  return {
-    cardioLoad: norm(r.impactCardiaque) ?? undefined,
-    neuroLoad: norm(r.impactMusculaire) ?? undefined,
-    sleepQuality: norm(r.sommeil, true) ?? undefined,
-    stressLevel: norm(r.nervosite) ?? undefined,
-    motorControl: norm(r.technique, true) ?? undefined,
-    tacticalLucidity: norm(r.tactique, true) ?? undefined,
-    sessionRPE: norm(r.fatigue) ?? undefined,
-  };
-}
-
-// Readiness Score (0-100) — high metric = bad, invert for readiness
-function calculateReadinessScore(m: V2Metrics): number {
-  const scores = {
-    cardio:   (10 - (m.cardioLoad   ?? 5)) * 0.20,
-    neuro:    (10 - (m.neuroLoad    ?? 5)) * 0.25,
-    sleep:    (10 - (m.sleepQuality ?? 5)) * 0.20,
-    stress:   (10 - (m.stressLevel  ?? 5)) * 0.15,
-    motor:    (10 - (m.motorControl ?? 5)) * 0.10,
-    tactical: (10 - ((m.tacticalLucidity ?? m.stressLevel) ?? 5)) * 0.10,
-  };
-  const weighted = Object.values(scores).reduce((a, b) => a + b, 0);
-  return Math.round((weighted / 10) * 100);
-}
-
-// EMA (28-day) — seed with neutral 5 on first value
-const EMA_N = 28;
-const EMA_ALPHA = 2 / (EMA_N + 1);
-function calculateEMA(values: (number | null)[]): number[] {
-  const ema: number[] = [];
-  values.forEach((v, i) => {
-    if (i === 0) {
-      ema.push(v ?? 5);
-    } else {
-      const prev = ema[i - 1];
-      ema.push(v !== null ? parseFloat((v * EMA_ALPHA + prev * (1 - EMA_ALPHA)).toFixed(2)) : prev);
-    }
-  });
-  return ema;
-}
-
-function calculateDeviation(value: number, ema: number): number {
-  return ema === 0 ? 0 : parseFloat((((value - ema) / ema) * 100).toFixed(1));
 }
 
 // Morning Brief: per-player latest readiness
@@ -683,8 +592,8 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
     });
 
     sortedResponses.forEach((r) => {
-      const m2 = extractV2Metrics(r);
-      const rs = r.readinessScore ?? calculateReadinessScore(m2);
+      const m2 = extractV2Metrics(r) ?? {};
+      const rs = r.readinessScore ?? calculateReadiness(m2);
       if (!byPlayer[r.userId]) {
         const member = members.find((m) => m.id === r.userId);
         byPlayer[r.userId] = { name: member?.displayName || r.userId, scores: [], latest: 0, ema: 0, deviation: 0 };
@@ -693,7 +602,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
     });
 
     return Object.values(byPlayer).map((p) => {
-      const emaArr = calculateEMA(p.scores);
+      const emaArr = calculateEMA(p.scores, 28);
       const latest = p.scores[p.scores.length - 1];
       const emaLatest = emaArr[emaArr.length - 1];
       const deviation = calculateDeviation(latest, emaLatest);
@@ -715,10 +624,10 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
     if (teamResponses.length === 0) return [];
 
     const scores = teamResponses.map((r) => {
-      const m2 = extractV2Metrics(r);
-      return r.readinessScore ?? calculateReadinessScore(m2);
+      const m2 = extractV2Metrics(r) ?? {};
+      return r.readinessScore ?? calculateReadiness(m2);
     });
-    const emaArr = calculateEMA(scores);
+    const emaArr = calculateEMA(scores, 28);
 
     return teamResponses.map((r, i) => ({
       date: formatDateKey(new Date((r.submittedAt?.seconds ?? 0) * 1000)),
@@ -738,8 +647,8 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
     if (teamResponses.length === 0) return [];
 
     const workloads = teamResponses.map((r) => r.workloadAU ?? (r.metrics?.sessionRPE ?? 5) * 60);
-    const ema7 = calculateEMA(workloads); // reuse with N=7 approximation via alpha
-    const ema28 = calculateEMA(workloads);
+    const ema7 = calculateEMA(workloads, 7);
+    const ema28 = calculateEMA(workloads, 28);
 
     return teamResponses.map((r, i) => ({
       date: formatDateKey(new Date((r.submittedAt?.seconds ?? 0) * 1000)),
@@ -754,12 +663,12 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
     if (filteredResponses.length === 0) return [];
     const recent = filteredResponses.slice(-30);
     const metrics = {
-      cardioLoad: recent.map(r => extractV2Metrics(r).cardioLoad ?? 5),
-      neuroLoad: recent.map(r => extractV2Metrics(r).neuroLoad ?? 5),
-      sleepQuality: recent.map(r => extractV2Metrics(r).sleepQuality ?? 5),
-      stressLevel: recent.map(r => extractV2Metrics(r).stressLevel ?? 5),
-      motorControl: recent.map(r => extractV2Metrics(r).motorControl ?? 5),
-      sessionRPE: recent.map(r => extractV2Metrics(r).sessionRPE ?? 5),
+      cardioLoad: recent.map(r => (extractV2Metrics(r) ?? {}).cardioLoad ?? 5),
+      neuroLoad: recent.map(r => (extractV2Metrics(r) ?? {}).neuroLoad ?? 5),
+      sleepQuality: recent.map(r => (extractV2Metrics(r) ?? {}).sleepQuality ?? 5),
+      stressLevel: recent.map(r => (extractV2Metrics(r) ?? {}).stressLevel ?? 5),
+      motorControl: recent.map(r => (extractV2Metrics(r) ?? {}).motorControl ?? 5),
+      sessionRPE: recent.map(r => (extractV2Metrics(r) ?? {}).sessionRPE ?? 5),
     };
     const avg = (arr: number[]) => arr.reduce((a, b) => a + b, 0) / arr.length;
     // Convert to readiness (inverted: high metric = bad)
