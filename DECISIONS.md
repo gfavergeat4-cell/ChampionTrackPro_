@@ -100,3 +100,17 @@ However, to avoid breaking the current join flow in V2 Phase 2, the conservative
 ## DEC-11 — isTest client-side guard kept alongside server-side filter
 **Context:** After adding `where("isTest", "==", false)` to the dashboard collectionGroup query, the client-side `if (data.isTest) return` guard at `PerformanceDashboard.tsx:488` is technically redundant.
 **Decision:** Keep the client-side guard. V1 responses predating the `isTest` field have `isTest: undefined`. Firestore's `== false` filter excludes documents where the field equals `false` but the behavior for missing fields is to exclude those documents too — however, the guard costs nothing and prevents any unexpected legacy data from appearing if query behavior changes. Defense-in-depth.
+
+---
+
+## DEC-12 — Position filter propagation: responses vs. dropdown-only
+**Context:** TASK 2 — original implementation filtered the player dropdown by position but `filteredResponses` ignored the position filter when no specific players were selected, so charts showed data for all team members even with a position active.
+**Decision:** Update `filteredResponses` to respect position filter independently: when `selectedPositions.length > 0` and `selectedPlayerIds.length === 0`, filter responses to UIDs of `membersFilteredByPosition`. This makes position + player filters composable without duplicating logic.
+**Tradeoff:** If a coach selects a position to pre-filter the dropdown, then selects a specific player, the specific player selection takes priority (explicit beats implicit).
+
+---
+
+## DEC-13 — AthleteDetailScreen: standalone vs. PerformanceDashboard wrapper
+**Context:** Existing `AthleteDetailScreen.tsx` wrapped `PerformanceDashboard` with `athleteId` as route param. This showed the full team-level dashboard UI (duration controls, view toggles) instead of a focused individual view.
+**Decision:** Full standalone implementation with dedicated collectionGroup data-fetching and purpose-built charts (gauge, EMA trendline, radar, session table). PerformanceDashboard dependency removed.
+**Tradeoff:** Code duplication of EMA/metric utilities. Future refactor should extract to `src/utils/analytics.ts`.
