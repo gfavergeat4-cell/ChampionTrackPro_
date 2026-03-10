@@ -4,7 +4,6 @@ export { default as ScheduleScreenNew } from './ScheduleScreenNew';
 export { default as LoginScreenNew } from './LoginScreenNew';
 export { default as QuestionnaireScreenNew } from './QuestionnaireScreenNew';
 export { default as AdminDashboardNew } from './AdminDashboardNew';
-export { default as CreateAccountScreenNew } from './CreateAccountScreenNew';
 export { default as LandingScreenNew } from './LandingScreenNew';
 export { default as BottomNavigationNew } from './BottomNavigationNew';
 
