@@ -909,6 +909,14 @@ exports.sendQuestionnaireReminders = functions
       .get();
     console.log("[REMINDER] Pending reminders found:", remindersSnap.docs.length);
 
+    
+    // DEBT-04: batch-fetch all user docs in one round-trip instead of O(N) sequential reads
+    const reminderUserIds = [...new Set(remindersSnap.docs.map((d) => (d.data() || {}).userId).filter(Boolean))];
+    const reminderUserRefs = reminderUserIds.map((uid) => db.collection("users").doc(uid));
+    const reminderUserDocs = reminderUserRefs.length > 0 ? await db.getAll(...reminderUserRefs) : [];
+    const userDataMap = new Map();
+    reminderUserDocs.forEach((d) => { if (d.exists) userDataMap.set(d.id, d.data() || {}); });
+
     for (const docSnap of remindersSnap.docs) {
       const d = docSnap.data() || {};
       const { userId, teamId, trainingId, notificationTitle, notificationBody, clickAction } = d;
@@ -926,12 +934,11 @@ exports.sendQuestionnaireReminders = functions
           continue;
         }
 
-        const userDoc = await db.collection("users").doc(userId).get();
-        if (!userDoc.exists) {
+        if (!userDataMap.has(userId)) {
           await reminderRef.update({ status: "skipped", reason: "user_not_found" });
           continue;
         }
-        const tokens = (userDoc.data() || {}).fcmWebTokens || [];
+        const tokens = userDataMap.get(userId).fcmWebTokens || [];
         if (tokens.length === 0) {
           await reminderRef.update({ status: "skipped", reason: "no_tokens" });
           continue;
