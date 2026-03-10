@@ -1,10 +1,44 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { View, Platform } from "react-native";
 import MobileViewport from "../src/components/MobileViewport";
+import { registerWebPushTokenForCurrentUser } from "../src/services/webNotifications";
 
 export default function StitchHomeScreen() {
   const navigation = useNavigation();
+  const [showNotifBanner, setShowNotifBanner] = useState(false);
+  const [notifDenied, setNotifDenied] = useState(false);
+
+  useEffect(() => {
+    if (Platform.OS !== "web" || typeof window === "undefined") return;
+    if (typeof Notification === "undefined") return;
+
+    const checkBanner = () => {
+      const isStandalone =
+        window.matchMedia("(display-mode: standalone)").matches ||
+        window.navigator.standalone === true;
+      if (!isStandalone) return;
+      setShowNotifBanner(Notification.permission !== "granted");
+    };
+
+    checkBanner();
+    document.addEventListener("visibilitychange", checkBanner);
+    return () => document.removeEventListener("visibilitychange", checkBanner);
+  }, []);
+
+  const handleEnableNotifications = async () => {
+    const permission = await Notification.requestPermission();
+    if (permission === "granted") {
+      try {
+        await registerWebPushTokenForCurrentUser();
+      } catch (e) {
+        console.warn("[Home] registerWebPushTokenForCurrentUser failed:", e);
+      }
+      setShowNotifBanner(false);
+    } else {
+      setNotifDenied(true);
+    }
+  };
 
   const handleRespond = () => {
     navigation.navigate("Questionnaire", { sessionId: "strength-training-10-11" });
@@ -91,8 +125,60 @@ export default function StitchHomeScreen() {
             />
           </div>
 
+          {/* Notification Permission Banner */}
+          {showNotifBanner && (
+            <div style={{
+              position: "relative",
+              zIndex: 20,
+              margin: "60px 16px 0",
+              borderLeft: "4px solid #FF3B30",
+              borderRadius: 8,
+              background: "rgba(255, 59, 48, 0.15)",
+              padding: "14px 16px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 12,
+            }}>
+              <div style={{ flex: 1 }}>
+                <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#FFFFFF", fontFamily: "system-ui, -apple-system, sans-serif" }}>
+                  🔴 Enable notifications to receive training alerts
+                </p>
+                {notifDenied ? (
+                  <p style={{ margin: "4px 0 0", fontSize: 12, color: "#FFB347", lineHeight: 1.4, fontFamily: "system-ui, -apple-system, sans-serif" }}>
+                    Go to Settings → Notifications → ChampionTrackPro → Allow
+                  </p>
+                ) : (
+                  <p style={{ margin: "4px 0 0", fontSize: 12, color: "rgba(255,255,255,0.6)", fontFamily: "system-ui, -apple-system, sans-serif" }}>
+                    You won't be notified when a session ends
+                  </p>
+                )}
+              </div>
+              {!notifDenied && (
+                <button
+                  onClick={handleEnableNotifications}
+                  style={{
+                    flexShrink: 0,
+                    background: "#FF3B30",
+                    color: "#FFFFFF",
+                    border: "none",
+                    borderRadius: 6,
+                    padding: "8px 16px",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    fontFamily: "system-ui, -apple-system, sans-serif",
+                    WebkitTapHighlightColor: "transparent",
+                  }}
+                >
+                  Enable
+                </button>
+              )}
+            </div>
+          )}
+
           {/* Main Content */}
-          <div style={{ flex: 1, padding: "0 24px", paddingTop: "48px", paddingBottom: "100px", zIndex: 10 }}>
+          <div style={{ flex: 1, padding: "0 24px", paddingTop: showNotifBanner ? "16px" : "48px", paddingBottom: "100px", zIndex: 10 }}>
             {/* Header */}
             <header style={{ marginBottom: "32px", animation: "fadeIn 300ms ease-out forwards", animationDelay: "100ms" }}>
               <h1 style={{ fontSize: "24px", fontWeight: "bold", letterSpacing: "-0.05em", textTransform: "uppercase" }}>
