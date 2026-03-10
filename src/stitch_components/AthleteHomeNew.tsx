@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { View, Text, Pressable, StyleSheet, Dimensions, Platform, Image, ScrollView } from "react-native";
 import { LinearGradient } from 'expo-linear-gradient';
 import { makePress } from "../utils/press";
-import { doc, getDoc, collection, getDocs, limit, query } from "firebase/firestore";
+import { doc, getDoc, collection, getDocs, limit, query, updateDoc, increment } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { tokens } from "../theme/tokens";
 import { useDevice } from "../hooks/useDevice";
@@ -11,6 +11,7 @@ import { getUpcomingTrainings } from "../lib/scheduleQueries";
 import { QuestionnaireState } from "../utils/questionnaire";
 import { DateTime } from "luxon";
 import { auth, db } from "../lib/firebase";
+import { registerWebPushTokenForCurrentUser } from "../services/webNotifications";
 import { getApp } from "firebase/app";
 import { resolveAthleteTeamId } from "../lib/teamContext";
 import MobileViewport from "../components/MobileViewport";
@@ -38,6 +39,7 @@ export default function AthleteHome({
   const [refreshKey, setRefreshKey] = useState(0);
   const [error, setError] = useState(null);
   const [userData, setUserData] = useState<{ firstName?: string; profileImage?: string } | null>(null);
+  const [showNotifReminder, setShowNotifReminder] = useState(false);
   const device = useDevice();
 
   useEffect(() => {
@@ -90,6 +92,18 @@ export default function AthleteHome({
             firstName: userDataFromDoc.displayName?.split(' ')[0] || userDataFromDoc.firstName,
             profileImage: userDataFromDoc.profileImage || userDataFromDoc.photoURL,
           });
+
+          // FIX 2: show notification reminder banner after 3+ logins without permission
+          if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof Notification !== 'undefined') {
+            const loginCount: number = userDataFromDoc.loginCount || 0;
+            const isStandalone =
+              window.matchMedia('(display-mode: standalone)').matches ||
+              (window.navigator as any).standalone === true;
+            const dismissed = localStorage.getItem('notifReminderDismissed') === 'true';
+            if (loginCount >= 3 && Notification.permission !== 'granted' && !isStandalone && !dismissed) {
+              setShowNotifReminder(true);
+            }
+          }
         }
         
         const teamId = await resolveAthleteTeamId(db, currentUser.uid);
@@ -446,6 +460,25 @@ export default function AthleteHome({
   const nextSession = futureSessions.length > 0 ? futureSessions[0] : null;
   const upcomingSessions = futureSessions.length > 1 ? futureSessions.slice(1) : [];
 
+  // FIX 2: dismiss handler for notification reminder banner
+  const notifReminderDismissCount = useRef(0);
+  const handleDismissNotifReminder = () => {
+    notifReminderDismissCount.current += 1;
+    if (notifReminderDismissCount.current >= 2) {
+      localStorage.setItem('notifReminderDismissed', 'true');
+    }
+    setShowNotifReminder(false);
+  };
+
+  const handleEnableNotifFromBanner = async () => {
+    if (typeof Notification === 'undefined') return;
+    const permission = await Notification.requestPermission();
+    if (permission === 'granted') {
+      try { await registerWebPushTokenForCurrentUser(); } catch (e) { /* silent */ }
+    }
+    setShowNotifReminder(false);
+  };
+
   const containerStyle = getMainContainerStyle(device);
   const headerPadding = getResponsiveSpacing('xl', device);
   const sectionPadding = getResponsiveSpacing('lg', device);
@@ -744,6 +777,57 @@ export default function AthleteHome({
               justifyContent: "center",
               boxSizing: "border-box"
             }}>
+              {/* FIX 2: notification reminder banner */}
+              {showNotifReminder && (
+                <div style={{
+                  width: "100%",
+                  background: "rgba(0,212,255,0.08)",
+                  border: "1px solid rgba(0,212,255,0.25)",
+                  borderRadius: "12px",
+                  padding: "12px 14px",
+                  marginBottom: "16px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "10px",
+                  boxSizing: "border-box",
+                }}>
+                  <span style={{ fontSize: "13px", color: "rgba(255,255,255,0.8)", flex: 1 }}>
+                    🔔 Enable notifications to never miss a session alert
+                  </span>
+                  <button
+                    onClick={handleEnableNotifFromBanner}
+                    style={{
+                      background: "linear-gradient(135deg, #00BFFF, #0066FF)",
+                      border: "none",
+                      borderRadius: "8px",
+                      color: "#fff",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      padding: "6px 12px",
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    Enable
+                  </button>
+                  <button
+                    onClick={handleDismissNotifReminder}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      color: "rgba(255,255,255,0.4)",
+                      fontSize: "16px",
+                      cursor: "pointer",
+                      padding: "0 4px",
+                      lineHeight: 1,
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
+
               {pendingResponses.length > 0 && renderPendingQuestionnairesWeb()}
               {pendingResponses.length > 0 && (
                 <div style={{

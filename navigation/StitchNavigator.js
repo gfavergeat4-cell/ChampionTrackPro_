@@ -4,7 +4,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { onAuthStateChanged, setPersistence, browserLocalPersistence } from "firebase/auth";
 import { auth, db } from "../services/firebaseConfig";
-import { doc, getDoc, setDoc, serverTimestamp, onSnapshot } from "firebase/firestore";
+import { doc, getDoc, setDoc, updateDoc, increment, serverTimestamp, onSnapshot } from "firebase/firestore";
 import SplashScreen from "../src/components/SplashScreen";
 
 // Import Stitch screens
@@ -449,6 +449,15 @@ function AuthGate({ pendingDeepLink, navigationRef }) {
 
           console.log("👤 User state:", { user: u?.email, role });
           setState({ loading: false, user: u, userRole: role, authReady: true });
+
+          // FIX 2: increment loginCount on each app open
+          try {
+            await updateDoc(doc(db, "users", u.uid), {
+              loginCount: increment(1),
+            });
+          } catch (e) {
+            console.warn("[AUTH] loginCount increment failed:", e);
+          }
 
           // Watch the user doc in real-time so the role is updated as soon as the
           // account-creation flow writes it (fixes the race between onAuthStateChanged
