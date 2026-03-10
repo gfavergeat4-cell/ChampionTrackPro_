@@ -81,3 +81,22 @@ However, to avoid breaking the current join flow in V2 Phase 2, the conservative
 ## DEC-08 — ai_training_dataset collection: not creating in client rules
 **Context:** PRD Phase 5 specifies Cloud Function to populate `ai_training_dataset`.
 **Decision:** The Firestore rules will add `allow read, write: if false` for this collection. It will only be written by Cloud Functions using Admin SDK (bypasses rules). Client will never have direct access.
+
+---
+
+## DEC-09 — lookupTeamByCode rate limit: in-memory vs Firestore
+**Context:** Rate limiting the `lookupTeamByCode` CF requires a counter per caller. Options: Firestore counter, Redis, or in-memory Map.
+**Decision:** Use in-memory `_rateLimitMap` on the CF instance. Rationale: function is low-traffic (account creation only), cold starts reset the counter harmlessly, and adding a Firestore read for rate limiting would add latency/cost to an already-read-heavy path. Upgrade to Firestore-backed counter if abuse is observed in production logs.
+**Tradeoff:** Anonymous callers (pre-auth) all share the `"anonymous"` key — a single unauthenticated device can exhaust the limit for all other unauthenticated users on the same CF instance. Acceptable at current scale.
+
+---
+
+## DEC-10 — Legacy unused screens with direct team queries: leave in place
+**Context:** `screens/JoinTeam.js:21` and `src/stitch_components/CreateAccountScreenNew.tsx:60` still contain `getDocs(query(teamsRef, where(...)))` calls against the teams collection. After DEC-05 rule tightening, these would fail at runtime with PERMISSION_DENIED if called.
+**Decision:** Leave as-is (not migrated, not deleted). Neither file is imported in `StitchNavigator.js` or any active screen. Deleting risks surprises if referenced from outside the navigator. A follow-up task should either delete or add a deprecation comment. Logged here to prevent confusion during future security audits.
+
+---
+
+## DEC-11 — isTest client-side guard kept alongside server-side filter
+**Context:** After adding `where("isTest", "==", false)` to the dashboard collectionGroup query, the client-side `if (data.isTest) return` guard at `PerformanceDashboard.tsx:488` is technically redundant.
+**Decision:** Keep the client-side guard. V1 responses predating the `isTest` field have `isTest: undefined`. Firestore's `== false` filter excludes documents where the field equals `false` but the behavior for missing fields is to exclude those documents too — however, the guard costs nothing and prevents any unexpected legacy data from appearing if query behavior changes. Defense-in-depth.
