@@ -473,6 +473,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
         const qy = query(
           cg,
           where("teamId", "==", selectedTeamId),
+          where("isTest", "==", false),
           where("submittedAt", ">=", startTs),
           where("submittedAt", "<=", endTs)
         );
