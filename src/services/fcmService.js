@@ -2,6 +2,7 @@ import { initializeApp, getApps } from "firebase/app";
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
 import { getFirestore, doc, setDoc, arrayUnion } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
+import { registerWebPushTokenForCurrentUser } from "./webNotifications";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDwslrK0lbuqsBl61C_l3gjVDGF8ZqTZ5o",
@@ -62,6 +63,30 @@ export async function initializeFCM() {
       console.log("[FCM] Message foreground recu:", payload);
       showForegroundNotification(payload);
     });
+
+    // FIX 6: re-register token on visibilitychange if >24h since last registration
+    const FCM_LAST_REG_KEY = "fcmLastRegistration";
+    const now = Date.now();
+    localStorage.setItem(FCM_LAST_REG_KEY, now.toString());
+
+    if (!window.__fcmVisibilityListenerAttached) {
+      window.__fcmVisibilityListenerAttached = true;
+      document.addEventListener("visibilitychange", async () => {
+        if (document.visibilityState === "visible") {
+          const lastReg = localStorage.getItem(FCM_LAST_REG_KEY);
+          const elapsed = lastReg ? Date.now() - parseInt(lastReg, 10) : Infinity;
+          if (elapsed > 86400000) {
+            console.log("[FCM] >24h since last registration — re-registering token");
+            try {
+              await registerWebPushTokenForCurrentUser();
+              localStorage.setItem(FCM_LAST_REG_KEY, Date.now().toString());
+            } catch (e) {
+              console.warn("[FCM] Re-registration failed:", e);
+            }
+          }
+        }
+      });
+    }
 
     return token;
   } catch (error) {
