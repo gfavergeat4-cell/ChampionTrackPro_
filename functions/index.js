@@ -861,6 +861,7 @@ exports.sendQuestionnaireAvailableNotifications = functions
             teamId,
             trainingId,
             dueAt: dueAtReminder,
+            secondReminderDueAt: admin.firestore.Timestamp.fromMillis(nowMs + 6 * 60 * 60 * 1000),
             status: "pending",
             notificationTitle: notifTitle,
             notificationBody: notifBody,
@@ -1007,6 +1008,112 @@ exports.sendQuestionnaireReminders = functions
     return null;
   });
 
+exports.sendQuestionnaireSecondReminder = functions
+  .region(REGION)
+  .pubsub.schedule("every 5 minutes")
+  .timeZone("Europe/Paris")
+  .onRun(async () => {
+    console.log("[FINAL_REMINDER] Running at", new Date().toISOString());
+    const now = admin.firestore.Timestamp.now();
+    const snap = await db
+      .collection("pendingQuestionnaireReminders")
+      .where("status", "==", "reminded")
+      .where("secondReminderDueAt", "<=", now)
+      .get();
+    console.log("[FINAL_REMINDER] Eligible docs:", snap.docs.length);
+
+    const userIds = [...new Set(snap.docs.map((d) => (d.data() || {}).userId).filter(Boolean))];
+    const userRefs = userIds.map((uid) => db.collection("users").doc(uid));
+    const userDocs = userRefs.length > 0 ? await db.getAll(...userRefs) : [];
+    const userMap = new Map();
+    userDocs.forEach((d) => { if (d.exists) userMap.set(d.id, d.data() || {}); });
+
+    for (const docSnap of snap.docs) {
+      const d = docSnap.data() || {};
+      if (d.secondReminderSent === true) continue;
+      const { userId, teamId, trainingId } = d;
+      try {
+        const responseSnap = await db
+          .collection("teams").doc(teamId)
+          .collection("trainings").doc(trainingId)
+          .collection("responses").doc(userId)
+          .get();
+        if (responseSnap.exists && responseSnap.data() && responseSnap.data().status === "completed") {
+          await docSnap.ref.update({ secondReminderSent: true, secondReminderSkipped: "completed" });
+          continue;
+        }
+        if (!userMap.has(userId)) {
+          await docSnap.ref.update({ secondReminderSent: true, secondReminderSkipped: "user_not_found" });
+          continue;
+        }
+        const tokens = userMap.get(userId).fcmWebTokens || [];
+        if (tokens.length === 0) {
+          await docSnap.ref.update({ secondReminderSent: true, secondReminderSkipped: "no_tokens" });
+          continue;
+        }
+        const finalUrl = "https://champion-track-pro.vercel.app/?screen=questionnaire&trainingId=" + trainingId + "&teamId=" + teamId;
+        const message = {
+          tokens,
+          notification: {
+            title: "Final reminder 🔒",
+            body: "Don't let your session go untracked.",
+          },
+          data: {
+            trainingId,
+            teamId,
+            url: finalUrl,
+            tag: "questionnaire-" + trainingId,
+          },
+          android: {
+            priority: "high",
+            notification: {
+              priority: "high",
+              defaultSound: true,
+              channelId: "ctpro-questionnaire",
+              color: "#00D4FF",
+            },
+          },
+          apns: {
+            headers: { "apns-priority": "10" },
+            payload: { aps: { sound: "default", badge: 1 } },
+          },
+          webpush: {
+            headers: { Urgency: "high" },
+            fcmOptions: { link: finalUrl },
+            notification: {
+              icon: "https://champion-track-pro.vercel.app/icons/icon-192-v2.png",
+              badge: "https://champion-track-pro.vercel.app/icons/badge-72.png",
+              tag: "questionnaire-" + trainingId,
+              renotify: false,
+              requireInteraction: false,
+              silent: false,
+              data: { url: finalUrl, trainingId, teamId },
+              actions: [{ action: "open_questionnaire", title: "Tell us →" }],
+            },
+          },
+        };
+        const resp = await admin.messaging().sendEachForMulticast(message);
+        if (resp.failureCount > 0) {
+          const failedTokens = resp.responses
+            .map((r, i) => (!r.success ? tokens[i] : null))
+            .filter(Boolean);
+          if (failedTokens.length > 0) {
+            await db.collection("users").doc(userId).update({
+              fcmWebTokens: admin.firestore.FieldValue.arrayRemove(...failedTokens),
+            });
+            console.log("[FCM] Removed " + failedTokens.length + " invalid tokens for " + userId);
+          }
+        }
+        await docSnap.ref.update({
+          secondReminderSent: true,
+          secondRemindedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      } catch (err) {
+        console.error("[FINAL_REMINDER] Error for", docSnap.id, err);
+      }
+    }
+    return null;
+  });
 exports.sendTestNotification = functions
   .region(REGION)
   .https.onCall(async (data, context) => {
