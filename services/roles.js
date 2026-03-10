@@ -1,8 +1,9 @@
-﻿import { db } from "./firebaseConfig";
+﻿import { db, app } from "./firebaseConfig";
 import {
   doc, setDoc, getDoc, addDoc, collection,
   serverTimestamp, query, where, getDocs
 } from "firebase/firestore";
+import { getFunctions, httpsCallable } from "firebase/functions";
 
 // Crée une équipe et génère des codes coach/athlète
 export async function createTeam(teamName) {
@@ -17,20 +18,30 @@ export async function createTeam(teamName) {
   return { id: ref.id, coachCode, athleteCode };
 }
 
-// Vérifie code coach -> renvoie teamId si ok
+// Vérifie code coach -> renvoie teamId si ok (via lookupTeamByCode CF)
 export async function verifyCoachCode(codeStr) {
-  const q = query(collection(db, "teams"), where("codes.coach", "==", codeStr));
-  const snap = await getDocs(q);
-  if (snap.empty) return null;
-  return snap.docs[0].id;
+  try {
+    const fns = getFunctions(app);
+    const lookup = httpsCallable(fns, "lookupTeamByCode");
+    const result = await lookup({ code: codeStr });
+    if (result.data.role !== "coach") return null;
+    return result.data.teamId;
+  } catch {
+    return null;
+  }
 }
 
-// Vérifie code athlète -> renvoie teamId si ok
+// Vérifie code athlète -> renvoie teamId si ok (via lookupTeamByCode CF)
 export async function verifyAthleteCode(codeStr) {
-  const q = query(collection(db, "teams"), where("codes.athlete", "==", codeStr));
-  const snap = await getDocs(q);
-  if (snap.empty) return null;
-  return snap.docs[0].id;
+  try {
+    const fns = getFunctions(app);
+    const lookup = httpsCallable(fns, "lookupTeamByCode");
+    const result = await lookup({ code: codeStr });
+    if (result.data.role !== "athlete") return null;
+    return result.data.teamId;
+  } catch {
+    return null;
+  }
 }
 
 // Assigne un rôle + teamId à l'utilisateur

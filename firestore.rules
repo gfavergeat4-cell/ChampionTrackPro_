@@ -89,11 +89,11 @@ service cloud.firestore {
 
     // ─────────────────────────────────────────────────────────
     // teams/{teamId}
-    // FIX VULN-01: removed unauthenticated read (request.auth == null)
-    // Authenticated users can read to look up team codes during join flow
+    // DEC-05: team code lookup moved to lookupTeamByCode Cloud Function.
+    // Direct reads restricted to members, coaches of the team, and admins.
     // ─────────────────────────────────────────────────────────
     match /teams/{teamId} {
-      allow read: if signedIn();
+      allow read: if isAdmin() || isCoachOfTeam(teamId) || isTeamMember(teamId);
 
       allow create, delete: if isAdmin();
 

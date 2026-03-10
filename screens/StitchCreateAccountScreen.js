@@ -8,10 +8,6 @@ import {
   doc,
   setDoc,
   serverTimestamp,
-  collection,
-  query,
-  where,
-  getDocs,
 } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { auth, db, app } from "../services/firebaseConfig";
@@ -53,36 +49,19 @@ export default function StitchCreateAccountScreen() {
       let resolvedRole = null;
 
       if (formData.teamCode) {
-        console.log("🔍 Vérification du code d'accès:", formData.teamCode);
-        const teamsRef = collection(db, "teams");
-
-        // 1. Essayer coachCode
-        const coachQ = query(teamsRef, where("coachCode", "==", formData.teamCode));
-        console.log("🔍 Requête: coachCode ==", formData.teamCode);
-        const coachSnap = await getDocs(coachQ);
-        console.log("🔍 Résultat coachCode:", coachSnap.size, "équipe(s)");
-
-        if (!coachSnap.empty) {
-          teamId = coachSnap.docs[0].id;
-          resolvedRole = "coach";
-          console.log("✅ Code coach valide → role: coach, teamId:", teamId);
-        } else {
-          // 2. Essayer codes.athlete
-          const athleteQ = query(teamsRef, where("codes.athlete", "==", formData.teamCode));
-          console.log("🔍 Requête: codes.athlete ==", formData.teamCode);
-          const athleteSnap = await getDocs(athleteQ);
-          console.log("🔍 Résultat codes.athlete:", athleteSnap.size, "équipe(s)");
-
-          if (!athleteSnap.empty) {
-            teamId = athleteSnap.docs[0].id;
-            resolvedRole = "athlete";
-            console.log("✅ Code athlète valide → role: athlete, teamId:", teamId);
-          } else {
-            console.log("❌ Code invalide:", formData.teamCode);
-            Alert.alert("Erreur", "Code d'accès invalide. Vérifiez le code fourni par votre équipe.");
-            setLoading(false);
-            return;
-          }
+        console.log("🔍 Vérification du code d'accès via lookupTeamByCode CF:", formData.teamCode);
+        try {
+          const functions_ = getFunctions(app);
+          const lookupTeamByCode = httpsCallable(functions_, "lookupTeamByCode");
+          const result = await lookupTeamByCode({ code: formData.teamCode });
+          teamId = result.data.teamId;
+          resolvedRole = result.data.role;
+          console.log("✅ Code valide → role:", resolvedRole, "teamId:", teamId);
+        } catch (err) {
+          console.log("❌ Code invalide:", formData.teamCode, err.message);
+          Alert.alert("Erreur", err.message || "Code d'accès invalide. Vérifiez le code fourni par votre équipe.");
+          setLoading(false);
+          return;
         }
       } else {
         console.log("⚠️ Aucun code d'accès fourni");

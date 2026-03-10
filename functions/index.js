@@ -1238,3 +1238,72 @@ exports.anonymizePlayerDataForAI = functions
       return null;
     }
   });
+
+/**
+ * DEC-05 — lookupTeamByCode
+ * Replaces direct client-side Firestore query on teams collection.
+ * Returns only { teamId, teamName, role } — never the full team document.
+ * Rate limit: 10 calls per 60s per uid (or per "anonymous" key if unauthenticated).
+ */
+const _rateLimitMap = new Map(); // in-memory, resets on cold start
+
+exports.lookupTeamByCode = functions
+  .region(REGION)
+  .https.onCall(async (data, context) => {
+    const { code } = data || {};
+    if (!code || typeof code !== "string" || code.trim().length === 0) {
+      throw new functions.https.HttpsError("invalid-argument", "code is required");
+    }
+
+    const normalizedCode = code.trim().toUpperCase();
+
+    // Rate limiting: 10 calls per 60s per caller key
+    const callerKey = context.auth?.uid || "anonymous";
+    const now = Date.now();
+    const window = 60000; // 60s
+    const maxCalls = 10;
+
+    const entry = _rateLimitMap.get(callerKey) || { count: 0, windowStart: now };
+    if (now - entry.windowStart > window) {
+      entry.count = 0;
+      entry.windowStart = now;
+    }
+    entry.count += 1;
+    _rateLimitMap.set(callerKey, entry);
+
+    if (entry.count > maxCalls) {
+      throw new functions.https.HttpsError("resource-exhausted", "Too many requests. Try again in a minute.");
+    }
+
+    const teamsRef = db.collection("teams");
+
+    // 1. Try coachCode field
+    const coachSnap = await teamsRef.where("coachCode", "==", normalizedCode).limit(1).get();
+    if (!coachSnap.empty) {
+      const teamDoc = coachSnap.docs[0];
+      return { teamId: teamDoc.id, teamName: teamDoc.data().name || "", role: "coach" };
+    }
+
+    // 2. Try codes.athlete field
+    const athleteSnap = await teamsRef.where("codes.athlete", "==", normalizedCode).limit(1).get();
+    if (!athleteSnap.empty) {
+      const teamDoc = athleteSnap.docs[0];
+      return { teamId: teamDoc.id, teamName: teamDoc.data().name || "", role: "athlete" };
+    }
+
+    // 3. Try codes.coach field (legacy)
+    const coachLegacySnap = await teamsRef.where("codes.coach", "==", normalizedCode).limit(1).get();
+    if (!coachLegacySnap.empty) {
+      const teamDoc = coachLegacySnap.docs[0];
+      return { teamId: teamDoc.id, teamName: teamDoc.data().name || "", role: "coach" };
+    }
+
+    // 4. Try joinCodeAthlete field (JoinTeam.js legacy)
+    const joinSnap = await teamsRef.where("joinCodeAthlete", "==", normalizedCode).limit(1).get();
+    if (!joinSnap.empty) {
+      const teamDoc = joinSnap.docs[0];
+      return { teamId: teamDoc.id, teamName: teamDoc.data().name || "", role: "athlete" };
+    }
+
+    throw new functions.https.HttpsError("not-found", "Invalid code. Check the code provided by your team.");
+  });
