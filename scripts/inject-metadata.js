@@ -104,7 +104,7 @@ function injectMetadata() {
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", async () => {
       try {
-        const reg = await navigator.serviceWorker.register("/firebase-messaging-sw.js", { scope: "/", type: "module" });
+        const reg = await navigator.serviceWorker.register("/firebase-messaging-sw.js", { scope: "/" });
         console.log("[SW] registered", reg.scope);
       } catch (e) {
         console.error("[SW] registration failed", e);
