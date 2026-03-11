@@ -49,11 +49,12 @@ export async function createMembershipClientOnly({
     );
 
     // 2) Lier l'utilisateur à l'équipe
+    // NOTE: role is intentionally NOT written here — the authoritative role is set by admins
+    // and must never be overwritten by membership creation (would break coach accounts).
     await setDoc(
       userRef,
       {
         teamId,
-        role: "athlete",
         email: email ?? "",
         displayName: displayName,
         updatedAt: serverTimestamp(),

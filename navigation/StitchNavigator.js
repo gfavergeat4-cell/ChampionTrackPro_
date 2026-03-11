@@ -4,7 +4,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { onAuthStateChanged, setPersistence, browserLocalPersistence } from "firebase/auth";
 import { auth, db } from "../services/firebaseConfig";
-import { doc, getDoc, setDoc, updateDoc, increment, serverTimestamp, onSnapshot } from "firebase/firestore";
+import { doc, getDoc, getDocFromServer, setDoc, updateDoc, increment, serverTimestamp, onSnapshot } from "firebase/firestore";
 import SplashScreen from "../src/components/SplashScreen";
 import OnboardingNotifScreen from "../src/screens/OnboardingNotifScreen";
 
@@ -428,8 +428,8 @@ function AuthGate({ pendingDeepLink, navigationRef }) {
 
       if (u) {
         try {
-          console.log("👤 User authenticated, fetching role...");
-          const userDoc = await getDoc(doc(db, "users", u.uid));
+          console.log("👤 User authenticated, fetching role from server...");
+          const userDoc = await getDocFromServer(doc(db, "users", u.uid));
           let role = "athlete"; // Default role
 
           if (userDoc.exists()) {
