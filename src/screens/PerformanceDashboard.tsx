@@ -39,6 +39,7 @@ type DurationKey = "7d" | "14d" | "30d" | "90d";
 type CategoryKey = "physical" | "mental" | "technical";
 type ViewMode = "categories" | "individual";
 type ChartType = "line" | "bar" | "radar" | "deviation" | "workload";
+type DashTab = "brief" | "analytics";
 
 interface PerformanceDashboardProps {
   route: {
@@ -75,15 +76,9 @@ interface ChartPoint {
 }
 
 const CATEGORY_FIELDS: Record<CategoryKey, string[]> = {
-  physical: [
-    "intensiteMoyenne",
-    "hautesIntensites",
-    "impactCardiaque",
-    "impactMusculaire",
-    "fatigue",
-  ],
-  mental: ["concentration", "confiance", "bienEtre", "nervosite", "sommeil"],
-  technical: ["technique", "tactique", "dynamisme"],
+  physical:  ["cardioLoad", "neuroLoad", "sessionRPE"],
+  mental:    ["sleepQuality", "stressLevel"],
+  technical: ["motorControl", "tacticalLucidity"],
 };
 
 const CATEGORY_COLORS: Record<CategoryKey, string> = {
@@ -112,25 +107,34 @@ const DURATION_LABEL: Record<DurationKey, string> = {
 };
 
 const INDICATOR_LABELS: Record<string, string> = {
+  // V2 fields
+  cardioLoad:       "Cardio Load",
+  neuroLoad:        "Neuro Load",
+  sessionRPE:       "Session RPE",
+  sleepQuality:     "Sleep Quality",
+  stressLevel:      "Stress Level",
+  motorControl:     "Motor Control",
+  tacticalLucidity: "Tactical Lucidity",
+  // V1 French legacy
   intensiteMoyenne: "Average Intensity",
   hautesIntensites: "High Intensity",
-  impactCardiaque: "Cardiac Impact",
+  impactCardiaque:  "Cardiac Impact",
   impactMusculaire: "Muscular Impact",
-  fatigue: "Fatigue",
-  concentration: "Concentration",
-  confiance: "Confidence",
-  bienEtre: "Well-being",
-  nervosite: "Nervousness",
-  sommeil: "Sleep",
-  technique: "Technique",
-  tactique: "Tactics",
-  dynamisme: "Dynamism",
+  fatigue:          "Fatigue",
+  concentration:    "Concentration",
+  confiance:        "Confidence",
+  bienEtre:         "Well-being",
+  nervosite:        "Nervousness",
+  sommeil:          "Sleep",
+  technique:        "Technique",
+  tactique:         "Tactics",
+  dynamisme:        "Dynamism",
 };
 
 const ALL_INDICATORS_BY_CATEGORY: Record<CategoryKey, string[]> = {
-  physical: ["intensiteMoyenne", "hautesIntensites", "impactCardiaque", "impactMusculaire", "fatigue"],
-  mental: ["concentration", "confiance", "bienEtre", "nervosite", "sommeil"],
-  technical: ["technique", "tactique", "dynamisme"],
+  physical:  ["cardioLoad", "neuroLoad", "sessionRPE"],
+  mental:    ["sleepQuality", "stressLevel"],
+  technical: ["motorControl", "tacticalLucidity"],
 };
 
 function getDateRangeFromKey(key: DurationKey): { start: Date; end: Date } {
@@ -166,9 +170,8 @@ function formatDateKey(d: Date): string {
 function getMetricValue(resp: RawResponse, key: string): number | null {
   const flat = (resp as any)[key];
   if (typeof flat === "number") return flat;
-  if (resp.values && typeof resp.values[key] === "number") {
-    return resp.values[key] as number;
-  }
+  if (resp.values && typeof resp.values[key] === "number") return resp.values[key] as number;
+  if (resp.metrics && typeof (resp.metrics as any)[key] === "number") return (resp.metrics as any)[key];
   return null;
 }
 
@@ -230,7 +233,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
   const [error, setError] = useState<string | null>(null);
 
   const [responses, setResponses] = useState<RawResponse[]>([]);
-  const [showMorningBrief, setShowMorningBrief] = useState(true);
+  const [activeTab, setActiveTab] = useState<DashTab>("brief");
 
   const CYAN = "#00D4FF";
   const BG = "#0A0F1E";
@@ -584,7 +587,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
     if (filteredResponses.length === 0 || members.length === 0) return [];
 
     // Per player: collect readiness scores chronologically, compute EMA
-    const byPlayer: Record<string, { name: string; scores: number[]; latest: number; ema: number; deviation: number }> = {};
+    const byPlayer: Record<string, { name: string; uid: string; position?: string; scores: number[]; latest: number; ema: number; deviation: number }> = {};
 
     const sortedResponses = [...filteredResponses].sort((a, b) => {
       const ta = a.submittedAt?.seconds ?? 0;
@@ -597,7 +600,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
       const rs = r.readinessScore ?? calculateReadiness(m2);
       if (!byPlayer[r.userId]) {
         const member = members.find((m) => m.id === r.userId);
-        byPlayer[r.userId] = { name: member?.displayName || r.userId, scores: [], latest: 0, ema: 0, deviation: 0 };
+        byPlayer[r.userId] = { name: member?.displayName || r.userId, uid: r.userId, position: member?.position, scores: [], latest: 0, ema: 0, deviation: 0 };
       }
       byPlayer[r.userId].scores.push(rs);
     });
@@ -608,7 +611,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
       const emaLatest = emaArr[emaArr.length - 1];
       const deviation = calculateDeviation(latest, emaLatest);
       const risk = getRiskLevel(latest, deviation);
-      return { name: p.name, readinessScore: latest, ema: emaLatest, deviation, risk };
+      return { name: p.name, uid: p.uid, position: p.position, readinessScore: latest, ema: emaLatest, deviation, risk };
     }).sort((a, b) => {
       const order = { danger: 0, monitor: 1, optimal: 2 };
       return order[a.risk] - order[b.risk];
@@ -829,6 +832,133 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
             </p>
           </div>
         </div>
+
+        {/* ─── Tab bar ──────────────────────────────────────────────────── */}
+        <div style={{ display: "flex", gap: 0, marginBottom: 24, borderBottom: "1px solid rgba(0,212,255,0.15)" }}>
+          {([
+            { key: "brief" as DashTab, label: "Morning Brief" },
+            { key: "analytics" as DashTab, label: "Analytics" },
+          ]).map(({ key, label }) => {
+            const active = activeTab === key;
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setActiveTab(key)}
+                style={{
+                  padding: "10px 24px",
+                  background: "none",
+                  border: "none",
+                  borderBottom: active ? "2px solid #00D4FF" : "2px solid transparent",
+                  color: active ? "#00D4FF" : "rgba(255,255,255,0.45)",
+                  fontWeight: active ? 700 : 400,
+                  fontSize: 14,
+                  cursor: "pointer",
+                  letterSpacing: "0.04em",
+                  marginBottom: -1,
+                }}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* ─── Morning Brief Tab ────────────────────────────────────────── */}
+        {activeTab === "brief" && (
+          <div>
+            {/* Duration filter (compact) */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", marginRight: 4 }}>Period:</span>
+              {(["7d", "14d", "30d", "90d"] as DurationKey[]).map((d) => {
+                const active = duration === d && durationMode === "preset";
+                return (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => { setDurationMode("preset"); setDuration(d); }}
+                    style={{
+                      padding: "5px 12px", borderRadius: 12, fontSize: 12, fontWeight: 600,
+                      ...(active ? { background: "linear-gradient(135deg, #00BFFF, #0066FF)", color: "#FFF", border: "none" }
+                                 : { background: "#0A0F1E", color: "rgba(255,255,255,0.7)", border: "1px solid rgba(255,255,255,0.2)" }),
+                      cursor: "pointer",
+                    }}
+                  >
+                    {DURATION_LABEL[d]}
+                  </button>
+                );
+              })}
+            </div>
+            {loadingInit || loadingData ? (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 60 }}>
+                <ActivityIndicator color={CYAN} />
+                <span style={{ marginLeft: 12, color: "rgba(255,255,255,0.6)", fontSize: 14 }}>Loading...</span>
+              </div>
+            ) : morningBriefData.length === 0 ? (
+              <div style={{ textAlign: "center" as const, padding: 60, color: "rgba(255,255,255,0.35)", fontSize: 14 }}>
+                No readiness data for the selected period.
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {morningBriefData.map((p) => {
+                  const riskColor = p.risk === "danger" ? "#FF3B30" : p.risk === "monitor" ? "#FFB800" : "#00FF9D";
+                  const bgColor   = p.risk === "danger" ? "rgba(255,59,48,0.07)" : p.risk === "monitor" ? "rgba(255,184,0,0.07)" : "rgba(0,255,157,0.05)";
+                  const borderClr = p.risk === "danger" ? "rgba(255,59,48,0.25)" : p.risk === "monitor" ? "rgba(255,184,0,0.25)" : "rgba(0,255,157,0.2)";
+                  const initials  = p.name.split(" ").map((w: string) => w[0] || "").slice(0, 2).join("").toUpperCase();
+                  return (
+                    <div key={p.uid || p.name} style={{
+                      display: "flex", alignItems: "center", gap: 14,
+                      background: bgColor,
+                      borderRadius: 12,
+                      padding: "14px 18px",
+                      border: `1px solid ${borderClr}`,
+                      borderLeft: `4px solid ${riskColor}`,
+                    }}>
+                      {/* Avatar */}
+                      <div style={{
+                        width: 42, height: 42, borderRadius: "50%", flexShrink: 0,
+                        background: `rgba(${p.risk === "danger" ? "255,59,48" : p.risk === "monitor" ? "255,184,0" : "0,212,255"},0.15)`,
+                        border: `1.5px solid ${riskColor}`,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: 13, fontWeight: 700, color: riskColor,
+                      }}>
+                        {initials}
+                      </div>
+                      {/* Name + position */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: "#FFFFFF", whiteSpace: "nowrap" as const, overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {p.name}
+                        </div>
+                        {p.position && (
+                          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{p.position}</div>
+                        )}
+                      </div>
+                      {/* EMA + deviation */}
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 3, minWidth: 72 }}>
+                        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>EMA {Math.round(p.ema)}</span>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: p.deviation > 0 ? "#FF3B30" : "#00FF9D" }}>
+                          {p.deviation > 0 ? "+" : ""}{p.deviation.toFixed(0)}%
+                        </span>
+                      </div>
+                      {/* Readiness score circle */}
+                      <div style={{
+                        width: 46, height: 46, borderRadius: "50%", flexShrink: 0,
+                        background: riskColor,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: 14, fontWeight: 800, color: "#000",
+                      }}>
+                        {p.readinessScore}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ─── Analytics Tab ────────────────────────────────────────────── */}
+        {activeTab === "analytics" && (<>
 
         {/* Filtres */}
         <div
@@ -1250,69 +1380,6 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
           </div>
         </div>
 
-        {/* ─── Morning Brief ───────────────────────────────────────────── */}
-        {morningBriefData.length > 0 && (
-          <div style={{
-            background: "#0D1526",
-            borderRadius: 16,
-            padding: 20,
-            border: "1px solid rgba(0,212,255,0.15)",
-            marginBottom: 16,
-          }}>
-            <div
-              style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: showMorningBrief ? 16 : 0, cursor: "pointer" }}
-              onClick={() => setShowMorningBrief(!showMorningBrief)}
-            >
-              <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#FFFFFF", letterSpacing: "0.05em", textTransform: "uppercase" }}>
-                Morning Brief — Readiness
-              </h3>
-              <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>{showMorningBrief ? "▲" : "▼"}</span>
-            </div>
-            {showMorningBrief && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {morningBriefData.map((p) => {
-                  const riskColor = p.risk === "danger" ? "#FF3B30" : p.risk === "monitor" ? "#FFB800" : "#00FF9D";
-                  const bgColor = p.risk === "danger" ? "rgba(255,59,48,0.08)" : p.risk === "monitor" ? "rgba(255,184,0,0.08)" : "rgba(0,255,157,0.06)";
-                  return (
-                    <div key={p.name} style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      background: bgColor,
-                      borderRadius: 10,
-                      padding: "10px 14px",
-                      borderLeft: `3px solid ${riskColor}`,
-                    }}>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: "#FFFFFF" }}>{p.name}</span>
-                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>
-                          EMA {Math.round(p.ema)}
-                        </span>
-                        <span style={{ fontSize: 11, color: p.deviation > 0 ? "#FF3B30" : "#00FF9D" }}>
-                          {p.deviation > 0 ? "+" : ""}{p.deviation.toFixed(0)}%
-                        </span>
-                        <div style={{
-                          width: 36,
-                          height: 36,
-                          borderRadius: "50%",
-                          background: riskColor,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: 12,
-                          fontWeight: 700,
-                          color: p.risk === "monitor" ? "#000" : "#000",
-                        }}>
-                          {p.readinessScore}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
 
         <div
           style={{
@@ -1386,7 +1453,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
                     <XAxis dataKey="date" stroke="rgba(255,255,255,0.6)" tick={{ fill: "rgba(255,255,255,0.6)", fontSize: 11 }} angle={-35} textAnchor="end" interval="preserveStartEnd" tickFormatter={(dateStr) => { const d = new Date(dateStr); return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }); }} />
-                    <YAxis domain={[0, 100]} stroke="rgba(255,255,255,0.6)" />
+                    <YAxis domain={[1, 10]} stroke="rgba(255,255,255,0.6)" />
                     <Tooltip
                       contentStyle={{
                         backgroundColor: "#0E1528",
@@ -1434,7 +1501,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
                     <XAxis dataKey="date" stroke="rgba(255,255,255,0.6)" tick={{ fill: "rgba(255,255,255,0.6)", fontSize: 11 }} angle={-35} textAnchor="end" interval="preserveStartEnd" tickFormatter={(dateStr) => { const d = new Date(dateStr); return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }); }} />
-                    <YAxis domain={[0, 100]} stroke="rgba(255,255,255,0.6)" />
+                    <YAxis domain={[1, 10]} stroke="rgba(255,255,255,0.6)" />
                     <Tooltip
                       contentStyle={{
                         backgroundColor: "#0E1528",
@@ -1509,6 +1576,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
             </div>
           )}
         </div>
+        </>)}
       </div>
     </div>
   );
