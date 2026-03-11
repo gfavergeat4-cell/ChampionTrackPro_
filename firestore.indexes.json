@@ -13,10 +13,19 @@
       "queryScope": "COLLECTION_GROUP",
       "fields": [
         { "fieldPath": "teamId", "order": "ASCENDING" },
-        { "fieldPath": "isTest", "order": "ASCENDING" },
         { "fieldPath": "submittedAt", "order": "ASCENDING" }
       ]
     }
   ],
-  "fieldOverrides": []
+  "fieldOverrides": [
+    {
+      "collectionGroup": "responses",
+      "fieldPath": "teamId",
+      "indexes": [
+        { "order": "ASCENDING",  "queryScope": "COLLECTION" },
+        { "order": "DESCENDING", "queryScope": "COLLECTION" },
+        { "order": "ASCENDING",  "queryScope": "COLLECTION_GROUP" }
+      ]
+    }
+  ]
 }

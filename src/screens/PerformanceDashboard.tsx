@@ -379,10 +379,11 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
         const endTs = Timestamp.fromDate(end);
 
         const cg = collectionGroup(db, "responses");
+        // isTest filter removed server-side: legacy responses lack the field (undefined ≠ false).
+        // Client-side guard below (data.isTest check) handles exclusion.
         const qy = query(
           cg,
           where("teamId", "==", selectedTeamId),
-          where("isTest", "==", false),
           where("submittedAt", ">=", startTs),
           where("submittedAt", "<=", endTs)
         );
