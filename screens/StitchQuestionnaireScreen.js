@@ -934,12 +934,12 @@ export default function StitchQuestionnaireScreen() {
       };
 
       // Initialize when pain toggle becomes true
-      if (painToggle) {
+      if (hasFriction) {
         setTimeout(() => {
           initAnatomyModel();
         }, 200);
       }
-    }, [painToggle]);
+    }, [hasFriction]);
 
     // Afficher un écran de chargement pendant la vérification
     if (isCheckingAccess) {
