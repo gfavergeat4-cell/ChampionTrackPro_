@@ -13,10 +13,17 @@ const firebaseConfig = {
   appId: "1:308674968497:web:5f8d10b09ee98717a81b90"
 };
 
-firebase.initializeApp(firebaseConfig);
-const messaging = firebase.messaging();
+// Wrap init in try-catch: top-level throw causes "SW script evaluation failed"
+// on devices where Push API is unavailable or firebase.messaging() throws.
+var messaging;
+try {
+  firebase.initializeApp(firebaseConfig);
+  messaging = firebase.messaging();
+} catch (e) {
+  console.error("[SW] Firebase messaging init failed:", e);
+}
 
-messaging.onBackgroundMessage((payload) => {
+if (messaging) messaging.onBackgroundMessage(function(payload) {
   console.log("[SW] Background message received:", payload);
   const title = payload?.notification?.title || payload?.data?.title || "ChampionTrackPro ⚡";
   const body = payload?.notification?.body || payload?.data?.body || "Tell us — how did that session hit you?";

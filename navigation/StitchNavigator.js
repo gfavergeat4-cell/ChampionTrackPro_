@@ -393,6 +393,7 @@ function AuthGate({ pendingDeepLink, navigationRef }) {
     user: null,
     userRole: null,
     authReady: false,
+    roleLoading: true, // stays true until first onSnapshot confirms the role from server
     onboardingComplete: true, // default true to avoid flash for existing users
   });
   const unsubDocRef = React.useRef(null);
@@ -454,8 +455,9 @@ function AuthGate({ pendingDeepLink, navigationRef }) {
           }
 
           const onboardingComplete = userDoc.exists() ? (userDoc.data()?.onboardingComplete ?? false) : false;
-          console.log("👤 User state:", { user: u?.email, role, onboardingComplete });
-          setState({ loading: false, user: u, userRole: role, authReady: true, onboardingComplete });
+          // roleLoading stays true — don't render tabs until onSnapshot confirms server role
+          console.log("👤 User state (awaiting onSnapshot role confirmation):", { user: u?.email, role, onboardingComplete });
+          setState({ loading: false, user: u, userRole: role, authReady: true, roleLoading: true, onboardingComplete });
 
           // FIX 2: increment loginCount on each app open
           try {
@@ -475,11 +477,12 @@ function AuthGate({ pendingDeepLink, navigationRef }) {
               console.log("[AUTH] onSnapshot raw role from firestore:", rawRole, "| type:", typeof rawRole);
               const updatedRole = String(rawRole || "athlete").trim().toLowerCase();
               setState((prev) => {
-                if (prev.userRole !== updatedRole) {
-                  console.log("[AUTH] Role updated via onSnapshot:", updatedRole);
-                  return { ...prev, userRole: updatedRole };
+                // Always clear roleLoading on first snapshot — this unblocks tab rendering
+                if (prev.userRole !== updatedRole || prev.roleLoading) {
+                  console.log("[AUTH] Role confirmed via onSnapshot:", updatedRole);
+                  return { ...prev, userRole: updatedRole, roleLoading: false };
                 }
-                return prev;
+                return { ...prev, roleLoading: false };
               });
             }
           });
@@ -487,11 +490,11 @@ function AuthGate({ pendingDeepLink, navigationRef }) {
           console.error("❌ Error fetching user role:", error);
           const role = u.email === "gabfavergeat@gmail.com" ? "admin" : "athlete";
           console.log("🔄 Fallback role detection:", role);
-          setState({ loading: false, user: u, userRole: role, authReady: true, onboardingComplete: true });
+          setState({ loading: false, user: u, userRole: role, authReady: true, roleLoading: false, onboardingComplete: true });
         }
       } else {
         console.log("👤 No user logged in");
-        setState({ loading: false, user: null, userRole: null, authReady: true });
+        setState({ loading: false, user: null, userRole: null, authReady: true, roleLoading: false });
       }
     });
 
@@ -506,6 +509,12 @@ function AuthGate({ pendingDeepLink, navigationRef }) {
 
   // Show splash screen while loading
   if (!state.authReady) {
+    return <SplashScreen />;
+  }
+
+  // Block tab render until onSnapshot confirms the role from Firestore server.
+  // Prevents coach being rendered as athlete on first load (role race condition).
+  if (state.user && state.roleLoading) {
     return <SplashScreen />;
   }
 
