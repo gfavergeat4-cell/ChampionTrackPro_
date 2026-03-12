@@ -38,7 +38,7 @@ export default function StitchQuestionnaireScreen() {
     }
   }, [showConfirmation, handleReturnHome]);
 
-  // Vérifier si le questionnaire est accessible (fenêtre temporelle + déjà complété)
+  // Access check state
   const [isAccessible, setIsAccessible] = useState(false);
   const [isCheckingAccess, setIsCheckingAccess] = useState(true);
   const [isTestSession, setIsTestSession] = useState(false);
@@ -56,7 +56,6 @@ export default function StitchQuestionnaireScreen() {
           return;
         }
 
-        // Récupérer l'ID de l'équipe de l'utilisateur
         const userDoc = await getDoc(doc(db, "users", auth.currentUser.uid));
         if (!userDoc.exists()) {
           setIsCheckingAccess(false);
@@ -72,10 +71,9 @@ export default function StitchQuestionnaireScreen() {
           return;
         }
 
-        // Récupérer les informations du training pour obtenir endUtc
         const trainingRef = doc(db, "teams", teamId, "trainings", sessionId);
         const trainingSnap = await getDoc(trainingRef);
-        
+
         if (!trainingSnap.exists()) {
           setIsCheckingAccess(false);
           setAccessDeniedReason("Entraînement non trouvé");
@@ -87,7 +85,6 @@ export default function StitchQuestionnaireScreen() {
         const endMillis = endUtc?.toMillis?.() ?? null;
         const displayTz = trainingData?.displayTz || "Europe/Paris";
 
-        // Extraire le titre et l'horaire réels du training
         const rawTitle = trainingData?.title || trainingData?.summary || eventTitle || "Training";
         const formatTime = (ts) => ts ? new Date(ts?.seconds ? ts.seconds * 1000 : ts).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : null;
         const startFormatted = formatTime(trainingData?.startUtc);
@@ -99,18 +96,17 @@ export default function StitchQuestionnaireScreen() {
         const isTest = trainingData?.isTestSession === true;
         setIsTestSession(isTest);
 
-        // V2: extract sessionType (default "conditioning" per DEC-03)
+        // V3: extract sessionType (default "conditioning")
         const sType = trainingData?.sessionType || "conditioning";
         setSessionType(sType);
 
-        // V2: calculate duration in minutes
+        // V3: calculate duration in minutes
         const startMs = trainingData?.startUtc?.toMillis?.() ?? null;
         if (startMs && endMillis) {
           const durationMin = Math.max(1, Math.round((endMillis - startMs) / (1000 * 60)));
           setTrainingDuration(durationMin);
         }
 
-        // Stocker les informations du training pour l'affichage du message d'accès refusé
         setTrainingInfoForMessage({
           endMillis,
           displayTz,
@@ -123,7 +119,6 @@ export default function StitchQuestionnaireScreen() {
           return;
         }
 
-        // Vérifier si une réponse existe déjà
         const responseRef = doc(db, "teams", teamId, "trainings", sessionId, "responses", auth.currentUser.uid);
         let responseSnap;
         try {
@@ -133,8 +128,7 @@ export default function StitchQuestionnaireScreen() {
         }
 
         const hasCompleted = responseSnap?.exists() && responseSnap.data()?.status === 'completed';
-        
-        // Calculer le statut du questionnaire
+
         const now = DateTime.utc();
         const status = computeQuestionnaireStatus(endMillis, hasCompleted, now);
 
@@ -147,7 +141,6 @@ export default function StitchQuestionnaireScreen() {
           displayTz,
         });
 
-        // Vérifier si l'accès est autorisé
         if (isTest && status !== 'completed') {
           setIsAccessible(true);
           setAccessDeniedReason(null);
@@ -179,55 +172,53 @@ export default function StitchQuestionnaireScreen() {
     checkAccess();
   }, [sessionId]);
 
-  // Rediriger silencieusement vers la page précédente si l'accès est refusé
-  // Utiliser useLayoutEffect pour rediriger avant le premier rendu
+  // Redirect silently if access denied
   useLayoutEffect(() => {
     if (!isCheckingAccess && !isAccessible) {
-      // Rediriger immédiatement sans afficher d'écran d'erreur
       console.log("[QUESTIONNAIRE] Access denied, redirecting silently", { reason: accessDeniedReason });
       if (navigation?.goBack) {
-        // Rediriger immédiatement sans délai
         navigation.goBack();
       }
     }
   }, [isCheckingAccess, isAccessible, accessDeniedReason, navigation]);
-  
-  // V2 metrics state (1-10, high = bad/fatigue per PRD)
-  const [sessionType, setSessionType] = useState("conditioning"); // default per DEC-03
-  const [trainingDuration, setTrainingDuration] = useState(60); // minutes
-  const [metrics, setMetrics] = useState({
-    cardioLoad: 5,
-    neuroLoad: 5,
-    sleepQuality: 5,
-    stressLevel: 5,
-    motorControl: 5,
-    tacticalLucidity: 5,
-    sessionRPE: 5,
-  });
-  const [hasFriction, setHasFriction] = useState(false);
-  const [frictionType, setFrictionType] = useState("Physical Fatigue");
-  const [frictionFrequency, setFrictionFrequency] = useState(5);
-  const [frictionImpact, setFrictionImpact] = useState(5);
-  const [frictionDistraction, setFrictionDistraction] = useState(5);
-  const [draggingKey, setDraggingKey] = useState(null);
 
-  // V2: Readiness Score calculation (high metric = bad, so invert for readiness)
+  // ─── V3 State ────────────────────────────────────────────────────────────────
+  const [sessionType, setSessionType] = useState("conditioning");
+  const [trainingDuration, setTrainingDuration] = useState(60);
+
+  // Part 1 — Daily Baseline (1-100, default 50)
+  const [metrics, setMetrics] = useState({
+    tankLevel: 50,
+    cardioLoad: 50,
+    legBounce: 50,
+    motorControl: 50,
+    tacticalSharpness: 50,
+    teamChemistry: 50,
+  });
+
+  // Part 2 — Friction Matrix
+  // null = Q7 not yet answered, false = NO, true = YES
+  const [hasFriction, setHasFriction] = useState(null);
+  const [frictionType, setFrictionType] = useState([]);   // multi-select
+  const [frictionImpact, setFrictionImpact] = useState(30);
+  const [worryLevel, setWorryLevel] = useState(30);
+
+  // ─── V3 Readiness Calculation ─────────────────────────────────────────────
   const calculateReadiness = (m) => {
-    const scores = {
-      cardio: (10 - m.cardioLoad) * 0.20,
-      neuro: (10 - m.neuroLoad) * 0.25,
-      sleep: (10 - m.sleepQuality) * 0.20,
-      stress: (10 - m.stressLevel) * 0.15,
-      motor: (10 - m.motorControl) * 0.10,
-      tactical: (10 - (m.tacticalLucidity ?? m.stressLevel)) * 0.10,
-    };
-    const weighted = Object.values(scores).reduce((a, b) => a + b, 0);
-    return Math.round((weighted / 10) * 100);
+    const invertedCardio = 101 - m.cardioLoad;
+    return Math.round(
+      m.tankLevel         * 0.20 +
+      invertedCardio      * 0.20 +
+      m.legBounce         * 0.20 +
+      m.motorControl      * 0.15 +
+      m.tacticalSharpness * 0.15 +
+      m.teamChemistry     * 0.10
+    );
   };
 
+  // ─── Submit ───────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
     if (isSubmitting) return;
-
     setSubmitError(null);
     setIsSubmitting(true);
 
@@ -242,25 +233,32 @@ export default function StitchQuestionnaireScreen() {
       const teamId = userDoc.data().teamId;
       if (!teamId) throw new Error("No team associated");
 
-      // Build V2 schema
-      const activeMetrics = {
-        cardioLoad: metrics.cardioLoad,
-        neuroLoad: metrics.neuroLoad,
-        sleepQuality: metrics.sleepQuality,
-        stressLevel: metrics.stressLevel,
-        motorControl: sessionType !== "conditioning" ? metrics.motorControl : null,
-        tacticalLucidity: sessionType === "scrimmage" ? metrics.tacticalLucidity : null,
-        sessionRPE: metrics.sessionRPE,
-      };
+      const isFriction = hasFriction === true;
+      const worryFlag = isFriction && worryLevel > 70;
 
       const responsePayload = {
-        metrics: activeMetrics,
-        readinessScore: calculateReadiness(activeMetrics),
-        workloadAU: metrics.sessionRPE * trainingDuration,
+        metrics: {
+          tankLevel:         metrics.tankLevel,
+          cardioLoad:        metrics.cardioLoad,
+          legBounce:         metrics.legBounce,
+          motorControl:      metrics.motorControl,
+          tacticalSharpness: metrics.tacticalSharpness,
+          teamChemistry:     metrics.teamChemistry,
+        },
+        readinessScore: calculateReadiness(metrics),
+        workloadAU:     null, // sessionRPE removed in V3
         sessionType,
-        hasFriction,
-        ...(hasFriction ? { frictionType, frictionFrequency, frictionImpact, frictionDistraction } : {}),
+        hasFriction:    isFriction,
+        frictionType:   isFriction ? frictionType  : null,
+        frictionImpact: isFriction ? frictionImpact : null,
+        worryLevel:     isFriction ? worryLevel     : null,
+        worryFlag,
         isTest: isTestSession || false,
+        // V2 backward-compat aliases (for PerformanceDashboard V1/V2 fallback)
+        neuroLoad:       metrics.legBounce,
+        stressLevel:     101 - metrics.teamChemistry,
+        sleepQuality:    metrics.tankLevel,
+        tacticalLucidity: metrics.tacticalSharpness,
       };
 
       const { saveQuestionnaireResponse } = await import("../src/lib/responses");
@@ -285,7 +283,7 @@ export default function StitchQuestionnaireScreen() {
       }
     } catch (error) {
       console.error("❌ Erreur lors de la sauvegarde:", error);
-      const errorMessage = error?.code === "permission-denied" 
+      const errorMessage = error?.code === "permission-denied"
         ? "Erreur de permissions. Vérifie que tu es bien membre de l'équipe et que le questionnaire est toujours disponible."
         : `Erreur lors de la sauvegarde du questionnaire: ${error?.message || error}`;
       if (Platform.OS === 'web') {
@@ -298,650 +296,146 @@ export default function StitchQuestionnaireScreen() {
     }
   };
 
-  // Debug: Log the route params
-  console.log("🔍 Questionnaire route params:", route.params);
-  console.log("🔍 Event title:", eventTitle);
-  console.log("🔍 Event date:", eventDate);
-  console.log("🔍 Session ID:", sessionId);
+  // ─── V3 Question Definitions ──────────────────────────────────────────────
+  const Q5_CATEGORY = sessionType === "scrimmage" ? "Game IQ" : "Tactical Execution";
 
-  // V2 question definitions
-  const QUESTIONS = {
-    cardioLoad:       { question: "How did your lungs handle the pace today?",         leftAnchor: "Never out of breath",    rightAnchor: "Completely Gassed" },
-    neuroLoad:        { question: "How bouncy and explosive did your legs feel?",       leftAnchor: "Bouncy / Explosive",     rightAnchor: "Heavy / Glued to the floor" },
-    sleepQuality:     { question: "How restorative was your sleep last night?",         leftAnchor: "Deep / Woke up fresh",   rightAnchor: "Terrible / Restless" },
-    stressLevel:      { question: "What's your current stress level? (school + hoops)", leftAnchor: "Completely relaxed",     rightAnchor: "Overwhelmed" },
-    motorControl:     { question: "How did your shot and handle feel today?",           leftAnchor: "Pure / Automatic",       rightAnchor: "Clumsy / Bricking" },
-    tacticalLucidity: { question: "How well did you process defensive rotations?",      leftAnchor: "Reading the floor",      rightAnchor: "Lost / A step behind" },
-    sessionRPE:       { question: "Overall, how hard was today's session?",             leftAnchor: "Active Recovery",        rightAnchor: "Hardest session ever" },
-  };
-
-  const QUESTION_SETS = {
-    conditioning: ["cardioLoad", "neuroLoad", "sleepQuality", "stressLevel", "sessionRPE"],
-    skill:        ["cardioLoad", "neuroLoad", "sleepQuality", "stressLevel", "motorControl", "sessionRPE"],
-    scrimmage:    ["cardioLoad", "neuroLoad", "sleepQuality", "stressLevel", "motorControl", "tacticalLucidity", "sessionRPE"],
-  };
-
-  const activeQuestions = QUESTION_SETS[sessionType] || QUESTION_SETS.conditioning;
+  const QUESTIONS_V3 = [
+    {
+      key: "tankLevel",
+      category: "Physical Engine",
+      question: "How loaded is your tank walking into today's session?",
+      leftAnchor: "Running on empty",
+      rightAnchor: "Fully charged, ready to go",
+    },
+    {
+      key: "cardioLoad",
+      category: "Physical Engine",
+      question: "How gassed were your lungs and transitions yesterday?",
+      leftAnchor: "Barely felt it",
+      rightAnchor: "Completely gassed, lungs on fire",
+    },
+    {
+      key: "legBounce",
+      category: "Physical Engine",
+      question: "How bouncy do your legs feel right now?",
+      leftAnchor: "Legs are bricks",
+      rightAnchor: "Springy and explosive",
+    },
+    {
+      key: "motorControl",
+      category: "Technical Execution",
+      question: "How dialed-in does your handle and shot feel today?",
+      leftAnchor: "Completely off, nothing feels right",
+      rightAnchor: "Silky smooth, locked in",
+    },
+    {
+      key: "tacticalSharpness",
+      category: Q5_CATEGORY,
+      question: "How sharp are you at reading the floor and executing the playbook?",
+      leftAnchor: "Mentally foggy, one step behind",
+      rightAnchor: "Seeing everything, fully locked in",
+    },
+    {
+      key: "teamChemistry",
+      category: "Psychosocial",
+      question: "How connected do you feel to the team's energy and how well are you handling frustration?",
+      leftAnchor: "Disconnected, frustration is getting to me",
+      rightAnchor: "Locked in together, nothing breaks our focus",
+    },
+  ];
 
   const handleMetricChange = (key, value) => {
     setMetrics(prev => ({ ...prev, [key]: value }));
   };
 
+  const toggleFrictionType = (type) => {
+    setFrictionType(prev =>
+      prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]
+    );
+  };
+
+  // Slider fill: left (dim cyan) → current position → right (transparent)
+  const sliderFill = (value) => {
+    const pct = ((value - 1) / 99) * 100;
+    return `linear-gradient(90deg, rgba(0,212,255,0.55) ${pct}%, rgba(255,255,255,0.10) ${pct}%)`;
+  };
+
+  // Submit is ready once Q7 (hasFriction) is answered
+  const isSubmitReady = hasFriction !== null;
 
   if (Platform.OS === "web") {
-    // Add CSS for the new design
+    // Inject CSS
     React.useEffect(() => {
       const style = document.createElement('style');
       style.textContent = `
-        .hide-scrollbar::-webkit-scrollbar {
-          display: none;
-        }
-        .hide-scrollbar {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
-        .slider {
-          -webkit-appearance: none;
-          appearance: none;
-          width: 100%;
-          height: 10px;
-          background: #1E222D;
-          outline: none;
-          border-radius: 9999px;
-          transition: background 200ms ease-out;
-        }
-        .slider::-webkit-slider-runnable-track {
-          height: 10px;
-          background: linear-gradient(90deg, #00D4FF, #4A67FF);
-          border-radius: 9999px;
-        }
-        .slider::-webkit-slider-thumb {
-          -webkit-appearance: none;
-          appearance: none;
-          width: 20px;
-          height: 20px;
-          background: #00D4FF;
-          cursor: pointer;
-          border-radius: 50%;
-          margin-top: -5px;
-          box-shadow: 0 0 10px 2px rgba(0, 224, 255, 0.5);
-          transition: transform 200ms ease-out, box-shadow 150ms ease-in;
-        }
-        .slider:active::-webkit-slider-thumb {
-          box-shadow: 0 0 15px 5px rgba(0, 224, 255, 0.7);
-        }
-        .slider::-moz-range-track {
-          height: 10px;
-          background: linear-gradient(90deg, #00D4FF, #4A67FF);
-          border-radius: 9999px;
-        }
-        .slider::-moz-range-thumb {
-          width: 20px;
-          height: 20px;
-          background: #00D4FF;
-          cursor: pointer;
-          border-radius: 50%;
-          box-shadow: 0 0 10px 2px rgba(0, 224, 255, 0.5);
-          border: none;
-          transition: transform 200ms ease-out, box-shadow 150ms ease-in;
-        }
-        .slider:active::-moz-range-thumb {
-          box-shadow: 0 0 15px 5px rgba(0, 224, 255, 0.7);
-        }
-        .card-animate {
-            animation: fadeIn 150ms ease-out both;
-        }
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        .pulse-glow {
-            animation: pulse-glow 2s infinite ease-in-out;
-        }
-        @keyframes pulse-glow {
-            0%, 100% { box-shadow: 0 0 10px 0 rgba(0, 224, 255, 0.2); }
-            50% { box-shadow: 0 0 20px 5px rgba(0, 224, 255, 0.4); }
-        }
-        @keyframes slideUp {
-            from {
-                transform: translateY(100%);
-                opacity: 0;
-            }
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        @keyframes ctpFadeIn {
-            from { opacity: 0; transform: translateY(12px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .slider-v2 {
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* V3 Slider — white thumb, no number tooltip */
+        .slider-v3 {
           -webkit-appearance: none;
           appearance: none;
           width: 100%;
           height: 6px;
-          background: rgba(255,255,255,0.1);
           outline: none;
           border-radius: 9999px;
+          cursor: pointer;
         }
-        .slider-v2::-webkit-slider-thumb {
+        .slider-v3::-webkit-slider-thumb {
           -webkit-appearance: none;
           appearance: none;
-          width: 24px;
-          height: 24px;
-          background: linear-gradient(135deg, #00BFFF, #0066FF);
+          width: 22px;
+          height: 22px;
+          background: #FFFFFF;
           cursor: pointer;
           border-radius: 50%;
-          box-shadow: 0 0 10px rgba(0, 191, 255, 0.5);
+          box-shadow: 0 0 8px rgba(0,212,255,0.6);
           transition: transform 100ms ease-out, box-shadow 100ms ease-out;
         }
-        .slider-v2:active::-webkit-slider-thumb {
+        .slider-v3:active::-webkit-slider-thumb {
           transform: scale(1.15);
-          box-shadow: 0 0 18px rgba(0, 191, 255, 0.7);
+          box-shadow: 0 0 16px rgba(0,212,255,0.9);
         }
-        .slider-v2::-moz-range-thumb {
-          width: 24px;
-          height: 24px;
-          background: linear-gradient(135deg, #00BFFF, #0066FF);
+        .slider-v3::-moz-range-thumb {
+          width: 22px;
+          height: 22px;
+          background: #FFFFFF;
           cursor: pointer;
           border-radius: 50%;
           border: none;
-          box-shadow: 0 0 10px rgba(0, 191, 255, 0.5);
+          box-shadow: 0 0 8px rgba(0,212,255,0.6);
         }
-        .slider-v2::-moz-range-track {
+        .slider-v3::-moz-range-track {
           height: 6px;
-          background: rgba(255,255,255,0.1);
           border-radius: 9999px;
+          background: transparent;
         }
-        .friction-select {
-          width: 100%;
-          background: rgba(255,255,255,0.05);
-          border: 1px solid rgba(0,212,255,0.2);
-          border-radius: 10px;
-          color: #FFFFFF;
-          padding: 12px 14px;
-          font-size: 14px;
-          font-family: 'DM Sans', system-ui, sans-serif;
-          outline: none;
-          cursor: pointer;
+
+        .card-animate {
+          animation: fadeIn 150ms ease-out both;
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes spin {
+          0%   { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+        @keyframes ctpFadeIn {
+          from { opacity: 0; transform: translateY(12px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes frictionReveal {
+          from { opacity: 0; transform: translateY(8px); }
+          to   { opacity: 1; transform: translateY(0); }
         }
       `;
       document.head.appendChild(style);
       return () => document.head.removeChild(style);
     }, []);
 
-    // Initialize 3D Anatomy Model with simplified approach
-    React.useEffect(() => {
-      const initAnatomyModel = async () => {
-        // Load Three.js from CDN
-        if (!window.THREE) {
-          const script = document.createElement('script');
-          script.src = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
-          script.onload = () => {
-            initThreeJS();
-          };
-          document.head.appendChild(script);
-        } else {
-          initThreeJS();
-        }
-
-        function initThreeJS() {
-          console.log('🔧 Three.js loaded, initializing...');
-          
-          const container = document.getElementById('body-viewer');
-          const canvas = document.getElementById('anatomyCanvas');
-          const loadingIndicator = document.getElementById('loading-indicator');
-          
-          if (!container || !canvas) {
-            console.error('❌ Container or canvas not found');
-            return;
-          }
-
-          // Show loading indicator
-          if (loadingIndicator) {
-            loadingIndicator.style.display = 'block';
-          }
-
-          // Scene setup
-          const scene = new THREE.Scene();
-          const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
-          const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-          renderer.setSize(container.clientWidth, container.clientHeight);
-          renderer.setClearColor(0x000000, 0);
-          renderer.shadowMap.enabled = true;
-          renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-
-          // Enhanced Lighting
-          const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
-          scene.add(ambientLight);
-          
-          // Main directional light (cyan theme)
-          const directionalLight = new THREE.DirectionalLight(0x00E0FF, 1.2);
-          directionalLight.position.set(5, 5, 5);
-          directionalLight.castShadow = true;
-          directionalLight.shadow.mapSize.width = 2048;
-          directionalLight.shadow.mapSize.height = 2048;
-          directionalLight.shadow.camera.near = 0.5;
-          directionalLight.shadow.camera.far = 50;
-          scene.add(directionalLight);
-
-          // Fill light (blue theme)
-          const fillLight = new THREE.DirectionalLight(0x4A67FF, 0.6);
-          fillLight.position.set(-3, 2, -2);
-          scene.add(fillLight);
-
-          // Rim light for better definition
-          const rimLight = new THREE.DirectionalLight(0xFFFFFF, 0.8);
-          rimLight.position.set(0, 0, -5);
-          scene.add(rimLight);
-
-          // Point light for warmth
-          const pointLight = new THREE.PointLight(0xFFE0B0, 0.5, 10);
-          pointLight.position.set(2, 3, 2);
-          scene.add(pointLight);
-
-          // Create anatomy model
-          const createAnatomyModel = () => {
-            const group = new THREE.Group();
-
-            // Enhanced Materials
-            const muscleMaterial = new THREE.MeshPhongMaterial({ 
-              color: 0x8B4513,
-              shininess: 30,
-              transparent: true,
-              opacity: 0.9
-            });
-            const skinMaterial = new THREE.MeshPhongMaterial({ 
-              color: 0xFFDBB5,
-              shininess: 50
-            });
-            const boneMaterial = new THREE.MeshPhongMaterial({ 
-              color: 0xF5F5DC,
-              shininess: 80
-            });
-
-            // Head with more detail
-            const headGeometry = new THREE.SphereGeometry(0.6, 32, 32);
-            const head = new THREE.Mesh(headGeometry, skinMaterial);
-            head.position.y = 2.2;
-            head.castShadow = true;
-            head.receiveShadow = true;
-            head.name = 'head';
-            group.add(head);
-
-            // Neck
-            const neckGeometry = new THREE.CylinderGeometry(0.15, 0.2, 0.4, 16);
-            const neck = new THREE.Mesh(neckGeometry, skinMaterial);
-            neck.position.y = 1.6;
-            neck.castShadow = true;
-            neck.receiveShadow = true;
-            neck.name = 'neck';
-            group.add(neck);
-
-            // Enhanced Torso with chest and back muscles
-            const torsoGeometry = new THREE.CylinderGeometry(0.4, 0.6, 2.5, 32);
-            const torso = new THREE.Mesh(torsoGeometry, muscleMaterial);
-            torso.position.y = 0.5;
-            torso.castShadow = true;
-            torso.receiveShadow = true;
-            torso.name = 'torso';
-            group.add(torso);
-
-            // Chest muscles (Pectorals)
-            const chestGeometry = new THREE.BoxGeometry(0.8, 0.3, 0.1);
-            const chest = new THREE.Mesh(chestGeometry, muscleMaterial);
-            chest.position.set(0, 1.2, 0.4);
-            chest.castShadow = true;
-            chest.receiveShadow = true;
-            chest.name = 'chest';
-            group.add(chest);
-
-            // Abdominal muscles
-            const absGeometry = new THREE.BoxGeometry(0.6, 0.8, 0.1);
-            const abs = new THREE.Mesh(absGeometry, muscleMaterial);
-            abs.position.set(0, 0.2, 0.4);
-            abs.castShadow = true;
-            abs.receiveShadow = true;
-            abs.name = 'abs';
-            group.add(abs);
-
-            // Shoulders
-            const shoulderGeometry = new THREE.SphereGeometry(0.25, 16, 16);
-            
-            const leftShoulder = new THREE.Mesh(shoulderGeometry, muscleMaterial);
-            leftShoulder.position.set(-0.6, 1.8, 0);
-            leftShoulder.castShadow = true;
-            leftShoulder.receiveShadow = true;
-            leftShoulder.name = 'leftShoulder';
-            group.add(leftShoulder);
-
-            const rightShoulder = new THREE.Mesh(shoulderGeometry, muscleMaterial);
-            rightShoulder.position.set(0.6, 1.8, 0);
-            rightShoulder.castShadow = true;
-            rightShoulder.receiveShadow = true;
-            rightShoulder.name = 'rightShoulder';
-            group.add(rightShoulder);
-
-            // Enhanced Arms with biceps and triceps
-            const upperArmGeometry = new THREE.CylinderGeometry(0.12, 0.15, 1.2, 16);
-            const forearmGeometry = new THREE.CylinderGeometry(0.08, 0.12, 1.0, 16);
-            
-            // Left arm
-            const leftUpperArm = new THREE.Mesh(upperArmGeometry, muscleMaterial);
-            leftUpperArm.position.set(-0.7, 1.5, 0);
-            leftUpperArm.rotation.z = Math.PI / 6;
-            leftUpperArm.castShadow = true;
-            leftUpperArm.receiveShadow = true;
-            leftUpperArm.name = 'leftUpperArm';
-            group.add(leftUpperArm);
-
-            const leftForearm = new THREE.Mesh(forearmGeometry, muscleMaterial);
-            leftForearm.position.set(-1.2, 0.8, 0);
-            leftForearm.rotation.z = Math.PI / 4;
-            leftForearm.castShadow = true;
-            leftForearm.receiveShadow = true;
-            leftForearm.name = 'leftForearm';
-            group.add(leftForearm);
-
-            // Right arm
-            const rightUpperArm = new THREE.Mesh(upperArmGeometry, muscleMaterial);
-            rightUpperArm.position.set(0.7, 1.5, 0);
-            rightUpperArm.rotation.z = -Math.PI / 6;
-            rightUpperArm.castShadow = true;
-            rightUpperArm.receiveShadow = true;
-            rightUpperArm.name = 'rightUpperArm';
-            group.add(rightUpperArm);
-
-            const rightForearm = new THREE.Mesh(forearmGeometry, muscleMaterial);
-            rightForearm.position.set(1.2, 0.8, 0);
-            rightForearm.rotation.z = -Math.PI / 4;
-            rightForearm.castShadow = true;
-            rightForearm.receiveShadow = true;
-            rightForearm.name = 'rightForearm';
-            group.add(rightForearm);
-
-            // Enhanced Legs with thigh and calf muscles
-            const thighGeometry = new THREE.CylinderGeometry(0.15, 0.2, 1.2, 16);
-            const calfGeometry = new THREE.CylinderGeometry(0.12, 0.15, 1.0, 16);
-            
-            // Left leg
-            const leftThigh = new THREE.Mesh(thighGeometry, muscleMaterial);
-            leftThigh.position.set(-0.25, -0.3, 0);
-            leftThigh.castShadow = true;
-            leftThigh.receiveShadow = true;
-            leftThigh.name = 'leftThigh';
-            group.add(leftThigh);
-
-            const leftCalf = new THREE.Mesh(calfGeometry, muscleMaterial);
-            leftCalf.position.set(-0.25, -1.2, 0);
-            leftCalf.castShadow = true;
-            leftCalf.receiveShadow = true;
-            leftCalf.name = 'leftCalf';
-            group.add(leftCalf);
-
-            // Right leg
-            const rightThigh = new THREE.Mesh(thighGeometry, muscleMaterial);
-            rightThigh.position.set(0.25, -0.3, 0);
-            rightThigh.castShadow = true;
-            rightThigh.receiveShadow = true;
-            rightThigh.name = 'rightThigh';
-            group.add(rightThigh);
-
-            const rightCalf = new THREE.Mesh(calfGeometry, muscleMaterial);
-            rightCalf.position.set(0.25, -1.2, 0);
-            rightCalf.castShadow = true;
-            rightCalf.receiveShadow = true;
-            rightCalf.name = 'rightCalf';
-            group.add(rightCalf);
-
-            // Back muscles (Latissimus Dorsi)
-            const backGeometry = new THREE.BoxGeometry(0.8, 1.5, 0.2);
-            const back = new THREE.Mesh(backGeometry, muscleMaterial);
-            back.position.set(0, 0.5, -0.4);
-            back.castShadow = true;
-            back.receiveShadow = true;
-            back.name = 'back';
-            group.add(back);
-
-            // Hip muscles
-            const hipGeometry = new THREE.SphereGeometry(0.3, 16, 16);
-            const leftHip = new THREE.Mesh(hipGeometry, muscleMaterial);
-            leftHip.position.set(-0.25, -0.8, 0);
-            leftHip.castShadow = true;
-            leftHip.receiveShadow = true;
-            leftHip.name = 'leftHip';
-            group.add(leftHip);
-
-            const rightHip = new THREE.Mesh(hipGeometry, muscleMaterial);
-            rightHip.position.set(0.25, -0.8, 0);
-            rightHip.castShadow = true;
-            rightHip.receiveShadow = true;
-            rightHip.name = 'rightHip';
-            group.add(rightHip);
-
-            return group;
-          };
-
-          const anatomyModel = createAnatomyModel();
-          scene.add(anatomyModel);
-
-          // Camera position
-          camera.position.z = 5;
-          camera.position.y = 1.5;
-
-          // Controls
-          let isMouseDown = false;
-          let mouseX = 0, mouseY = 0;
-          let rotationX = 0, rotationY = 0;
-
-          const handleMouseDown = (event) => {
-            isMouseDown = true;
-            mouseX = event.clientX;
-            mouseY = event.clientY;
-            canvas.style.cursor = 'grabbing';
-          };
-
-          const handleMouseMove = (event) => {
-            if (!isMouseDown) return;
-            
-            const deltaX = event.clientX - mouseX;
-            const deltaY = event.clientY - mouseY;
-            
-            rotationY += deltaX * 0.01;
-            rotationX += deltaY * 0.01;
-            
-            anatomyModel.rotation.y = rotationY;
-            anatomyModel.rotation.x = rotationX;
-            
-            mouseX = event.clientX;
-            mouseY = event.clientY;
-          };
-
-          const handleMouseUp = () => {
-            isMouseDown = false;
-            canvas.style.cursor = 'grab';
-          };
-
-          const handleWheel = (event) => {
-            camera.position.z += event.deltaY * 0.01;
-            camera.position.z = Math.max(2, Math.min(10, camera.position.z));
-          };
-
-          // Event listeners
-          canvas.addEventListener('mousedown', handleMouseDown);
-          canvas.addEventListener('mousemove', handleMouseMove);
-          canvas.addEventListener('mouseup', handleMouseUp);
-          canvas.addEventListener('wheel', handleWheel);
-
-          // Touch events
-          canvas.addEventListener('touchstart', (e) => {
-            if (e.touches.length === 1) {
-              isMouseDown = true;
-              mouseX = e.touches[0].clientX;
-              mouseY = e.touches[0].clientY;
-            }
-          });
-
-          canvas.addEventListener('touchmove', (e) => {
-            if (!isMouseDown || e.touches.length !== 1) return;
-            e.preventDefault();
-            
-            const deltaX = e.touches[0].clientX - mouseX;
-            const deltaY = e.touches[0].clientY - mouseY;
-            
-            rotationY += deltaX * 0.01;
-            rotationX += deltaY * 0.01;
-            
-            anatomyModel.rotation.y = rotationY;
-            anatomyModel.rotation.x = rotationX;
-            
-            mouseX = e.touches[0].clientX;
-            mouseY = e.touches[0].clientY;
-          });
-
-          canvas.addEventListener('touchend', () => {
-            isMouseDown = false;
-          });
-
-          // Enhanced Pain Markers System
-          const painMarkers = [];
-          const raycaster = new THREE.Raycaster();
-          const mouse = new THREE.Vector2();
-
-          const addPainMarker = (position, bodyPart) => {
-            const markerGeometry = new THREE.SphereGeometry(0.05, 16, 16);
-            const markerMaterial = new THREE.MeshPhongMaterial({ 
-              color: 0xFF0000,
-              emissive: 0x440000,
-              transparent: true,
-              opacity: 0.8
-            });
-            const marker = new THREE.Mesh(markerGeometry, markerMaterial);
-            marker.position.copy(position);
-            marker.userData = { bodyPart, timestamp: Date.now() };
-            marker.castShadow = true;
-            scene.add(marker);
-            painMarkers.push(marker);
-
-            // Add pulsing effect
-            const pulseAnimation = () => {
-              const scale = 1 + 0.3 * Math.sin(Date.now() * 0.01);
-              marker.scale.setScalar(scale);
-              requestAnimationFrame(pulseAnimation);
-            };
-            pulseAnimation();
-
-            console.log('📍 Pain marker added at:', position, 'on', bodyPart);
-          };
-
-          const getPainMarkers = () => {
-            return painMarkers.map(marker => ({
-              position: marker.position.toArray(),
-              bodyPart: marker.userData.bodyPart,
-              timestamp: marker.userData.timestamp
-            }));
-          };
-
-          const clearPainMarkers = () => {
-            painMarkers.forEach(marker => scene.remove(marker));
-            painMarkers.length = 0;
-            console.log('🗑️ All pain markers cleared');
-          };
-
-          // Enhanced click/touch interaction with raycasting
-          const handleClick = (event) => {
-            const rect = canvas.getBoundingClientRect();
-            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
-            raycaster.setFromCamera(mouse, camera);
-            const intersects = raycaster.intersectObjects(anatomyModel.children, true);
-
-            if (intersects.length > 0) {
-              const clickedObject = intersects[0].object;
-              const intersectionPoint = intersects[0].point;
-              const bodyPart = clickedObject.name || 'unknown';
-              
-              // Add pain marker
-              addPainMarker(intersectionPoint, bodyPart);
-              
-              // Highlight the clicked body part
-              clickedObject.material.emissive.setHex(0x444444);
-              setTimeout(() => {
-                clickedObject.material.emissive.setHex(0x000000);
-              }, 200);
-            }
-          };
-
-          // Add click event listener
-          canvas.addEventListener('click', handleClick);
-          canvas.addEventListener('touchend', (e) => {
-            if (e.touches.length === 0) {
-              handleClick(e);
-            }
-          });
-
-          // Enhanced reset function
-          const resetView = () => {
-            anatomyModel.rotation.set(0, 0, 0);
-            camera.position.set(0, 1.5, 5);
-            clearPainMarkers();
-            console.log('🔄 View reset');
-          };
-
-          // Expose functions globally
-          window.anatomyModel = {
-            resetView,
-            getPainMarkers,
-            clearPainMarkers
-          };
-
-          // Animation loop with enhanced effects
-          const animate = () => {
-            requestAnimationFrame(animate);
-            
-            // Subtle breathing animation
-            const time = Date.now() * 0.001;
-            anatomyModel.children.forEach((child, index) => {
-              if (child.name === 'torso' || child.name === 'chest') {
-                const breathScale = 1 + 0.02 * Math.sin(time * 2 + index);
-                child.scale.y = breathScale;
-              }
-            });
-
-            renderer.render(scene, camera);
-          };
-          animate();
-
-          // Hide loading indicator
-          if (loadingIndicator) {
-            loadingIndicator.style.display = 'none';
-          }
-
-          console.log('🔧 Enhanced 3D Anatomy model initialized');
-        }
-      };
-
-      // Initialize when pain toggle becomes true
-      if (hasFriction) {
-        setTimeout(() => {
-          initAnatomyModel();
-        }, 200);
-      }
-    }, [hasFriction]);
-
-    // Afficher un écran de chargement pendant la vérification
+    // Loading screen
     if (isCheckingAccess) {
       return (
         <MobileViewport>
@@ -953,21 +447,17 @@ export default function StitchQuestionnaireScreen() {
             alignItems: "center",
             justifyContent: "center",
             flexDirection: "column",
-            gap: "20px"
+            gap: "20px",
           }}>
             <div style={{
               width: "40px",
               height: "40px",
-              border: "3px solid rgba(0, 224, 255, 0.3)",
+              border: "3px solid rgba(0,224,255,0.3)",
               borderTop: "3px solid #00D4FF",
               borderRadius: "50%",
-              animation: "spin 1s linear infinite"
-            }}></div>
-            <div style={{
-              color: "#00D4FF",
-              fontSize: "16px",
-              fontWeight: "600"
-            }}>
+              animation: "spin 1s linear infinite",
+            }} />
+            <div style={{ color: "#00D4FF", fontSize: "16px", fontWeight: "600" }}>
               Vérification en cours...
             </div>
           </div>
@@ -975,60 +465,54 @@ export default function StitchQuestionnaireScreen() {
       );
     }
 
-    // Ne rien afficher si l'accès est refusé - la redirection se fait dans useEffect
-    // Retourner null pour éviter tout rendu
     if (!isAccessible && !isCheckingAccess) {
       return null;
     }
 
     return (
       <MobileViewport>
-        <div 
-          style={{
-            width: "100%",
-            height: "100vh",
-            background: "linear-gradient(to bottom, #0B0F1A, #020409)",
-            fontFamily: "'Inter', sans-serif",
-            color: "rgba(255, 255, 255, 0.9)",
-            position: "relative",
-            display: "flex",
-            flexDirection: "column",
-            maxWidth: "384px",
-            margin: "0 auto",
-            overflow: "hidden",
-          }}
-        >
-          {/* Background Effect */}
-          <div 
-            style={{
-              position: "absolute",
-              top: 0,
-              left: "50%",
-              transform: "translateX(-50%)",
-              width: "300px",
-              height: "300px",
-              background: "radial-gradient(circle, rgba(0, 224, 255, 0.1), transparent 70%)",
-              pointerEvents: "none",
-              zIndex: 0,
-            }} 
-          />
+        <div style={{
+          width: "100%",
+          height: "100vh",
+          background: "#0A0F1E",
+          fontFamily: "'DM Sans', system-ui, sans-serif",
+          color: "rgba(255,255,255,0.9)",
+          position: "relative",
+          display: "flex",
+          flexDirection: "column",
+          maxWidth: "384px",
+          margin: "0 auto",
+          overflow: "hidden",
+        }}>
+          {/* Radial glow */}
+          <div style={{
+            position: "absolute",
+            top: 0,
+            left: "50%",
+            transform: "translateX(-50%)",
+            width: "300px",
+            height: "300px",
+            background: "radial-gradient(circle, rgba(0,212,255,0.07), transparent 70%)",
+            pointerEvents: "none",
+            zIndex: 0,
+          }} />
 
-          {/* Header with Back Button */}
-          <div style={{ 
-            position: "relative", 
-            zIndex: 20, 
+          {/* Header — back button */}
+          <div style={{
+            position: "relative",
+            zIndex: 20,
             padding: "24px 24px 0 24px",
             display: "flex",
             alignItems: "center",
-            justifyContent: "flex-start"
+            justifyContent: "flex-start",
           }}>
-            <button 
+            <button
               onClick={handleGoBack}
               style={{
-                background: "rgba(0, 224, 255, 0.1)",
-                border: "1px solid rgba(0, 224, 255, 0.3)",
+                background: "rgba(0,212,255,0.08)",
+                border: "1px solid rgba(0,212,255,0.20)",
                 borderRadius: "12px",
-                padding: "12px 16px",
+                padding: "10px 16px",
                 color: "#00D4FF",
                 fontSize: "14px",
                 fontWeight: "500",
@@ -1036,16 +520,6 @@ export default function StitchQuestionnaireScreen() {
                 display: "flex",
                 alignItems: "center",
                 gap: "8px",
-                transition: "all 0.2s",
-                backdropFilter: "blur(10px)",
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.background = "rgba(0, 224, 255, 0.2)";
-                e.target.style.borderColor = "rgba(0, 224, 255, 0.5)";
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.background = "rgba(0, 224, 255, 0.1)";
-                e.target.style.borderColor = "rgba(0, 224, 255, 0.3)";
               }}
             >
               <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -1061,7 +535,7 @@ export default function StitchQuestionnaireScreen() {
               margin: "8px 24px 0",
               padding: "10px 16px",
               borderRadius: "10px",
-              background: "rgba(255, 184, 0, 0.08)",
+              background: "rgba(255,184,0,0.08)",
               border: "1px solid #FFB800",
               color: "#FFB800",
               fontSize: "13px",
@@ -1074,326 +548,454 @@ export default function StitchQuestionnaireScreen() {
             </div>
           )}
 
-          {/* Main Content */}
+          {/* Scrollable content */}
           <div
+            className="hide-scrollbar"
             style={{
               flex: 1,
-              padding: "0 24px",
-              paddingTop: "24px",
-              paddingBottom: "140px", 
-              zIndex: 10, 
+              padding: "0 20px",
+              paddingTop: "20px",
+              paddingBottom: "140px",
+              zIndex: 10,
               overflowY: "auto",
               overflowX: "hidden",
-              scrollbarWidth: "none",
-              msOverflowStyle: "none",
               WebkitOverflowScrolling: "touch",
             }}
           >
-            {/* Header */}
+            {/* Session title */}
             <header style={{
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
-              justifyContent: "center",
-              paddingBottom: "24px",
+              paddingBottom: "20px",
               textAlign: "center",
             }}>
-              <div style={{ position: "relative" }}>
-                <h1 style={{ 
-                  fontSize: "30px", 
-                  fontWeight: "600", 
-                  color: "rgba(255, 255, 255, 0.9)",
-                  margin: 0,
-                }}>
-                  {displayTitle || eventTitle || "Training"}
-                </h1>
-                <div style={{
-                  position: "absolute",
-                  inset: 0,
-                  zIndex: -1,
-                  filter: "blur(20px)",
-                  background: "radial-gradient(circle, rgba(0, 224, 255, 0.2), transparent 70%)",
-                }}></div>
-              </div>
-              <p style={{ 
-                fontSize: "18px", 
-                fontWeight: "500",
-                color: "rgba(154, 163, 178, 0.7)",
-                margin: "8px 0 0 0",
+              <h1 style={{
+                fontSize: "26px",
+                fontWeight: "600",
+                color: "rgba(255,255,255,0.9)",
+                margin: 0,
+                fontFamily: "'DM Sans', system-ui",
               }}>
-                {displayDate || eventDate || ""}
-              </p>
+                {displayTitle || eventTitle || "Training"}
+              </h1>
+              {(displayDate || eventDate) ? (
+                <p style={{
+                  fontSize: "12px",
+                  color: "rgba(255,255,255,0.45)",
+                  margin: "6px 0 0 0",
+                  fontFamily: "'Space Mono', monospace",
+                  letterSpacing: "1px",
+                }}>
+                  {displayDate || eventDate}
+                </p>
+              ) : null}
             </header>
 
-            {/* Questionnaire Sections */}
-            <main style={{ 
-              display: "flex", 
-              flexDirection: "column", 
-              gap: "16px", 
-              paddingBottom: "48px"
-            }}>
-              {/* V2 SemanticSliders — conditional by sessionType */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-                {activeQuestions.map((key, index) => {
-                  const q = QUESTIONS[key];
-                  const value = metrics[key];
-                  const isDragging = draggingKey === key;
-                  const thumbPct = ((value - 1) / 9) * 100;
-                  return (
-                    <div
-                      key={key}
-                      style={{
-                        background: "#141A24",
-                        borderRadius: "16px",
-                        padding: "20px 16px 16px",
-                        border: "1px solid rgba(0,212,255,0.12)",
-                        animationDelay: `${50 * (index + 1)}ms`,
-                        position: "relative",
-                      }}
-                      className="card-animate"
-                    >
-                      {/* Floating value tooltip during drag */}
-                      {isDragging && (
-                        <div style={{
-                          position: "absolute",
-                          top: 8,
-                          left: `calc(${thumbPct}% + 16px - 16px)`,
-                          background: "linear-gradient(135deg, #00BFFF, #0066FF)",
-                          color: "#FFFFFF",
-                          borderRadius: 6,
-                          padding: "2px 10px",
-                          fontSize: 13,
-                          fontWeight: 700,
-                          pointerEvents: "none",
-                          zIndex: 10,
-                          whiteSpace: "nowrap",
-                        }}>
-                          {value}
-                        </div>
-                      )}
-                      <p style={{
-                        margin: "0 0 16px",
-                        fontSize: 15,
-                        fontWeight: 600,
-                        color: "#FFFFFF",
-                        fontFamily: "'DM Sans', system-ui, sans-serif",
-                        lineHeight: 1.4,
+            {/* ── PART 1: Daily Baseline (6 questions) ── */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "14px", marginBottom: "14px" }}>
+              {QUESTIONS_V3.map((q, index) => {
+                const value = metrics[q.key];
+                return (
+                  <div
+                    key={q.key}
+                    className="card-animate"
+                    style={{
+                      background: "#0D1526",
+                      borderRadius: "12px",
+                      padding: "16px 16px 14px",
+                      border: "1px solid rgba(0,212,255,0.10)",
+                      animationDelay: `${40 * (index + 1)}ms`,
+                    }}
+                  >
+                    {/* Category + progress */}
+                    <div style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      marginBottom: "10px",
+                    }}>
+                      <span style={{
+                        fontFamily: "'Space Mono', monospace",
+                        fontSize: "10px",
+                        letterSpacing: "2px",
+                        textTransform: "uppercase",
+                        color: "rgba(0,212,255,0.6)",
                       }}>
-                        {q.question}
-                      </p>
-                      <input
-                        type="range"
-                        min="1" max="10"
-                        value={value}
-                        onChange={(e) => handleMetricChange(key, parseInt(e.target.value))}
-                        onMouseDown={() => setDraggingKey(key)}
-                        onTouchStart={() => setDraggingKey(key)}
-                        onMouseUp={() => setDraggingKey(null)}
-                        onTouchEnd={() => setDraggingKey(null)}
-                        className="slider-v2"
-                      />
-                      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
-                        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.38)", fontFamily: "'DM Sans', system-ui", maxWidth: "44%" }}>
-                          {q.leftAnchor}
-                        </span>
-                        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.38)", fontFamily: "'DM Sans', system-ui", textAlign: "right", maxWidth: "44%" }}>
-                          {q.rightAnchor}
-                        </span>
-                      </div>
+                        {q.category}
+                      </span>
+                      <span style={{
+                        fontFamily: "'Space Mono', monospace",
+                        fontSize: "10px",
+                        letterSpacing: "1.5px",
+                        textTransform: "uppercase",
+                        color: "rgba(0,212,255,0.45)",
+                      }}>
+                        Q{index + 1} OF 6
+                      </span>
                     </div>
-                  );
-                })}
-              </div>
 
-              {/* Friction Matrix */}
-              <div style={{
-                marginTop: 4,
-                background: "#141A24",
-                borderRadius: 16,
-                padding: "20px 16px",
-                border: "1px solid rgba(255,184,0,0.15)",
+                    {/* Question text */}
+                    <p style={{
+                      margin: "0 0 16px",
+                      fontSize: "15px",
+                      fontWeight: 500,
+                      color: "#FFFFFF",
+                      fontFamily: "'DM Sans', system-ui",
+                      lineHeight: 1.45,
+                    }}>
+                      {q.question}
+                    </p>
+
+                    {/* Slider — no tooltip, no numbers */}
+                    <input
+                      type="range"
+                      min="1"
+                      max="100"
+                      value={value}
+                      onChange={(e) => handleMetricChange(q.key, parseInt(e.target.value))}
+                      className="slider-v3"
+                      style={{ background: sliderFill(value) }}
+                    />
+
+                    {/* Anchor labels */}
+                    <div style={{ display: "flex", justifyContent: "space-between", marginTop: "8px" }}>
+                      <span style={{
+                        fontSize: "10px",
+                        color: "rgba(255,255,255,0.45)",
+                        fontFamily: "'Space Mono', monospace",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.5px",
+                        maxWidth: "46%",
+                        lineHeight: 1.35,
+                      }}>
+                        {q.leftAnchor}
+                      </span>
+                      <span style={{
+                        fontSize: "10px",
+                        color: "rgba(255,255,255,0.45)",
+                        fontFamily: "'Space Mono', monospace",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.5px",
+                        maxWidth: "46%",
+                        textAlign: "right",
+                        lineHeight: 1.35,
+                      }}>
+                        {q.rightAnchor}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* ── PART 2: Friction Matrix ── */}
+            <div
+              className="card-animate"
+              style={{
+                background: "#0D1526",
+                borderRadius: "12px",
+                padding: "18px 16px",
+                border: "1px solid rgba(0,212,255,0.10)",
+                marginBottom: "14px",
+                animationDelay: "280ms",
+              }}
+            >
+              <span style={{
+                fontFamily: "'Space Mono', monospace",
+                fontSize: "10px",
+                letterSpacing: "2px",
+                textTransform: "uppercase",
+                color: "rgba(0,212,255,0.6)",
+                display: "block",
+                marginBottom: "12px",
               }}>
-                {/* hasFriction toggle */}
-                <div
-                  onClick={() => setHasFriction(!hasFriction)}
+                Friction Matrix
+              </span>
+
+              {/* Q7 */}
+              <p style={{
+                margin: "0 0 16px",
+                fontSize: "15px",
+                fontWeight: 500,
+                color: "#FFFFFF",
+                fontFamily: "'DM Sans', system-ui",
+                lineHeight: 1.45,
+              }}>
+                Is there any specific friction limiting your performance right now?
+              </p>
+
+              {/* YES / NO buttons */}
+              <div style={{ display: "flex", gap: "12px" }}>
+                <button
+                  onClick={() => setHasFriction(false)}
                   style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
+                    flex: 1,
+                    padding: "14px 0",
+                    borderRadius: "10px",
+                    fontSize: "15px",
+                    fontWeight: 700,
                     cursor: "pointer",
+                    border: hasFriction === false
+                      ? "1.5px solid #00FF9D"
+                      : "1.5px solid rgba(0,255,157,0.22)",
+                    background: hasFriction === false
+                      ? "rgba(0,255,157,0.10)"
+                      : "rgba(0,255,157,0.03)",
+                    color: hasFriction === false ? "#00FF9D" : "rgba(0,255,157,0.50)",
+                    fontFamily: "'DM Sans', system-ui",
+                    letterSpacing: "1px",
+                    transition: "all 0.15s",
                   }}
                 >
-                  <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "#FFFFFF", fontFamily: "'DM Sans', system-ui" }}>
-                    Anything holding you back?
-                  </p>
-                  <div style={{
-                    width: 44,
-                    height: 24,
-                    borderRadius: 12,
-                    background: hasFriction ? "#FFB800" : "rgba(255,255,255,0.12)",
-                    position: "relative",
-                    transition: "background 0.2s",
-                    flexShrink: 0,
-                  }}>
-                    <div style={{
-                      position: "absolute",
-                      top: 3,
-                      left: hasFriction ? 23 : 3,
-                      width: 18,
-                      height: 18,
-                      borderRadius: "50%",
-                      background: "#FFFFFF",
-                      transition: "left 0.2s",
-                      boxShadow: "0 1px 4px rgba(0,0,0,0.3)",
-                    }} />
-                  </div>
-                </div>
-
-                {hasFriction && (
-                  <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 16 }}>
-                    {/* frictionType */}
-                    <div>
-                      <p style={{ margin: "0 0 8px", fontSize: 13, color: "rgba(255,255,255,0.6)", fontFamily: "'DM Sans', system-ui" }}>
-                        What type of friction?
-                      </p>
-                      <select
-                        value={frictionType}
-                        onChange={(e) => setFrictionType(e.target.value)}
-                        className="friction-select"
-                      >
-                        <option value="Physical Fatigue">Physical Fatigue</option>
-                        <option value="Academic/Life Stress">Academic / Life Stress</option>
-                        <option value="Court Confusion">Court Confusion</option>
-                        <option value="Mental/Emotional">Mental / Emotional</option>
-                      </select>
-                    </div>
-
-                    {/* frictionFrequency */}
-                    {[
-                      { key: "frictionFrequency", val: frictionFrequency, setter: setFrictionFrequency, left: "Rarely", right: "Constantly" },
-                      { key: "frictionImpact", val: frictionImpact, setter: setFrictionImpact, left: "Barely noticeable", right: "Severely limiting" },
-                      { key: "frictionDistraction", val: frictionDistraction, setter: setFrictionDistraction, left: "Not worried", right: "Highly distracted" },
-                    ].map(({ key, val, setter, left, right }) => (
-                      <div key={key}>
-                        <input
-                          type="range" min="1" max="10"
-                          value={val}
-                          onChange={(e) => setter(parseInt(e.target.value))}
-                          className="slider-v2"
-                        />
-                        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}>
-                          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.38)", fontFamily: "'DM Sans', system-ui" }}>{left}</span>
-                          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.38)", fontFamily: "'DM Sans', system-ui", textAlign: "right" }}>{right}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                  NO
+                </button>
+                <button
+                  onClick={() => setHasFriction(true)}
+                  style={{
+                    flex: 1,
+                    padding: "14px 0",
+                    borderRadius: "10px",
+                    fontSize: "15px",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    border: hasFriction === true
+                      ? "1.5px solid #FF4B4B"
+                      : "1.5px solid rgba(255,75,75,0.22)",
+                    background: hasFriction === true
+                      ? "rgba(255,75,75,0.10)"
+                      : "rgba(255,75,75,0.03)",
+                    color: hasFriction === true ? "#FF4B4B" : "rgba(255,75,75,0.50)",
+                    fontFamily: "'DM Sans', system-ui",
+                    letterSpacing: "1px",
+                    transition: "all 0.15s",
+                  }}
+                >
+                  YES
+                </button>
               </div>
-            </main>
 
-            <div style={{ 
-              marginTop: "-16px", 
-              marginBottom: "20px",
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center"
-            }}>
+              {/* Q8, Q9, Q10 — only when YES */}
+              {hasFriction === true && (
+                <div style={{
+                  marginTop: "22px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "22px",
+                  animation: "frictionReveal 0.2s ease-out both",
+                }}>
+
+                  {/* Q8 — frictionType (multi-select pills) */}
+                  <div>
+                    <p style={{
+                      margin: "0 0 12px",
+                      fontSize: "14px",
+                      fontWeight: 500,
+                      color: "#FFFFFF",
+                      fontFamily: "'DM Sans', system-ui",
+                      lineHeight: 1.4,
+                    }}>
+                      What kind of friction is it?
+                    </p>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                      {[
+                        "Physical Soreness",
+                        "Academic / Life Stress",
+                        "Court Confusion",
+                        "Mental / Emotional",
+                      ].map((type) => {
+                        const selected = frictionType.includes(type);
+                        return (
+                          <button
+                            key={type}
+                            onClick={() => toggleFrictionType(type)}
+                            style={{
+                              padding: "8px 14px",
+                              borderRadius: "20px",
+                              fontSize: "12px",
+                              fontWeight: 500,
+                              cursor: "pointer",
+                              border: selected
+                                ? "1.5px solid #00D4FF"
+                                : "1.5px solid rgba(0,212,255,0.20)",
+                              background: selected
+                                ? "rgba(0,212,255,0.12)"
+                                : "transparent",
+                              color: selected ? "#FFFFFF" : "rgba(255,255,255,0.45)",
+                              fontFamily: "'DM Sans', system-ui",
+                              transition: "all 0.15s",
+                            }}
+                          >
+                            {type}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Q9 — frictionImpact */}
+                  <div>
+                    <p style={{
+                      margin: "0 0 14px",
+                      fontSize: "14px",
+                      fontWeight: 500,
+                      color: "#FFFFFF",
+                      fontFamily: "'DM Sans', system-ui",
+                      lineHeight: 1.4,
+                    }}>
+                      How much is this friction actually affecting your game?
+                    </p>
+                    <input
+                      type="range"
+                      min="1"
+                      max="100"
+                      value={frictionImpact}
+                      onChange={(e) => setFrictionImpact(parseInt(e.target.value))}
+                      className="slider-v3"
+                      style={{ background: sliderFill(frictionImpact) }}
+                    />
+                    <div style={{ display: "flex", justifyContent: "space-between", marginTop: "8px" }}>
+                      <span style={{
+                        fontSize: "10px", color: "rgba(255,255,255,0.45)",
+                        fontFamily: "'Space Mono', monospace", textTransform: "uppercase",
+                        letterSpacing: "0.5px", maxWidth: "46%", lineHeight: 1.35,
+                      }}>
+                        Barely noticeable, playing through it
+                      </span>
+                      <span style={{
+                        fontSize: "10px", color: "rgba(255,255,255,0.45)",
+                        fontFamily: "'Space Mono', monospace", textTransform: "uppercase",
+                        letterSpacing: "0.5px", maxWidth: "46%", textAlign: "right", lineHeight: 1.35,
+                      }}>
+                        Severely limiting, can't perform my role
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Q10 — worryLevel */}
+                  <div>
+                    <p style={{
+                      margin: "0 0 14px",
+                      fontSize: "14px",
+                      fontWeight: 500,
+                      color: "#FFFFFF",
+                      fontFamily: "'DM Sans', system-ui",
+                      lineHeight: 1.4,
+                    }}>
+                      How much is this friction messing with your head?
+                    </p>
+                    <input
+                      type="range"
+                      min="1"
+                      max="100"
+                      value={worryLevel}
+                      onChange={(e) => setWorryLevel(parseInt(e.target.value))}
+                      className="slider-v3"
+                      style={{ background: sliderFill(worryLevel) }}
+                    />
+                    <div style={{ display: "flex", justifyContent: "space-between", marginTop: "8px" }}>
+                      <span style={{
+                        fontSize: "10px", color: "rgba(255,255,255,0.45)",
+                        fontFamily: "'Space Mono', monospace", textTransform: "uppercase",
+                        letterSpacing: "0.5px", maxWidth: "46%", lineHeight: 1.35,
+                      }}>
+                        I can handle it, not worried
+                      </span>
+                      <span style={{
+                        fontSize: "10px", color: "rgba(255,255,255,0.45)",
+                        fontFamily: "'Space Mono', monospace", textTransform: "uppercase",
+                        letterSpacing: "0.5px", maxWidth: "46%", textAlign: "right", lineHeight: 1.35,
+                      }}>
+                        Highly concerned, it's taking over my focus
+                      </span>
+                    </div>
+                  </div>
+
+                </div>
+              )}
+            </div>
+
+            {/* Submit */}
+            <div style={{ marginBottom: "20px" }}>
               {submitError && (
                 <div style={{
                   color: "#FF7A93",
                   fontSize: "12px",
                   fontWeight: 500,
                   textAlign: "center",
-                  marginRight: "16px",
-                  marginLeft: "16px",
-                  marginBottom: "12px"
+                  marginBottom: "12px",
                 }}>
                   {submitError}
                 </div>
               )}
-                  <button 
-                    onClick={handleSubmit}
-                disabled={isSubmitting}
-                    style={{
-                      width: "100%",
-                      padding: "16px 0",
-                      borderRadius: "12px",
-                      fontSize: "16px",
-                      fontWeight: "600",
-                  cursor: isSubmitting ? "not-allowed" : "pointer",
-                      background: "linear-gradient(90deg, #00D4FF, #4A67FF)",
-                      color: "white",
-                      border: "none",
-                      boxShadow: "0 0 20px 5px rgba(0, 224, 255, 0.25)",
-                      transition: "all 0.2s ease-out",
-                      textTransform: "uppercase",
-                      letterSpacing: "1px",
-                  opacity: isSubmitting ? 0.65 : 1,
-                    }}
-                    onMouseEnter={(e) => {
-                  if (isSubmitting) return;
-                      e.target.style.filter = "brightness(1.25)";
-                      e.target.style.transform = "translateY(-2px)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.target.style.filter = "brightness(1)";
-                      e.target.style.transform = "translateY(0)";
-                    }}
-                    onMouseDown={(e) => {
-                  if (isSubmitting) return;
-                      e.target.style.transform = "translateY(2px)";
-                      e.target.style.boxShadow = "0 0 10px 2px rgba(0, 224, 255, 0.15)";
-                    }}
-                    onMouseUp={(e) => {
-                      e.target.style.transform = "translateY(0)";
-                      e.target.style.boxShadow = "0 0 20px 5px rgba(0, 224, 255, 0.25)";
-                    }}
-                  >
-                {isSubmitting ? "Sending..." : "Submit"}
-                  </button>
-                </div>
-          </div>
-          {showConfirmation && Platform.OS === 'web' && (
-            <div
-              style={{
-                position: "absolute",
-                inset: 0,
-                background: "rgba(3, 7, 15, 0.92)",
-                backdropFilter: "blur(18px)",
-                WebkitBackdropFilter: "blur(18px)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                zIndex: 999,
-              }}
-            >
-              <div
+              <button
+                onClick={handleSubmit}
+                disabled={isSubmitting || !isSubmitReady}
                 style={{
-                  width: "90%",
-                  maxWidth: "340px",
-                  padding: "36px 32px",
-                  borderRadius: "24px",
-                  border: "1px solid rgba(0, 255, 194, 0.35)",
-                  background: "rgba(12, 20, 40, 0.95)",
-                  boxShadow: "0 25px 60px rgba(0, 0, 0, 0.65), 0 0 40px rgba(0, 255, 194, 0.2)",
-                  textAlign: "center",
-                  animation: "ctpFadeIn 0.4s ease forwards",
+                  width: "100%",
+                  padding: "16px 0",
+                  borderRadius: "12px",
+                  fontSize: "16px",
+                  fontWeight: "700",
+                  cursor: (isSubmitting || !isSubmitReady) ? "not-allowed" : "pointer",
+                  background: "linear-gradient(135deg, #00BFFF, #0066FF)",
+                  color: "white",
+                  border: "none",
+                  boxShadow: "0 0 20px 5px rgba(0,191,255,0.20)",
+                  letterSpacing: "1px",
+                  opacity: (isSubmitting || !isSubmitReady) ? 0.4 : 1,
+                  transition: "opacity 0.2s, filter 0.15s, transform 0.1s",
+                }}
+                onMouseEnter={(e) => {
+                  if (isSubmitting || !isSubmitReady) return;
+                  e.target.style.filter = "brightness(1.2)";
+                  e.target.style.transform = "translateY(-1px)";
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.filter = "brightness(1)";
+                  e.target.style.transform = "translateY(0)";
                 }}
               >
-                <div
-                  style={{
-                    width: "80px",
-                    height: "80px",
-                    borderRadius: "50%",
-                    margin: "0 auto 24px",
-                    background: "linear-gradient(135deg, #00FFC2, #00C16A)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    boxShadow: "0 0 40px rgba(0, 255, 194, 0.55)",
-                  }}
-                >
+                {isSubmitting ? "Sending..." : "Submit"}
+              </button>
+            </div>
+          </div>
+
+          {/* Confirmation overlay */}
+          {showConfirmation && Platform.OS === 'web' && (
+            <div style={{
+              position: "absolute",
+              inset: 0,
+              background: "rgba(3,7,15,0.92)",
+              backdropFilter: "blur(18px)",
+              WebkitBackdropFilter: "blur(18px)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 999,
+            }}>
+              <div style={{
+                width: "90%",
+                maxWidth: "340px",
+                padding: "36px 32px",
+                borderRadius: "24px",
+                border: "1px solid rgba(0,255,194,0.35)",
+                background: "rgba(12,20,40,0.95)",
+                boxShadow: "0 25px 60px rgba(0,0,0,0.65), 0 0 40px rgba(0,255,194,0.2)",
+                textAlign: "center",
+                animation: "ctpFadeIn 0.4s ease forwards",
+              }}>
+                <div style={{
+                  width: "80px",
+                  height: "80px",
+                  borderRadius: "50%",
+                  margin: "0 auto 24px",
+                  background: "linear-gradient(135deg, #00FFC2, #00C16A)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  boxShadow: "0 0 40px rgba(0,255,194,0.55)",
+                }}>
                   <svg width="32" height="24" viewBox="0 0 24 18" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M3 9L8.5 14.5L21 2" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
