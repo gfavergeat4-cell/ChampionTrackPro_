@@ -585,12 +585,14 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
     return Object.keys(sample).filter((k) => k !== "date");
   }, [chartData]);
 
-  // ─── V2: Morning Brief — per-player readiness sorted by risk ──────────────
+  // ─── Morning Brief — per-player readiness sorted by risk ─────────────────
   const morningBriefData = useMemo(() => {
     if (filteredResponses.length === 0 || members.length === 0) return [];
 
-    // Per player: collect readiness scores chronologically, compute EMA
-    const byPlayer: Record<string, { name: string; uid: string; position?: string; scores: number[]; latest: number; ema: number; deviation: number }> = {};
+    const byPlayer: Record<string, {
+      name: string; uid: string; position?: string; jerseyNumber?: number;
+      scores: number[]; latestResp: RawResponse | null;
+    }> = {};
 
     const sortedResponses = [...filteredResponses].sort((a, b) => {
       const ta = a.submittedAt?.seconds ?? 0;
@@ -599,13 +601,21 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
     });
 
     sortedResponses.forEach((r) => {
-      const m2 = extractV2Metrics(r) ?? {};
-      const rs = r.readinessScore ?? calculateReadiness(m2);
       if (!byPlayer[r.userId]) {
         const member = members.find((m) => m.id === r.userId);
-        byPlayer[r.userId] = { name: member?.displayName || r.userId, uid: r.userId, position: member?.position, scores: [], latest: 0, ema: 0, deviation: 0 };
+        byPlayer[r.userId] = {
+          name: member?.displayName || r.userId,
+          uid: r.userId,
+          position: member?.position,
+          jerseyNumber: member?.jerseyNumber,
+          scores: [],
+          latestResp: null,
+        };
       }
+      const m2 = extractV2Metrics(r) ?? {};
+      const rs = r.readinessScore ?? calculateReadiness(m2);
       byPlayer[r.userId].scores.push(rs);
+      byPlayer[r.userId].latestResp = r; // last in chronological order = most recent
     });
 
     return Object.values(byPlayer).map((p) => {
@@ -614,7 +624,25 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
       const emaLatest = emaArr[emaArr.length - 1];
       const deviation = calculateDeviation(latest, emaLatest);
       const risk = getRiskLevel(latest, deviation);
-      return { name: p.name, uid: p.uid, position: p.position, readinessScore: latest, ema: emaLatest, deviation, risk };
+
+      // V3 sub-scores from latest response
+      const lm = (p.latestResp?.metrics ?? {}) as any;
+      const physicalScore =
+        lm.tankLevel != null && lm.legBounce != null && lm.cardioLoad != null
+          ? Math.round((lm.tankLevel + lm.legBounce + (101 - lm.cardioLoad)) / 3)
+          : null;
+      const mentalScore = typeof lm.teamChemistry === 'number' ? lm.teamChemistry : null;
+      const technicalScore =
+        lm.motorControl != null && lm.tacticalSharpness != null
+          ? Math.round((lm.motorControl + lm.tacticalSharpness) / 2)
+          : null;
+      const worryFlag = p.latestResp?.worryFlag === true;
+
+      return {
+        name: p.name, uid: p.uid, position: p.position, jerseyNumber: p.jerseyNumber,
+        readinessScore: latest, ema: emaLatest, deviation, risk,
+        physicalScore, mentalScore, technicalScore, worryFlag,
+      };
     }).sort((a, b) => {
       const order = { danger: 0, monitor: 1, optimal: 2 };
       return order[a.risk] - order[b.risk];
@@ -944,6 +972,20 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                   </button>
                 );
               })}
+              {/* Full season shortcut — covers Oct 1 2025 → Mar 10 2026 seed range */}
+              <button
+                type="button"
+                onClick={() => { setDurationMode("custom"); setCustomStart("2025-10-01"); setCustomEnd("2026-03-10"); }}
+                style={{
+                  padding: "5px 12px", borderRadius: 12, fontSize: 12, fontWeight: 600,
+                  ...(durationMode === "custom" && customStart === "2025-10-01" && customEnd === "2026-03-10"
+                    ? { background: "linear-gradient(135deg, #00BFFF, #0066FF)", color: "#FFF", border: "none" }
+                    : { background: "#0A0F1E", color: "rgba(0,212,255,0.7)", border: "1px solid rgba(0,212,255,0.3)" }),
+                  cursor: "pointer",
+                }}
+              >
+                Full Season
+              </button>
             </div>
             {loadingInit || loadingData ? (
               <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 60 }}>
@@ -956,55 +998,112 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {morningBriefData.map((p) => {
-                  const riskColor = p.risk === "danger" ? "#FF3B30" : p.risk === "monitor" ? "#FFB800" : "#00FF9D";
-                  const bgColor   = p.risk === "danger" ? "rgba(255,59,48,0.07)" : p.risk === "monitor" ? "rgba(255,184,0,0.07)" : "rgba(0,255,157,0.05)";
-                  const borderClr = p.risk === "danger" ? "rgba(255,59,48,0.25)" : p.risk === "monitor" ? "rgba(255,184,0,0.25)" : "rgba(0,255,157,0.2)";
-                  const initials  = p.name.split(" ").map((w: string) => w[0] || "").slice(0, 2).join("").toUpperCase();
+                {(
+                  [
+                    { key: "danger"  as const, emoji: "🔴", label: "DANGER",  threshold: "< 40"  },
+                    { key: "monitor" as const, emoji: "🟡", label: "MONITOR", threshold: "40–65" },
+                    { key: "optimal" as const, emoji: "🟢", label: "OPTIMAL", threshold: "> 65"  },
+                  ] as const
+                ).map(({ key, emoji, label, threshold }) => {
+                  const group = morningBriefData.filter((p) => p.risk === key);
+                  if (group.length === 0) return null;
+                  const sectionColor = key === "danger" ? "#FF3B30" : key === "monitor" ? "#FFB800" : "#00FF9D";
                   return (
-                    <div key={p.uid || p.name} style={{
-                      display: "flex", alignItems: "center", gap: 14,
-                      background: bgColor,
-                      borderRadius: 12,
-                      padding: "14px 18px",
-                      border: `1px solid ${borderClr}`,
-                      borderLeft: `4px solid ${riskColor}`,
-                    }}>
-                      {/* Avatar */}
+                    <div key={key}>
+                      {/* Section divider */}
                       <div style={{
-                        width: 42, height: 42, borderRadius: "50%", flexShrink: 0,
-                        background: `rgba(${p.risk === "danger" ? "255,59,48" : p.risk === "monitor" ? "255,184,0" : "0,212,255"},0.15)`,
-                        border: `1.5px solid ${riskColor}`,
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        fontSize: 13, fontWeight: 700, color: riskColor,
+                        display: "flex", alignItems: "center", gap: 8,
+                        marginTop: 6, marginBottom: 8,
                       }}>
-                        {initials}
-                      </div>
-                      {/* Name + position */}
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: "#FFFFFF", whiteSpace: "nowrap" as const, overflow: "hidden", textOverflow: "ellipsis" }}>
-                          {p.name}
-                        </div>
-                        {p.position && (
-                          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{p.position}</div>
-                        )}
-                      </div>
-                      {/* EMA + deviation */}
-                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 3, minWidth: 72 }}>
-                        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>EMA {Math.round(p.ema)}</span>
-                        <span style={{ fontSize: 12, fontWeight: 600, color: p.deviation > 0 ? "#FF3B30" : "#00FF9D" }}>
-                          {p.deviation > 0 ? "+" : ""}{p.deviation.toFixed(0)}%
+                        <span style={{ fontSize: 12, fontWeight: 700, color: sectionColor, letterSpacing: "0.06em" }}>
+                          {emoji} {label}
                         </span>
+                        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.30)" }}>{threshold}</span>
+                        <div style={{ flex: 1, height: 1, background: `${sectionColor}30` }} />
+                        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.30)" }}>{group.length} player{group.length > 1 ? "s" : ""}</span>
                       </div>
-                      {/* Readiness score circle */}
-                      <div style={{
-                        width: 46, height: 46, borderRadius: "50%", flexShrink: 0,
-                        background: riskColor,
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        fontSize: 14, fontWeight: 800, color: "#000",
-                      }}>
-                        {p.readinessScore}
-                      </div>
+                      {/* Rows */}
+                      {group.map((p) => {
+                        const riskColor = sectionColor;
+                        const bgColor   = key === "danger" ? "rgba(255,59,48,0.07)" : key === "monitor" ? "rgba(255,184,0,0.07)" : "rgba(0,255,157,0.05)";
+                        const borderClr = key === "danger" ? "rgba(255,59,48,0.25)" : key === "monitor" ? "rgba(255,184,0,0.25)" : "rgba(0,255,157,0.2)";
+                        const initials  = p.name.split(" ").map((w: string) => w[0] || "").slice(0, 2).join("").toUpperCase();
+                        return (
+                          <div key={p.uid || p.name} style={{
+                            display: "flex", alignItems: "center", gap: 12,
+                            background: bgColor,
+                            borderRadius: 12,
+                            padding: "12px 16px",
+                            border: `1px solid ${borderClr}`,
+                            borderLeft: `4px solid ${riskColor}`,
+                            marginBottom: 6,
+                          }}>
+                            {/* Avatar */}
+                            <div style={{
+                              width: 38, height: 38, borderRadius: "50%", flexShrink: 0,
+                              background: `rgba(${key === "danger" ? "255,59,48" : key === "monitor" ? "255,184,0" : "0,212,255"},0.15)`,
+                              border: `1.5px solid ${riskColor}`,
+                              display: "flex", alignItems: "center", justifyContent: "center",
+                              fontSize: 12, fontWeight: 700, color: riskColor,
+                            }}>
+                              {initials}
+                            </div>
+                            {/* Name + position + jersey */}
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                <span style={{ fontSize: 13, fontWeight: 600, color: "#FFFFFF", whiteSpace: "nowrap" as const, overflow: "hidden", textOverflow: "ellipsis" }}>
+                                  {p.name}
+                                </span>
+                                {p.jerseyNumber != null && (
+                                  <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", flexShrink: 0 }}>#{p.jerseyNumber}</span>
+                                )}
+                                {p.worryFlag && (
+                                  <span title="Worry flag raised" style={{ fontSize: 13, flexShrink: 0 }}>⚠️</span>
+                                )}
+                              </div>
+                              {p.position && (
+                                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.38)", marginTop: 1 }}>{p.position}</div>
+                              )}
+                              {/* Sub-scores */}
+                              {(p.physicalScore != null || p.mentalScore != null || p.technicalScore != null) && (
+                                <div style={{ display: "flex", gap: 10, marginTop: 5 }}>
+                                  {p.physicalScore != null && (
+                                    <span style={{ fontSize: 10, color: "#00D4FF", fontFamily: "'Space Mono', monospace" }}>
+                                      PHY {p.physicalScore}
+                                    </span>
+                                  )}
+                                  {p.mentalScore != null && (
+                                    <span style={{ fontSize: 10, color: "#00FF88", fontFamily: "'Space Mono', monospace" }}>
+                                      MEN {p.mentalScore}
+                                    </span>
+                                  )}
+                                  {p.technicalScore != null && (
+                                    <span style={{ fontSize: 10, color: "#A855F7", fontFamily: "'Space Mono', monospace" }}>
+                                      TEC {p.technicalScore}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                            {/* EMA + deviation */}
+                            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 3, minWidth: 64 }}>
+                              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.38)" }}>EMA {Math.round(p.ema)}</span>
+                              <span style={{ fontSize: 12, fontWeight: 600, color: p.deviation > 0 ? "#FF3B30" : "#00FF9D" }}>
+                                {p.deviation > 0 ? "+" : ""}{p.deviation.toFixed(0)}%
+                              </span>
+                            </div>
+                            {/* Readiness score circle */}
+                            <div style={{
+                              width: 44, height: 44, borderRadius: "50%", flexShrink: 0,
+                              background: riskColor,
+                              display: "flex", alignItems: "center", justifyContent: "center",
+                              fontSize: 13, fontWeight: 800, color: "#000",
+                            }}>
+                              {p.readinessScore}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   );
                 })}
