@@ -182,11 +182,13 @@ export default function MorinRawChart({
             textAnchor="end"
           />
           <YAxis
+            type="number"
             domain={[0, 100]}
             ticks={[0, 25, 50, 75, 100]}
             tick={{ fill: 'rgba(255,255,255,0.30)', fontSize: 9 }}
             axisLine={false}
             tickLine={false}
+            allowDataOverflow={false}
             width={22}
           />
           <Tooltip content={<TimelineTooltip />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
@@ -245,6 +247,7 @@ export default function MorinRawChart({
           textAnchor="end"
         />
         <YAxis
+          type="number"
           tick={{ fill: 'rgba(255,255,255,0.30)', fontSize: 9 }}
           axisLine={false}
           tickLine={false}

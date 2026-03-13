@@ -99,9 +99,11 @@ export default function MorinPerformanceChart({
 
   const isSinglePlayer = selectedPlayerIds.length === 1;
 
-  // ── Filtered members (only selected players who are athletes) ───────────────
+  // ── Filtered members (only selected players, or ALL when nothing selected) ──
   const selectedMembers = useMemo(
-    () => members.filter((m) => selectedPlayerIds.includes(m.id)),
+    () => selectedPlayerIds.length > 0
+      ? members.filter((m) => selectedPlayerIds.includes(m.id))
+      : members,
     [members, selectedPlayerIds]
   );
 
@@ -195,34 +197,33 @@ export default function MorinPerformanceChart({
   }, [memberTimelines, playerSort]);
 
   // ── BOTTOM-LEFT: team-level raw timeline (avg score per day) ─────────────────
+  // filteredResponses is already scoped to selectedPlayerIds by PerformanceDashboard
   const rawTimelineData = useMemo((): MorinDataPoint[] => {
     if (filteredResponses.length === 0) return [];
     const extractor = getExtractor(activeMetric);
-    // Filter to selected players
-    const relevantResponses = selectedPlayerIds.length > 0
-      ? filteredResponses.filter((r) => selectedPlayerIds.includes(r.userId))
-      : filteredResponses;
-    return getMorinDataForResponses(relevantResponses, extractor);
-  }, [filteredResponses, selectedPlayerIds, activeMetric]);
+    return getMorinDataForResponses(filteredResponses, extractor);
+  }, [filteredResponses, activeMetric]);
 
   // ── BOTTOM-RIGHT: workload AU per player ──────────────────────────────────
+  // filteredResponses already scoped to selectedPlayerIds by PerformanceDashboard
   const playerWorkloadData = useMemo((): PlayerWorkload[] => {
     const totals: Record<string, number> = {};
     for (const r of filteredResponses) {
-      if (!selectedPlayerIds.includes(r.userId)) continue;
       const w = typeof (r as any).workloadAU === 'number' ? (r as any).workloadAU : 0;
       totals[r.userId] = (totals[r.userId] ?? 0) + w;
     }
-    const rows = selectedMembers.map((m) => ({
-      player: memberName(m),
-      workloadAU: Math.round(totals[m.id] ?? 0),
-    })).filter((r) => r.workloadAU > 0);
+    const rows = selectedMembers
+      .map((m) => ({
+        player: memberName(m),
+        workloadAU: Math.round(totals[m.id] ?? 0),
+      }))
+      .filter((r) => r.workloadAU > 0);
 
     if (playerSort === 'spike') {
       return [...rows].sort((a, b) => b.workloadAU - a.workloadAU);
     }
     return rows.sort((a, b) => a.player.localeCompare(b.player));
-  }, [filteredResponses, selectedMembers, selectedPlayerIds, playerSort]);
+  }, [filteredResponses, selectedMembers, playerSort]);
 
   // ── Zone distribution (per-player mini bars, below grid) ──────────────────
   const zoneDist = useMemo(() => {
@@ -318,14 +319,14 @@ export default function MorinPerformanceChart({
             gap: 16,
             marginBottom: 28,
           }}>
-            {/* Top-left: Score Relatif Évolution */}
+            {/* Top-left: Relative Score Timeline */}
             <div style={{
               background: '#0D1526',
               borderRadius: 10,
               border: '1px solid rgba(0,212,255,0.08)',
               padding: '14px 12px 10px',
             }}>
-              <QuadrantHeader label="Score Relatif · Évolution" />
+              <QuadrantHeader label="Relative Score · Timeline" />
               <MorinStackedChart
                 data={timelineStackedData}
                 mode="timeline"
@@ -334,14 +335,14 @@ export default function MorinPerformanceChart({
               />
             </div>
 
-            {/* Top-right: Score Relatif Période */}
+            {/* Top-right: Relative Score Period */}
             <div style={{
               background: '#0D1526',
               borderRadius: 10,
               border: '1px solid rgba(0,212,255,0.08)',
               padding: '14px 12px 10px',
             }}>
-              <QuadrantHeader label="Score Relatif · Période" />
+              <QuadrantHeader label="Relative Score · Period" />
               <MorinStackedChart
                 data={playerStackedData}
                 mode="byPlayer"
@@ -349,14 +350,14 @@ export default function MorinPerformanceChart({
               />
             </div>
 
-            {/* Bottom-left: Score Brut Évolution */}
+            {/* Bottom-left: Raw Score Timeline */}
             <div style={{
               background: '#0D1526',
               borderRadius: 10,
               border: '1px solid rgba(0,212,255,0.08)',
               padding: '14px 12px 10px',
             }}>
-              <QuadrantHeader label="Score Brut · Évolution" />
+              <QuadrantHeader label="Raw Score · Timeline" />
               <MorinRawChart
                 mode="timeline"
                 timelineData={rawTimelineData}
@@ -364,14 +365,14 @@ export default function MorinPerformanceChart({
               />
             </div>
 
-            {/* Bottom-right: Score Brut Période (workload) */}
+            {/* Bottom-right: Raw Score Period (workload) */}
             <div style={{
               background: '#0D1526',
               borderRadius: 10,
               border: '1px solid rgba(0,212,255,0.08)',
               padding: '14px 12px 10px',
             }}>
-              <QuadrantHeader label="Score Brut · Période" />
+              <QuadrantHeader label="Raw Score · Period" />
               <MorinRawChart
                 mode="byPlayer"
                 playerData={playerWorkloadData}
