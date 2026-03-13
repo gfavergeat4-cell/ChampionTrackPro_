@@ -1,132 +1,88 @@
 /**
  * MorinPerformanceChart.tsx
- * Zone-based energy chart: colored bars (GREEN/BLUE/YELLOW) + EMA dashed trendline.
- * Uses Recharts ComposedChart. No numbers on hover — just zone context.
+ * 2×2 quadrant container for the Morin analytics view.
+ *
+ * ┌─────────────────────┬─────────────────────┐
+ * │  Score Relatif      │  Score Relatif      │
+ * │  Évolution (TL)     │  Période (byPlayer) │
+ * ├─────────────────────┼─────────────────────┤
+ * │  Score Brut         │  Score Brut         │
+ * │  Évolution (TL)     │  Période (workload) │
+ * └─────────────────────┴─────────────────────┘
+ *
+ * Metric selector (top): ⚡ Physical Engine | 🧠 Mental Energy | ⚙️ Technical Execution
+ * Zone distribution row (bottom): mini stacked bars per player.
  */
 
-import React from 'react';
-import {
-  ComposedChart,
-  Bar,
-  Line,
-  Cell,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from 'recharts';
-import type { MorinDataPoint, MorinZone } from '../utils/useMorinAlgorithm';
-import { MORIN_COLORS } from '../utils/useMorinAlgorithm';
+import React, { useMemo, useState } from 'react';
+import type { RawResponse } from '../utils/analytics';
+import { getMorinDataForResponses, MORIN_COLORS } from '../utils/useMorinAlgorithm';
+import type { MorinDataPoint } from '../utils/useMorinAlgorithm';
+import MorinStackedChart from './MorinStackedChart';
+import type { StackedZonePoint } from './MorinStackedChart';
+import MorinRawChart from './MorinRawChart';
+import type { PlayerWorkload } from './MorinRawChart';
 
-// ─── Props ────────────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface Member {
+  id: string;
+  displayName?: string;
+  fullName?: string;
+  firstName?: string;
+  lastName?: string;
+}
+
+type ActiveMetric = 'physical' | 'mental' | 'technical';
+type PlayerSort  = 'alpha' | 'spike';
 
 interface MorinPerformanceChartProps {
-  data: MorinDataPoint[];
-  metricLabel: string;   // e.g. "Physical Engine"
-  height?: number;       // default 220
-  showLegend?: boolean;  // default true
+  filteredResponses: RawResponse[];
+  members: Member[];
+  selectedPlayerIds: string[];
 }
 
-// ─── Zone labels for tooltip ──────────────────────────────────────────────────
+// ─── Metric definitions ───────────────────────────────────────────────────────
 
-const ZONE_LABELS: Record<MorinZone, string> = {
-  GREEN:             'Normal adaptation',
-  BLUE:              'Under-load / Recovery',
-  YELLOW:            'Unusual spike — monitor',
-  INSUFFICIENT_DATA: 'Insufficient data',
-};
+const METRICS: { key: ActiveMetric; icon: string; label: string }[] = [
+  { key: 'physical',  icon: '⚡', label: 'Physical Engine'   },
+  { key: 'mental',    icon: '🧠', label: 'Mental Energy'     },
+  { key: 'technical', icon: '⚙️', label: 'Technical Execution' },
+];
 
-const ZONE_DOTS: Record<MorinZone, string> = {
-  GREEN:             '🟢',
-  BLUE:              '🔵',
-  YELLOW:            '🟡',
-  INSUFFICIENT_DATA: '⬜',
-};
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function fmtXTick(dateStr: string): string {
-  const d = new Date(dateStr + 'T12:00:00Z');
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+function getExtractor(metric: ActiveMetric) {
+  return (r: RawResponse): number | null => {
+    const m = ((r as any).metrics ?? {}) as Record<string, number>;
+    if (metric === 'physical') {
+      if (m.tankLevel == null || m.legBounce == null || m.cardioLoad == null) return null;
+      return Math.round((m.tankLevel + m.legBounce + (101 - m.cardioLoad)) / 3);
+    }
+    if (metric === 'mental') {
+      return typeof m.teamChemistry === 'number' ? m.teamChemistry : null;
+    }
+    // technical
+    if (m.motorControl == null || m.tacticalSharpness == null) return null;
+    return Math.round((m.motorControl + m.tacticalSharpness) / 2);
+  };
 }
 
-function fmtFullDate(dateStr: string): string {
-  const d = new Date(dateStr + 'T12:00:00Z');
-  return d.toLocaleDateString('en-US', {
-    weekday: 'short', month: 'short', day: '2-digit', timeZone: 'UTC',
-  });
+function memberName(m: Member): string {
+  return m.fullName || m.displayName || m.firstName || m.id;
 }
 
-// ─── Custom Tooltip ───────────────────────────────────────────────────────────
+// ─── Quadrant header ──────────────────────────────────────────────────────────
 
-function CustomTooltip({ active, payload, label }: any) {
-  if (!active || !payload?.length) return null;
-
-  const point = payload[0]?.payload as MorinDataPoint;
-  if (!point) return null;
-
-  const zoneColor = MORIN_COLORS[point.zone];
-
+function QuadrantHeader({ label }: { label: string }) {
   return (
     <div style={{
-      background: '#0D1526',
-      border: '1px solid rgba(0,212,255,0.20)',
-      borderRadius: 8,
-      padding: '10px 14px',
-      fontFamily: "'DM Sans', system-ui, sans-serif",
-      fontSize: 12,
-      minWidth: 178,
+      fontSize: 9,
+      fontFamily: "'Space Mono', monospace",
+      letterSpacing: '1.5px',
+      textTransform: 'uppercase' as const,
+      color: 'rgba(0,212,255,0.50)',
+      marginBottom: 6,
     }}>
-      {/* Date */}
-      <div style={{ color: 'rgba(255,255,255,0.50)', marginBottom: 8, fontSize: 11, letterSpacing: '0.5px' }}>
-        {fmtFullDate(label || point.date)}
-      </div>
-
-      {/* Raw Score */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 20, marginBottom: 4 }}>
-        <span style={{ color: 'rgba(255,255,255,0.55)' }}>Raw Score</span>
-        <span style={{ color: '#FFFFFF', fontWeight: 600 }}>
-          {point.rawScore !== null ? `${point.rawScore}/100` : 'No data'}
-        </span>
-      </div>
-
-      {/* Baseline EMA */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 20, marginBottom: 4 }}>
-        <span style={{ color: 'rgba(255,255,255,0.55)' }}>Baseline</span>
-        <span style={{ color: 'rgba(255,255,255,0.80)' }}>
-          {Math.round(point.ema)}/100
-        </span>
-      </div>
-
-      {/* Deviation */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 20, marginBottom: 10 }}>
-        <span style={{ color: 'rgba(255,255,255,0.55)' }}>Deviation</span>
-        <span style={{
-          color: point.deviation === null
-            ? 'rgba(255,255,255,0.45)'
-            : point.deviation > 0 ? '#FFB800' : '#00C853',
-          fontWeight: point.deviation !== null ? 600 : 400,
-        }}>
-          {point.deviation !== null
-            ? `${point.deviation > 0 ? '+' : ''}${point.deviation}%`
-            : '—'}
-        </span>
-      </div>
-
-      {/* Zone */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 6,
-        paddingTop: 8,
-        borderTop: '1px solid rgba(255,255,255,0.07)',
-        fontSize: 11,
-        color: zoneColor,
-        fontWeight: 500,
-      }}>
-        {ZONE_DOTS[point.zone]} {ZONE_LABELS[point.zone]}
-      </div>
+      {label}
     </div>
   );
 }
@@ -134,169 +90,346 @@ function CustomTooltip({ active, payload, label }: any) {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function MorinPerformanceChart({
-  data,
-  metricLabel,
-  height = 220,
-  showLegend = true,
+  filteredResponses,
+  members,
+  selectedPlayerIds,
 }: MorinPerformanceChartProps) {
-  if (data.length === 0) {
-    return (
-      <div style={{
-        height,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: 'rgba(255,255,255,0.22)',
-        fontSize: 13,
-        fontFamily: "'DM Sans', system-ui",
-        fontStyle: 'italic',
-      }}>
-        No V3 data available yet
-      </div>
-    );
-  }
+  const [activeMetric, setActiveMetric] = useState<ActiveMetric>('physical');
+  const [playerSort, setPlayerSort] = useState<PlayerSort>('alpha');
 
-  // X-axis: show a tick every 7 days
-  const xTicks = data
-    .map((d, i) => ({ date: d.date, i }))
-    .filter(({ i }) => i % 7 === 0)
-    .map(({ date }) => date);
+  const isSinglePlayer = selectedPlayerIds.length === 1;
+
+  // ── Filtered members (only selected players who are athletes) ───────────────
+  const selectedMembers = useMemo(
+    () => members.filter((m) => selectedPlayerIds.includes(m.id)),
+    [members, selectedPlayerIds]
+  );
+
+  // ── Per-member MorinDataPoint[] for the active metric ──────────────────────
+  const memberTimelines = useMemo(() => {
+    const extractor = getExtractor(activeMetric);
+    return selectedMembers.map((m) => ({
+      id: m.id,
+      name: memberName(m),
+      data: getMorinDataForResponses(
+        filteredResponses.filter((r) => r.userId === m.id),
+        extractor
+      ),
+    }));
+  }, [filteredResponses, selectedMembers, activeMetric]);
+
+  // ── TOP-LEFT: timeline stacked (team % per day, or single-player colored bars)
+  const timelineStackedData = useMemo((): StackedZonePoint[] => {
+    if (memberTimelines.length === 0) return [];
+
+    if (isSinglePlayer) {
+      const mt = memberTimelines[0];
+      return mt.data
+        .filter((d) => d.rawScore !== null && d.zone !== 'INSUFFICIENT_DATA')
+        .map((d) => ({
+          key: d.date,
+          blue:   d.zone === 'BLUE'   ? 100 : 0,
+          green:  d.zone === 'GREEN'  ? 100 : 0,
+          yellow: d.zone === 'YELLOW' ? 100 : 0,
+          total: 1,
+          value: 100,
+          zone: d.zone as 'GREEN' | 'BLUE' | 'YELLOW',
+          zoneLabel: d.zone === 'BLUE' ? 'U' : d.zone === 'YELLOW' ? 'S' : 'N',
+        }));
+    }
+
+    // Collect all unique dates across all members
+    const dateSet = new Set<string>();
+    for (const mt of memberTimelines) {
+      for (const d of mt.data) dateSet.add(d.date);
+    }
+    const allDates = [...dateSet].sort();
+
+    // Build lookup: memberId → date → zone
+    const lookup: Record<string, Record<string, MorinDataPoint>> = {};
+    for (const mt of memberTimelines) {
+      lookup[mt.id] = {};
+      for (const d of mt.data) lookup[mt.id][d.date] = d;
+    }
+
+    return allDates
+      .map((date) => {
+        let blue = 0, green = 0, yellow = 0, total = 0;
+        for (const mt of memberTimelines) {
+          const pt = lookup[mt.id]?.[date];
+          if (!pt || pt.rawScore === null || pt.zone === 'INSUFFICIENT_DATA') continue;
+          total++;
+          if (pt.zone === 'BLUE')   blue++;
+          else if (pt.zone === 'GREEN')  green++;
+          else if (pt.zone === 'YELLOW') yellow++;
+        }
+        if (total === 0) return null;
+        const bluePct   = Math.round(blue   / total * 100);
+        const greenPct  = Math.round(green  / total * 100);
+        const yellowPct = 100 - bluePct - greenPct;
+        return { key: date, blue: bluePct, green: greenPct, yellow: yellowPct, total };
+      })
+      .filter((x): x is StackedZonePoint => x !== null);
+  }, [memberTimelines, isSinglePlayer]);
+
+  // ── TOP-RIGHT: per-player zone distribution (stacked bar, byPlayer) ─────────
+  const playerStackedData = useMemo((): StackedZonePoint[] => {
+    const rows = memberTimelines
+      .map((mt) => {
+        const withData = mt.data.filter(
+          (d) => d.rawScore !== null && d.zone !== 'INSUFFICIENT_DATA'
+        );
+        if (withData.length === 0) return null;
+        const total = withData.length;
+        const blue   = Math.round(withData.filter((d) => d.zone === 'BLUE').length   / total * 100);
+        const green  = Math.round(withData.filter((d) => d.zone === 'GREEN').length  / total * 100);
+        const yellow = 100 - blue - green;
+        return { key: mt.name, blue, green, yellow, total };
+      })
+      .filter((x): x is StackedZonePoint => x !== null);
+
+    if (playerSort === 'spike') {
+      return [...rows].sort((a, b) => b.yellow - a.yellow);
+    }
+    return rows.sort((a, b) => a.key.localeCompare(b.key));
+  }, [memberTimelines, playerSort]);
+
+  // ── BOTTOM-LEFT: team-level raw timeline (avg score per day) ─────────────────
+  const rawTimelineData = useMemo((): MorinDataPoint[] => {
+    if (filteredResponses.length === 0) return [];
+    const extractor = getExtractor(activeMetric);
+    // Filter to selected players
+    const relevantResponses = selectedPlayerIds.length > 0
+      ? filteredResponses.filter((r) => selectedPlayerIds.includes(r.userId))
+      : filteredResponses;
+    return getMorinDataForResponses(relevantResponses, extractor);
+  }, [filteredResponses, selectedPlayerIds, activeMetric]);
+
+  // ── BOTTOM-RIGHT: workload AU per player ──────────────────────────────────
+  const playerWorkloadData = useMemo((): PlayerWorkload[] => {
+    const totals: Record<string, number> = {};
+    for (const r of filteredResponses) {
+      if (!selectedPlayerIds.includes(r.userId)) continue;
+      const w = typeof (r as any).workloadAU === 'number' ? (r as any).workloadAU : 0;
+      totals[r.userId] = (totals[r.userId] ?? 0) + w;
+    }
+    const rows = selectedMembers.map((m) => ({
+      player: memberName(m),
+      workloadAU: Math.round(totals[m.id] ?? 0),
+    })).filter((r) => r.workloadAU > 0);
+
+    if (playerSort === 'spike') {
+      return [...rows].sort((a, b) => b.workloadAU - a.workloadAU);
+    }
+    return rows.sort((a, b) => a.player.localeCompare(b.player));
+  }, [filteredResponses, selectedMembers, selectedPlayerIds, playerSort]);
+
+  // ── Zone distribution (per-player mini bars, below grid) ──────────────────
+  const zoneDist = useMemo(() => {
+    const activeMetricLabel = METRICS.find((m) => m.key === activeMetric)?.label ?? '';
+    return { rows: playerStackedData, metricLabel: activeMetricLabel };
+  }, [playerStackedData, activeMetric]);
+
+  const hasData =
+    timelineStackedData.length > 0 ||
+    rawTimelineData.length > 0 ||
+    playerStackedData.length > 0 ||
+    playerWorkloadData.length > 0;
+
+  // ─────────────────────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ width: '100%' }}>
-      {/* Section label (Space Mono, cyan) */}
-      <div style={{
-        fontSize: 10,
-        fontFamily: "'Space Mono', monospace",
-        letterSpacing: '1.5px',
-        textTransform: 'uppercase',
-        color: 'rgba(0,212,255,0.60)',
-        marginBottom: 8,
-        paddingLeft: 4,
-      }}>
-        {metricLabel}
+    <div style={{ paddingBottom: 8 }}>
+      {/* ── Metric selector ────────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' as const }}>
+        {METRICS.map(({ key, icon, label }) => {
+          const active = key === activeMetric;
+          return (
+            <button
+              key={key}
+              onClick={() => setActiveMetric(key)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '6px 14px',
+                borderRadius: 6,
+                border: active
+                  ? '1px solid rgba(0,212,255,0.50)'
+                  : '1px solid rgba(255,255,255,0.10)',
+                background: active
+                  ? 'rgba(0,212,255,0.10)'
+                  : 'rgba(255,255,255,0.04)',
+                color: active ? '#00D4FF' : 'rgba(255,255,255,0.50)',
+                fontSize: 12,
+                fontFamily: "'DM Sans', system-ui",
+                fontWeight: active ? 600 : 400,
+                cursor: 'pointer',
+                transition: 'all 0.15s',
+              }}
+            >
+              <span>{icon}</span>
+              <span>{label}</span>
+            </button>
+          );
+        })}
+
+        {/* Sort toggle — pushed right */}
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', fontFamily: "'Space Mono', monospace", letterSpacing: '1px' }}>
+            SORT
+          </span>
+          {(['alpha', 'spike'] as PlayerSort[]).map((s) => (
+            <button
+              key={s}
+              onClick={() => setPlayerSort(s)}
+              style={{
+                padding: '4px 10px',
+                borderRadius: 4,
+                border: playerSort === s
+                  ? '1px solid rgba(0,212,255,0.40)'
+                  : '1px solid rgba(255,255,255,0.08)',
+                background: playerSort === s
+                  ? 'rgba(0,212,255,0.08)'
+                  : 'transparent',
+                color: playerSort === s ? '#00D4FF' : 'rgba(255,255,255,0.35)',
+                fontSize: 10,
+                fontFamily: "'Space Mono', monospace",
+                cursor: 'pointer',
+                letterSpacing: '0.5px',
+              }}
+            >
+              {s === 'alpha' ? 'A–Z' : '% Spike ↓'}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Chart */}
-      <ResponsiveContainer width="100%" height={height}>
-        <ComposedChart
-          data={data}
-          margin={{ top: 8, right: 6, left: -8, bottom: 16 }}
-        >
-          {/* Horizontal grid lines only */}
-          <CartesianGrid
-            horizontal={true}
-            vertical={false}
-            stroke="rgba(255,255,255,0.06)"
-          />
-
-          {/* X axis — week markers only, no numbers */}
-          <XAxis
-            dataKey="date"
-            ticks={xTicks}
-            tickFormatter={fmtXTick}
-            tick={{ fill: 'rgba(255,255,255,0.30)', fontSize: 10 }}
-            axisLine={false}
-            tickLine={false}
-          />
-
-          {/* Y axis — 0 to 100 */}
-          <YAxis
-            domain={[0, 100]}
-            ticks={[0, 25, 50, 75, 100]}
-            tick={{ fill: 'rgba(255,255,255,0.30)', fontSize: 10 }}
-            axisLine={false}
-            tickLine={false}
-            width={26}
-          />
-
-          <Tooltip
-            content={<CustomTooltip />}
-            cursor={{ fill: 'rgba(255,255,255,0.04)' }}
-          />
-
-          {/* Bars — colored by zone */}
-          <Bar
-            dataKey="rawScore"
-            maxBarSize={18}
-            radius={[3, 3, 0, 0] as any}
-            isAnimationActive={false}
-          >
-            {data.map((point, i) => (
-              <Cell
-                key={i}
-                fill={MORIN_COLORS[point.zone]}
-                fillOpacity={point.rawScore === null ? 0 : 0.85}
-              />
-            ))}
-          </Bar>
-
-          {/* EMA trendline — dashed, continuous even across gaps */}
-          <Line
-            type="monotone"
-            dataKey="ema"
-            stroke="rgba(255,255,255,0.35)"
-            strokeWidth={1.5}
-            strokeDasharray="4 4"
-            dot={false}
-            name="Personal Baseline (EMA)"
-            isAnimationActive={false}
-            connectNulls
-          />
-        </ComposedChart>
-      </ResponsiveContainer>
-
-      {/* Legend */}
-      {showLegend && (
-        <div style={{
-          display: 'flex',
-          gap: 14,
-          justifyContent: 'center',
-          marginTop: 4,
-          flexWrap: 'wrap',
-        }}>
-          {(
-            [
-              { zone: 'GREEN'  as MorinZone, label: 'Normal' },
-              { zone: 'BLUE'   as MorinZone, label: 'Under-load' },
-              { zone: 'YELLOW' as MorinZone, label: 'Spike' },
-            ] as const
-          ).map(({ zone, label }) => (
-            <div key={zone} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              <div style={{
-                width: 10,
-                height: 10,
-                borderRadius: 2,
-                background: MORIN_COLORS[zone],
-                flexShrink: 0,
-              }} />
-              <span style={{
-                fontSize: 11,
-                color: 'rgba(255,255,255,0.50)',
-                fontFamily: "'DM Sans', system-ui",
-              }}>
-                {label}
-              </span>
-            </div>
-          ))}
-          {/* EMA indicator */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <div style={{
-              width: 18,
-              height: 2,
-              background: 'rgba(255,255,255,0.35)',
-              borderTop: '1px dashed rgba(255,255,255,0.35)',
-              flexShrink: 0,
-            }} />
-            <span style={{
-              fontSize: 11,
-              color: 'rgba(255,255,255,0.50)',
-              fontFamily: "'DM Sans', system-ui",
-            }}>
-              Baseline
-            </span>
-          </div>
+      {!hasData ? (
+        <div style={{ textAlign: 'center', padding: '40px 0', color: 'rgba(255,255,255,0.28)', fontSize: 13 }}>
+          No V3 questionnaire data in the selected period.
         </div>
+      ) : (
+        <>
+          {/* ── 2×2 grid ──────────────────────────────────────────────────── */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(2, 1fr)',
+            gap: 16,
+            marginBottom: 28,
+          }}>
+            {/* Top-left: Score Relatif Évolution */}
+            <div style={{
+              background: '#0D1526',
+              borderRadius: 10,
+              border: '1px solid rgba(0,212,255,0.08)',
+              padding: '14px 12px 10px',
+            }}>
+              <QuadrantHeader label="Score Relatif · Évolution" />
+              <MorinStackedChart
+                data={timelineStackedData}
+                mode="timeline"
+                singlePlayer={isSinglePlayer}
+                height={260}
+              />
+            </div>
+
+            {/* Top-right: Score Relatif Période */}
+            <div style={{
+              background: '#0D1526',
+              borderRadius: 10,
+              border: '1px solid rgba(0,212,255,0.08)',
+              padding: '14px 12px 10px',
+            }}>
+              <QuadrantHeader label="Score Relatif · Période" />
+              <MorinStackedChart
+                data={playerStackedData}
+                mode="byPlayer"
+                height={260}
+              />
+            </div>
+
+            {/* Bottom-left: Score Brut Évolution */}
+            <div style={{
+              background: '#0D1526',
+              borderRadius: 10,
+              border: '1px solid rgba(0,212,255,0.08)',
+              padding: '14px 12px 10px',
+            }}>
+              <QuadrantHeader label="Score Brut · Évolution" />
+              <MorinRawChart
+                mode="timeline"
+                timelineData={rawTimelineData}
+                height={260}
+              />
+            </div>
+
+            {/* Bottom-right: Score Brut Période (workload) */}
+            <div style={{
+              background: '#0D1526',
+              borderRadius: 10,
+              border: '1px solid rgba(0,212,255,0.08)',
+              padding: '14px 12px 10px',
+            }}>
+              <QuadrantHeader label="Score Brut · Période" />
+              <MorinRawChart
+                mode="byPlayer"
+                playerData={playerWorkloadData}
+                height={260}
+              />
+            </div>
+          </div>
+
+          {/* ── Zone distribution row ──────────────────────────────────────── */}
+          {zoneDist.rows.length > 0 && (
+            <div style={{
+              borderTop: '1px solid rgba(0,212,255,0.10)',
+              paddingTop: 20,
+            }}>
+              <div style={{
+                fontSize: 10,
+                fontFamily: "'Space Mono', monospace",
+                letterSpacing: '1.5px',
+                textTransform: 'uppercase' as const,
+                color: 'rgba(0,212,255,0.55)',
+                marginBottom: 14,
+              }}>
+                Zone Distribution — {zoneDist.metricLabel}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
+                {zoneDist.rows.map((row) => (
+                  <div key={row.key}>
+                    <div style={{
+                      fontSize: 11,
+                      color: 'rgba(255,255,255,0.55)',
+                      fontFamily: "'DM Sans', system-ui",
+                      marginBottom: 4,
+                    }}>
+                      {row.key}
+                      {' — '}
+                      <span style={{ color: MORIN_COLORS.GREEN }}>{row.green}% Normal</span>
+                      {' · '}
+                      <span style={{ color: MORIN_COLORS.BLUE }}>{row.blue}% Under-load</span>
+                      {' · '}
+                      <span style={{ color: MORIN_COLORS.YELLOW }}>{row.yellow}% Spike</span>
+                    </div>
+                    <div style={{
+                      display: 'flex',
+                      height: 5,
+                      borderRadius: 3,
+                      overflow: 'hidden',
+                      background: 'rgba(255,255,255,0.06)',
+                    }}>
+                      <div style={{ width: `${row.green}%`,  background: MORIN_COLORS.GREEN,  transition: 'width 0.3s' }} />
+                      <div style={{ width: `${row.blue}%`,   background: MORIN_COLORS.BLUE,   transition: 'width 0.3s' }} />
+                      <div style={{ width: `${row.yellow}%`, background: MORIN_COLORS.YELLOW, transition: 'width 0.3s' }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

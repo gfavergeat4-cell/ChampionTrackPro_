@@ -13,8 +13,6 @@ import {
 import { auth, db } from "../../services/firebaseConfig";
 import { calculateEMA, calculateDeviation, calculateReadiness, extractV2Metrics } from "../utils/analytics";
 import type { V2Metrics, RawResponse } from "../utils/analytics";
-import { getMorinDataForResponses, MORIN_COLORS } from "../utils/useMorinAlgorithm";
-import type { MorinDataPoint } from "../utils/useMorinAlgorithm";
 import MorinPerformanceChart from "../components/MorinPerformanceChart";
 import {
   LineChart,
@@ -693,58 +691,6 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
     }));
   }, [filteredResponses]);
 
-  // ─── Morin: Physical Engine (avg tankLevel + legBounce + invertedCardioLoad) ─
-  const morinPhysicalData: MorinDataPoint[] = useMemo(() => {
-    const extractor = (r: RawResponse): number | null => {
-      const m = (r.metrics ?? {}) as any;
-      if (m.tankLevel == null || m.legBounce == null || m.cardioLoad == null) return null;
-      return Math.round((m.tankLevel + m.legBounce + (101 - m.cardioLoad)) / 3);
-    };
-    return getMorinDataForResponses(filteredResponses, extractor);
-  }, [filteredResponses]);
-
-  // ─── Morin: Mental Energy (teamChemistry) ─────────────────────────────────
-  const morinMentalData: MorinDataPoint[] = useMemo(() => {
-    const extractor = (r: RawResponse): number | null => {
-      const m = (r.metrics ?? {}) as any;
-      return typeof m.teamChemistry === 'number' ? m.teamChemistry : null;
-    };
-    return getMorinDataForResponses(filteredResponses, extractor);
-  }, [filteredResponses]);
-
-  // ─── Morin: Technical Execution (avg motorControl + tacticalSharpness) ────
-  const morinTechnicalData: MorinDataPoint[] = useMemo(() => {
-    const extractor = (r: RawResponse): number | null => {
-      const m = (r.metrics ?? {}) as any;
-      if (m.motorControl == null || m.tacticalSharpness == null) return null;
-      return Math.round((m.motorControl + m.tacticalSharpness) / 2);
-    };
-    return getMorinDataForResponses(filteredResponses, extractor);
-  }, [filteredResponses]);
-
-  // ─── Morin: Per-player zone distribution (Physical Engine, all responses) ─
-  const playerZoneDistributions = useMemo(() => {
-    if (members.length === 0) return [];
-    const physExtractor = (r: RawResponse): number | null => {
-      const m = (r.metrics ?? {}) as any;
-      if (m.tankLevel == null || m.legBounce == null || m.cardioLoad == null) return null;
-      return Math.round((m.tankLevel + m.legBounce + (101 - m.cardioLoad)) / 3);
-    };
-    return members
-      .map((member) => {
-        const playerResps = responses.filter((r) => r.userId === member.id);
-        const morinData = getMorinDataForResponses(playerResps, physExtractor);
-        const withData = morinData.filter((d) => d.rawScore !== null);
-        if (withData.length === 0) return null;
-        const total = withData.length;
-        const greenPct  = Math.round(withData.filter((d) => d.zone === 'GREEN').length  / total * 100);
-        const bluePct   = Math.round(withData.filter((d) => d.zone === 'BLUE').length   / total * 100);
-        const yellowPct = Math.round(withData.filter((d) => d.zone === 'YELLOW').length / total * 100);
-        const name = member.fullName || member.displayName || member.id;
-        return { member, name, greenPct, bluePct, yellowPct };
-      })
-      .filter((x): x is NonNullable<typeof x> => x !== null);
-  }, [members, responses]);
 
   // ─── V2: Radar data (latest team averages Physical/Mental/Technical) ──────
   const radarData = useMemo(() => {
@@ -1591,90 +1537,11 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
             </div>
           ) : chartType === "morin" ? (
             /* ── Morin Algorithm View ── */
-            <div style={{ paddingBottom: 8 }}>
-              {/* 3-chart grid */}
-              <div style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-                gap: 28,
-                marginBottom: 36,
-              }}>
-                <MorinPerformanceChart
-                  data={morinPhysicalData}
-                  metricLabel="Physical Engine"
-                  height={220}
-                />
-                <MorinPerformanceChart
-                  data={morinMentalData}
-                  metricLabel="Mental Energy"
-                  height={220}
-                />
-                <MorinPerformanceChart
-                  data={morinTechnicalData}
-                  metricLabel="Technical Execution"
-                  height={220}
-                />
-              </div>
-
-              {/* Zone distribution summary — per player */}
-              {playerZoneDistributions.length > 0 && (
-                <div style={{
-                  borderTop: "1px solid rgba(0,212,255,0.10)",
-                  paddingTop: 20,
-                }}>
-                  <div style={{
-                    fontSize: 10,
-                    fontFamily: "'Space Mono', monospace",
-                    letterSpacing: "1.5px",
-                    textTransform: "uppercase",
-                    color: "rgba(0,212,255,0.55)",
-                    marginBottom: 14,
-                  }}>
-                    Zone Distribution — Physical Engine
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                    {playerZoneDistributions.map(({ member, name, greenPct, bluePct, yellowPct }) => (
-                      <div key={member.id}>
-                        {/* Label row */}
-                        <div style={{
-                          fontSize: 12,
-                          color: "rgba(255,255,255,0.60)",
-                          fontFamily: "'DM Sans', system-ui",
-                          marginBottom: 5,
-                        }}>
-                          {name}
-                          {" — "}
-                          <span style={{ color: MORIN_COLORS.GREEN }}>{greenPct}% Normal</span>
-                          {" · "}
-                          <span style={{ color: MORIN_COLORS.BLUE }}>{bluePct}% Under-load</span>
-                          {" · "}
-                          <span style={{ color: MORIN_COLORS.YELLOW }}>{yellowPct}% Spike</span>
-                        </div>
-                        {/* Mini horizontal bar */}
-                        <div style={{
-                          display: "flex",
-                          height: 6,
-                          borderRadius: 3,
-                          overflow: "hidden",
-                          background: "rgba(255,255,255,0.06)",
-                        }}>
-                          <div style={{ width: `${greenPct}%`,  background: MORIN_COLORS.GREEN,  transition: "width 0.3s" }} />
-                          <div style={{ width: `${bluePct}%`,   background: MORIN_COLORS.BLUE,   transition: "width 0.3s" }} />
-                          <div style={{ width: `${yellowPct}%`, background: MORIN_COLORS.YELLOW, transition: "width 0.3s" }} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Empty state when no V3 data */}
-              {morinPhysicalData.length === 0 && morinMentalData.length === 0 && morinTechnicalData.length === 0 && (
-                <div style={{ textAlign: "center" as const, padding: "40px 0", color: "rgba(255,255,255,0.28)", fontSize: 13 }}>
-                  No V3 questionnaire data in the selected period.
-                </div>
-              )}
-            </div>
+            <MorinPerformanceChart
+              filteredResponses={filteredResponses}
+              members={members}
+              selectedPlayerIds={selectedPlayerIds}
+            />
           ) : chartData.length === 0 ? (
             <div
               style={{
