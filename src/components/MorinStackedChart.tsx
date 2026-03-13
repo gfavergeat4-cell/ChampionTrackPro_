@@ -137,12 +137,14 @@ export default function MorinStackedChart({
             textAnchor="end"
           />
           <YAxis
+            type="number"
             domain={[0, 100]}
-            ticks={[0, 50, 100]}
-            tick={{ fill: 'rgba(255,255,255,0.30)', fontSize: 9 }}
+            ticks={[0, 25, 50, 75, 100]}
+            tickFormatter={(v) => `${v}%`}
+            tick={{ fill: 'rgba(255,255,255,0.35)', fontSize: 10 }}
             axisLine={false}
             tickLine={false}
-            width={22}
+            width={35}
           />
           <Tooltip
             content={<StackedTooltip mode={mode} />}
@@ -196,12 +198,14 @@ export default function MorinStackedChart({
           textAnchor="end"
         />
         <YAxis
+          type="number"
           domain={[0, 100]}
           ticks={[0, 25, 50, 75, 100]}
-          tick={{ fill: 'rgba(255,255,255,0.30)', fontSize: 9 }}
+          tickFormatter={(v) => `${v}%`}
+          tick={{ fill: 'rgba(255,255,255,0.35)', fontSize: 10 }}
           axisLine={false}
           tickLine={false}
-          width={22}
+          width={35}
         />
         <Tooltip
           content={<StackedTooltip mode={mode} />}
