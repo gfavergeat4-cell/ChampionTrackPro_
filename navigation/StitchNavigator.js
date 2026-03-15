@@ -32,6 +32,8 @@ import CoachProfileScreen from "../src/screens/CoachProfileScreen";
 import CoachScheduleScreen from "../src/screens/CoachScheduleScreen";
 import AthleteDetailScreen from "../src/screens/AthleteDetailScreen";
 import AdminTeamScreen from "../src/screens/AdminTeamScreen";
+import AdminTeamDetailScreen from "../src/screens/AdminTeamDetailScreen";
+import CreateTeamModal from "../src/screens/CreateTeamModal";
 import { httpsCallable } from "firebase/functions";
 import { functions } from "../services/firebaseConfig";
 
@@ -317,6 +319,12 @@ function RootStackNavigator({ role, user, pendingDeepLink, navigationRef, onboar
           initialParams={{ role: "admin" }}
         />
         <RootStack.Screen name="AdminTeamScreen" component={AdminTeamScreen} />
+        <RootStack.Screen name="AdminTeamDetailScreen" component={AdminTeamDetailScreen} />
+        <RootStack.Screen
+          name="CreateTeamModal"
+          component={CreateTeamModal}
+          options={{ presentation: "modal", gestureEnabled: true }}
+        />
         <RootStack.Screen name="TeamDetails" component={TeamDetails} />
         <RootStack.Screen name="DevEventsProbe" component={DevEventsProbe} />
         <RootStack.Screen name="DebugTestQuestionnaire" component={DebugTestQuestionnaireScreen} />

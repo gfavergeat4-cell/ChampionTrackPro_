@@ -66,7 +66,7 @@ export default function AdminHomeScreen() {
   }, []);
 
   const handleOpenTeam = (team: TeamDoc) => {
-    navigation.navigate("AdminTeamScreen" as never, {
+    navigation.navigate("AdminTeamDetailScreen" as never, {
       teamId: team.id,
       teamName: team.name || team.id,
     } as never);
@@ -315,7 +315,7 @@ export default function AdminHomeScreen() {
             }}
           >
             <button
-              onClick={() => alert("Fonctionnalité à venir")}
+              onClick={() => navigation.navigate("CreateTeamModal" as never)}
               type="button"
               style={{
                 padding: "16px 48px",
