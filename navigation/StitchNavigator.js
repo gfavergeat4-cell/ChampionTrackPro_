@@ -31,6 +31,9 @@ import CoachTeamScreen from "../src/screens/CoachTeamScreen";
 import CoachProfileScreen from "../src/screens/CoachProfileScreen";
 import CoachScheduleScreen from "../src/screens/CoachScheduleScreen";
 import AthleteDetailScreen from "../src/screens/AthleteDetailScreen";
+import AdminTeamScreen from "../src/screens/AdminTeamScreen";
+import { httpsCallable } from "firebase/functions";
+import { functions } from "../services/firebaseConfig";
 
 const AuthStack = createNativeStackNavigator();
 const RootStack = createNativeStackNavigator();
@@ -313,6 +316,7 @@ function RootStackNavigator({ role, user, pendingDeepLink, navigationRef, onboar
           component={PerformanceDashboard}
           initialParams={{ role: "admin" }}
         />
+        <RootStack.Screen name="AdminTeamScreen" component={AdminTeamScreen} />
         <RootStack.Screen name="TeamDetails" component={TeamDetails} />
         <RootStack.Screen name="DevEventsProbe" component={DevEventsProbe} />
         <RootStack.Screen name="DebugTestQuestionnaire" component={DebugTestQuestionnaireScreen} />
@@ -387,7 +391,7 @@ function RootStackNavigator({ role, user, pendingDeepLink, navigationRef, onboar
 }
 
 // Auth Gate Component with proper role detection
-function AuthGate({ pendingDeepLink, navigationRef }) {
+function AuthGate({ pendingDeepLink, pendingJoinCode, navigationRef }) {
   const [state, setState] = React.useState({
     loading: true,
     user: null,
@@ -409,6 +413,30 @@ function AuthGate({ pendingDeepLink, navigationRef }) {
 
     return () => clearTimeout(timeout);
   }, [state.authReady]);
+
+  // Process pending join code after auth is confirmed
+  React.useEffect(() => {
+    if (!state.user || state.roleLoading || !pendingJoinCode?.current) return;
+    const code = pendingJoinCode.current;
+    pendingJoinCode.current = null; // consume immediately to avoid re-runs
+    const lookupFn = httpsCallable(functions, "lookupTeamByCode");
+    const joinFn = httpsCallable(functions, "createMembership");
+    lookupFn({ code })
+      .then(async (result) => {
+        const { teamId, role } = (result?.data || {});
+        if (!teamId) { console.warn("[JOIN] No teamId returned for code:", code); return; }
+        await joinFn({
+          teamId,
+          role,
+          name: state.user?.displayName || "",
+          email: state.user?.email || "",
+        });
+        console.log("[JOIN] Joined team", teamId, "as", role);
+      })
+      .catch((err) => {
+        console.error("[JOIN] Error processing join code:", err?.message || err);
+      });
+  }, [state.user, state.roleLoading]);
 
   React.useEffect(() => {
     console.log("🚀 Initializing auth...");
@@ -533,6 +561,7 @@ function AuthGate({ pendingDeepLink, navigationRef }) {
 export default function StitchNavigator() {
   const navigationRef = React.useRef(null);
   const pendingDeepLink = React.useRef(null);
+  const pendingJoinCode = React.useRef(null);
 
   // Deep link : au démarrage stocker params en ref, puis navigation après auth dans RootStackNavigator
   React.useEffect(() => {
@@ -544,6 +573,13 @@ export default function StitchNavigator() {
     const startScreen = startUrl.searchParams.get("screen");
     const startTrainingId = startUrl.searchParams.get("trainingId");
     const startTeamId = startUrl.searchParams.get("teamId");
+
+    // Join code: /?code=XK7B2P-C or /?code=XK7B2P-A
+    const startCode = startUrl.searchParams.get("code");
+    if (startCode) {
+      pendingJoinCode.current = startCode;
+      window.history.replaceState({}, "", "/");
+    }
 
     // FIX 4: new URL format /?screen=questionnaire&trainingId=X&teamId=Y
     if (startScreen === "questionnaire" && startTrainingId) {
@@ -611,7 +647,7 @@ export default function StitchNavigator() {
 
   return (
     <NavigationContainer ref={navigationRef}>
-      <AuthGate pendingDeepLink={pendingDeepLink} navigationRef={navigationRef} />
+      <AuthGate pendingDeepLink={pendingDeepLink} pendingJoinCode={pendingJoinCode} navigationRef={navigationRef} />
     </NavigationContainer>
   );
 }

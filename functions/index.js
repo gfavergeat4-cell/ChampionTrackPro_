@@ -16,7 +16,7 @@ try { admin.app(); } catch { admin.initializeApp(); }
 const db = admin.firestore();
 
 const REGION = "us-central1";   // adapte si besoin
-const CRON   = "every 10 minutes";
+const CRON   = "every 15 minutes";
 const EXPANSION_DAYS = 180;     // 6 mois
 
 function makeHash(ev) {
@@ -36,6 +36,22 @@ function makeHash(ev) {
 function eventDocId(uid, start) {
   const key = (uid || "NOUID") + "_" + (+start);
   return crypto.createHash("sha1").update(key).digest("hex");
+}
+
+function deriveEventFields(title, description, start, end, uid) {
+  const combined = ((title || "") + " " + (description || "")).toLowerCase();
+  const isGame = /\b(game|match|vs\.?|@)\b/.test(combined);
+  const sessionType = isGame ? "game"
+    : /\b(practice|training|workout|drill|conditioning|scrimmage)\b/.test(combined) ? "practice"
+    : "training";
+  const durationMs = (end && start) ? (new Date(end).getTime() - new Date(start).getTime()) : 0;
+  return {
+    date: new Date(start).toISOString().split("T")[0],
+    sessionType,
+    isGame,
+    durationMinutes: Math.max(0, Math.round(durationMs / 60000)),
+    calendarEventId: uid || null,
+  };
 }
 
 function cleanTitle(rawTitle, rawDescription) {
@@ -172,6 +188,7 @@ async function syncTeam(teamId) {
     const endUtcMillis = ev.end.getTime();
 
     const cleanedTitle = cleanTitle(ev.title, ev.description || "");
+    const derived = deriveEventFields(cleanedTitle, ev.description || "", ev.start, ev.end, ev.uid);
     const payload = {
       teamId: teamId,
       title: cleanedTitle,
@@ -193,6 +210,13 @@ async function syncTeam(teamId) {
       lastSeenAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       questionnaireNotified: false, // For notification system
+      // Enriched fields derived from event title/description
+      date: derived.date,
+      sessionType: derived.sessionType,
+      isGame: derived.isGame,
+      durationMinutes: derived.durationMinutes,
+      calendarEventId: derived.calendarEventId,
+      syncedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
 
     const cur = await ref.get();
@@ -313,20 +337,70 @@ exports.syncIcsEvery10min = functions
   .region(REGION)
   .pubsub.schedule(CRON)
   .onRun(async () => {
-    const snap = await db.collection("teams").where("icsUrl", ">", "").get();
+    // Only sync teams with calendarActive === true
+    const snap = await db.collection("teams").where("calendarActive", "==", true).get();
     let totals = { seen: 0, created: 0, updated: 0, cancelled: 0 };
-    for (const doc of snap.docs) {
+    for (const teamDoc of snap.docs) {
+      const data = teamDoc.data() || {};
+      if (!data.icsUrl) continue; // skip teams without a calendar URL
+      const teamRef = db.collection("teams").doc(teamDoc.id);
       try {
-        const t = await syncTeam(doc.id);
+        const t = await syncTeam(teamDoc.id);
         totals.seen += t.seen;
         totals.created += t.created;
         totals.updated += t.updated;
         totals.cancelled += t.cancelled;
+        await teamRef.set({
+          calendarLastSyncStatus: "ok",
+          calendarLastSyncAt: admin.firestore.FieldValue.serverTimestamp(),
+          calendarSyncError: admin.firestore.FieldValue.delete(),
+        }, { merge: true });
       } catch (e) {
-        console.error("sync error team:", doc.id, e.message);
+        console.error("sync error team:", teamDoc.id, e.message);
+        await teamRef.set({
+          calendarLastSyncStatus: "error",
+          calendarSyncError: e.message || "Unknown error",
+          calendarLastSyncAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
       }
     }
     console.log("ICS sync done:", totals);
+    return null;
+  });
+
+exports.syncCalendarOnSave = functions
+  .region(REGION)
+  .firestore.document("teams/{teamId}")
+  .onWrite(async (change, context) => {
+    const before = change.before.exists ? (change.before.data() || {}) : {};
+    const after = change.after.exists ? (change.after.data() || {}) : null;
+    if (!after) return null; // team deleted
+
+    const newUrl = after.calendarUrl || after.icsUrl || null;
+    const oldUrl = before.calendarUrl || before.icsUrl || null;
+    if (!newUrl || newUrl === oldUrl) return null; // no URL change
+    if (after.calendarActive !== true) return null; // auto-sync disabled
+
+    const { teamId } = context.params;
+    const teamRef = db.collection("teams").doc(teamId);
+
+    await teamRef.set({ calendarLastSyncStatus: "syncing" }, { merge: true });
+    try {
+      const result = await syncTeam(teamId);
+      await teamRef.set({
+        calendarLastSyncStatus: "ok",
+        calendarLastSyncAt: admin.firestore.FieldValue.serverTimestamp(),
+        calendarSyncError: admin.firestore.FieldValue.delete(),
+      }, { merge: true });
+      console.log("[SYNC_ON_SAVE]", teamId, "synced:", result);
+    } catch (e) {
+      await teamRef.set({
+        calendarLastSyncStatus: "error",
+        calendarSyncError: e.message || "Unknown error",
+        calendarLastSyncAt: admin.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true });
+      console.error("[SYNC_ON_SAVE] Error for team", teamId, e.message);
+    }
     return null;
   });
 
@@ -620,7 +694,8 @@ exports.createMembership = functions.region(REGION).https.onCall(async (data, co
   }
 
   const uid = context.auth.uid;
-  const { teamId, email, name } = data || {};
+  const { teamId, email, name, role: requestedRole } = data || {};
+  const memberRole = requestedRole === "coach" ? "coach" : "athlete";
 
   if (!teamId) {
     throw new functions.https.HttpsError("invalid-argument", "teamId required");
@@ -645,7 +720,7 @@ exports.createMembership = functions.region(REGION).https.onCall(async (data, co
         uid,
         name: displayName,
         email: email || "",
-        role: "athlete",
+        role: memberRole,
         joinedAt: admin.firestore.FieldValue.serverTimestamp(),
       },
       { merge: true }
@@ -656,7 +731,7 @@ exports.createMembership = functions.region(REGION).https.onCall(async (data, co
       userRef,
       {
         teamId,
-        role: "athlete",
+        role: memberRole,
         email: email || "",
         displayName: displayName,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -1422,6 +1497,19 @@ exports.lookupTeamByCode = functions
     if (!joinSnap.empty) {
       const teamDoc = joinSnap.docs[0];
       return { teamId: teamDoc.id, teamName: teamDoc.data().name || "", role: "athlete" };
+    }
+
+    // 5. Try inviteCode with -C / -A suffix (new format: XK7B2P-C or XK7B2P-A)
+    const suffixMatch = normalizedCode.match(/^(.+)-([CA])$/);
+    if (suffixMatch) {
+      const baseCode = suffixMatch[1];
+      const suffix = suffixMatch[2];
+      const role = suffix === "C" ? "coach" : "athlete";
+      const inviteSnap = await teamsRef.where("inviteCode", "==", baseCode).limit(1).get();
+      if (!inviteSnap.empty) {
+        const teamDoc = inviteSnap.docs[0];
+        return { teamId: teamDoc.id, teamName: teamDoc.data().name || "", role };
+      }
     }
 
     throw new functions.https.HttpsError("not-found", "Invalid code. Check the code provided by your team.");
