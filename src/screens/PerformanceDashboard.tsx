@@ -13,7 +13,7 @@ import {
 import { auth, db } from "../../services/firebaseConfig";
 import { calculateEMA, calculateDeviation, calculateReadiness, extractV2Metrics } from "../utils/analytics";
 import type { V2Metrics, RawResponse } from "../utils/analytics";
-import MorinPerformanceChart from "../components/MorinPerformanceChart";
+import DARPerformanceChart from "../components/DARPerformanceChart";
 import {
   LineChart,
   Line,
@@ -39,7 +39,7 @@ type Role = "admin" | "coach";
 type DurationKey = "7d" | "14d" | "30d" | "90d";
 type CategoryKey = "physical" | "mental" | "technical";
 type ViewMode = "categories" | "individual";
-type ChartType = "line" | "bar" | "radar" | "deviation" | "workload" | "morin";
+type ChartType = "line" | "bar" | "radar" | "deviation" | "workload" | "dar";
 type DashTab = "brief" | "analytics";
 
 interface PerformanceDashboardProps {
@@ -1456,7 +1456,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                 { key: "radar",     label: "Radar" },
                 { key: "deviation", label: "Deviation" },
                 { key: "workload",  label: "Workload" },
-              { key: "morin",     label: "Morin" },
+              { key: "dar",       label: "DAR" },
               ] as { key: ChartType; label: string }[]).map(({ key, label }) => {
                 const active = chartType === key;
                 return (
@@ -1535,9 +1535,9 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
             >
               {error}
             </div>
-          ) : chartType === "morin" ? (
-            /* ── Morin Algorithm View ── */
-            <MorinPerformanceChart
+          ) : chartType === "dar" ? (
+            /* ── DAR Algorithm View ── */
+            <DARPerformanceChart
               filteredResponses={filteredResponses}
               members={members}
               selectedPlayerIds={selectedPlayerIds}

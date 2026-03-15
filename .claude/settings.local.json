@@ -28,7 +28,12 @@
       "Read(//c/Users/gabfa/.config/gcloud/**)",
       "Bash(rm:*)",
       "Bash(pdftotext:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Read(//c/Users/gabfa/.config/**)",
+      "Read(//c/Users/gabfa/AppData/Roaming/**)",
+      "Bash(grep:*)",
+      "Bash(wait b3ezm386j)",
+      "Read(//c/Users/gabfa/AppData/Local/Temp/claude/C--Users-gabfa-ChampionTrackPro/tasks/**)"
     ]
   }
 }

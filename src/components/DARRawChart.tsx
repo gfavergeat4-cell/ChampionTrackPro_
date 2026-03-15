@@ -1,5 +1,5 @@
 /**
- * MorinRawChart.tsx
+ * DARRawChart.tsx
  * Raw score chart — timeline (bars + EMA dashed line + Q1/Q2/Q3 reference lines)
  *                 or per-player workload bars + Q1/Q2/Q3.
  */
@@ -17,8 +17,8 @@ import {
   ReferenceLine,
   ResponsiveContainer,
 } from 'recharts';
-import type { MorinDataPoint } from '../utils/useMorinAlgorithm';
-import { MORIN_COLORS } from '../utils/useMorinAlgorithm';
+import type { DARDataPoint } from '../utils/useDARAlgorithm';
+import { DAR_COLORS } from '../utils/useDARAlgorithm';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -27,9 +27,9 @@ export interface PlayerWorkload {
   workloadAU: number;
 }
 
-interface MorinRawChartProps {
+interface DARRawChartProps {
   mode: 'timeline' | 'byPlayer';
-  timelineData?: MorinDataPoint[];
+  timelineData?: DARDataPoint[];
   playerData?: PlayerWorkload[];
   height?: number;
 }
@@ -55,7 +55,7 @@ function fmtDateTick(dateStr: string): string {
 
 function TimelineTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
-  const d = payload[0]?.payload as MorinDataPoint;
+  const d = payload[0]?.payload as DARDataPoint;
   return (
     <div style={{
       background: '#0D1526',
@@ -80,7 +80,7 @@ function TimelineTooltip({ active, payload, label }: any) {
       {d?.deviation != null && (
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}>
           <span style={{ color: 'rgba(255,255,255,0.55)' }}>Deviation</span>
-          <span style={{ color: d.deviation > 0 ? MORIN_COLORS.YELLOW : MORIN_COLORS.BLUE, fontWeight: 600 }}>
+          <span style={{ color: d.deviation > 0 ? DAR_COLORS.YELLOW : DAR_COLORS.BLUE, fontWeight: 600 }}>
             {d.deviation > 0 ? '+' : ''}{d.deviation}%
           </span>
         </div>
@@ -112,12 +112,12 @@ function PlayerTooltip({ active, payload, label }: any) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function MorinRawChart({
+export default function DARRawChart({
   mode,
   timelineData = [],
   playerData = [],
   height = 280,
-}: MorinRawChartProps) {
+}: DARRawChartProps) {
   const timelineQuartiles = useMemo(() => {
     const scores = timelineData
       .filter((d) => d.rawScore !== null)
@@ -209,7 +209,7 @@ export default function MorinRawChart({
             {timelineData.map((d, i) => (
               <Cell
                 key={i}
-                fill={d.zone === 'INSUFFICIENT_DATA' ? 'rgba(255,255,255,0.10)' : MORIN_COLORS[d.zone]}
+                fill={d.zone === 'INSUFFICIENT_DATA' ? 'rgba(255,255,255,0.10)' : DAR_COLORS[d.zone]}
                 fillOpacity={d.rawScore === null ? 0 : 0.85}
               />
             ))}
@@ -262,7 +262,7 @@ export default function MorinRawChart({
             <ReferenceLine y={playerQuartiles.q3} stroke="rgba(255,255,255,0.20)" strokeDasharray="3 3" label={{ value: 'Q3', fill: 'rgba(255,255,255,0.28)', fontSize: 8, position: 'insideTopRight' }} />
           </>
         )}
-        <Bar dataKey="workloadAU" maxBarSize={20} radius={[2, 2, 0, 0] as any} isAnimationActive={false} fill={MORIN_COLORS.GREEN} fillOpacity={0.85} />
+        <Bar dataKey="workloadAU" maxBarSize={20} radius={[2, 2, 0, 0] as any} isAnimationActive={false} fill={DAR_COLORS.GREEN} fillOpacity={0.85} />
       </ComposedChart>
     </ResponsiveContainer>
   );

@@ -1,6 +1,6 @@
 /**
- * MorinPerformanceChart.tsx
- * 2×2 quadrant container for the Morin analytics view.
+ * DARPerformanceChart.tsx
+ * 2×2 quadrant container for the DAR analytics view.
  *
  * ┌─────────────────────┬─────────────────────┐
  * │  Score Relatif      │  Score Relatif      │
@@ -16,12 +16,12 @@
 
 import React, { useMemo, useState } from 'react';
 import type { RawResponse } from '../utils/analytics';
-import { getMorinDataForResponses, MORIN_COLORS } from '../utils/useMorinAlgorithm';
-import type { MorinDataPoint } from '../utils/useMorinAlgorithm';
-import MorinStackedChart from './MorinStackedChart';
-import type { StackedZonePoint } from './MorinStackedChart';
-import MorinRawChart from './MorinRawChart';
-import type { PlayerWorkload } from './MorinRawChart';
+import { getDARDataForResponses, DAR_COLORS } from '../utils/useDARAlgorithm';
+import type { DARDataPoint } from '../utils/useDARAlgorithm';
+import DARStackedChart from './DARStackedChart';
+import type { StackedZonePoint } from './DARStackedChart';
+import DARRawChart from './DARRawChart';
+import type { PlayerWorkload } from './DARRawChart';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -36,7 +36,7 @@ interface Member {
 type ActiveMetric = 'physical' | 'mental' | 'technical';
 type PlayerSort  = 'alpha' | 'spike';
 
-interface MorinPerformanceChartProps {
+interface DARPerformanceChartProps {
   filteredResponses: RawResponse[];
   members: Member[];
   selectedPlayerIds: string[];
@@ -89,11 +89,11 @@ function QuadrantHeader({ label }: { label: string }) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function MorinPerformanceChart({
+export default function DARPerformanceChart({
   filteredResponses,
   members,
   selectedPlayerIds,
-}: MorinPerformanceChartProps) {
+}: DARPerformanceChartProps) {
   const [activeMetric, setActiveMetric] = useState<ActiveMetric>('physical');
   const [playerSort, setPlayerSort] = useState<PlayerSort>('alpha');
 
@@ -107,13 +107,13 @@ export default function MorinPerformanceChart({
     [members, selectedPlayerIds]
   );
 
-  // ── Per-member MorinDataPoint[] for the active metric ──────────────────────
+  // ── Per-member DARDataPoint[] for the active metric ──────────────────────
   const memberTimelines = useMemo(() => {
     const extractor = getExtractor(activeMetric);
     return selectedMembers.map((m) => ({
       id: m.id,
       name: memberName(m),
-      data: getMorinDataForResponses(
+      data: getDARDataForResponses(
         filteredResponses.filter((r) => r.userId === m.id),
         extractor
       ),
@@ -148,7 +148,7 @@ export default function MorinPerformanceChart({
     const allDates = [...dateSet].sort();
 
     // Build lookup: memberId → date → zone
-    const lookup: Record<string, Record<string, MorinDataPoint>> = {};
+    const lookup: Record<string, Record<string, DARDataPoint>> = {};
     for (const mt of memberTimelines) {
       lookup[mt.id] = {};
       for (const d of mt.data) lookup[mt.id][d.date] = d;
@@ -198,10 +198,10 @@ export default function MorinPerformanceChart({
 
   // ── BOTTOM-LEFT: team-level raw timeline (avg score per day) ─────────────────
   // filteredResponses is already scoped to selectedPlayerIds by PerformanceDashboard
-  const rawTimelineData = useMemo((): MorinDataPoint[] => {
+  const rawTimelineData = useMemo((): DARDataPoint[] => {
     if (filteredResponses.length === 0) return [];
     const extractor = getExtractor(activeMetric);
-    return getMorinDataForResponses(filteredResponses, extractor);
+    return getDARDataForResponses(filteredResponses, extractor);
   }, [filteredResponses, activeMetric]);
 
   // ── BOTTOM-RIGHT: workload AU per player ──────────────────────────────────
@@ -327,7 +327,7 @@ export default function MorinPerformanceChart({
               padding: '14px 12px 10px',
             }}>
               <QuadrantHeader label="Relative Score · Timeline" />
-              <MorinStackedChart
+              <DARStackedChart
                 data={timelineStackedData}
                 mode="timeline"
                 singlePlayer={isSinglePlayer}
@@ -343,7 +343,7 @@ export default function MorinPerformanceChart({
               padding: '14px 12px 10px',
             }}>
               <QuadrantHeader label="Relative Score · Period" />
-              <MorinStackedChart
+              <DARStackedChart
                 data={playerStackedData}
                 mode="byPlayer"
                 height={260}
@@ -358,7 +358,7 @@ export default function MorinPerformanceChart({
               padding: '14px 12px 10px',
             }}>
               <QuadrantHeader label="Raw Score · Timeline" />
-              <MorinRawChart
+              <DARRawChart
                 mode="timeline"
                 timelineData={rawTimelineData}
                 height={260}
@@ -373,7 +373,7 @@ export default function MorinPerformanceChart({
               padding: '14px 12px 10px',
             }}>
               <QuadrantHeader label="Raw Score · Period" />
-              <MorinRawChart
+              <DARRawChart
                 mode="byPlayer"
                 playerData={playerWorkloadData}
                 height={260}
@@ -408,11 +408,11 @@ export default function MorinPerformanceChart({
                     }}>
                       {row.key}
                       {' — '}
-                      <span style={{ color: MORIN_COLORS.GREEN }}>{row.green}% Normal</span>
+                      <span style={{ color: DAR_COLORS.GREEN }}>{row.green}% Normal</span>
                       {' · '}
-                      <span style={{ color: MORIN_COLORS.BLUE }}>{row.blue}% Under-load</span>
+                      <span style={{ color: DAR_COLORS.BLUE }}>{row.blue}% Under-load</span>
                       {' · '}
-                      <span style={{ color: MORIN_COLORS.YELLOW }}>{row.yellow}% Spike</span>
+                      <span style={{ color: DAR_COLORS.YELLOW }}>{row.yellow}% Spike</span>
                     </div>
                     <div style={{
                       display: 'flex',
@@ -421,9 +421,9 @@ export default function MorinPerformanceChart({
                       overflow: 'hidden',
                       background: 'rgba(255,255,255,0.06)',
                     }}>
-                      <div style={{ width: `${row.green}%`,  background: MORIN_COLORS.GREEN,  transition: 'width 0.3s' }} />
-                      <div style={{ width: `${row.blue}%`,   background: MORIN_COLORS.BLUE,   transition: 'width 0.3s' }} />
-                      <div style={{ width: `${row.yellow}%`, background: MORIN_COLORS.YELLOW, transition: 'width 0.3s' }} />
+                      <div style={{ width: `${row.green}%`,  background: DAR_COLORS.GREEN,  transition: 'width 0.3s' }} />
+                      <div style={{ width: `${row.blue}%`,   background: DAR_COLORS.BLUE,   transition: 'width 0.3s' }} />
+                      <div style={{ width: `${row.yellow}%`, background: DAR_COLORS.YELLOW, transition: 'width 0.3s' }} />
                     </div>
                   </div>
                 ))}

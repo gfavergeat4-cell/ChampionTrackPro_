@@ -1,5 +1,5 @@
 /**
- * MorinStackedChart.tsx
+ * DARStackedChart.tsx
  * 100% stacked bar chart — zone distribution per day (timeline) or per player.
  * Segments (bottom→top): BLUE (Under-load) → GREEN (Normal) → YELLOW (Spike).
  */
@@ -16,7 +16,7 @@ import {
   LabelList,
   Cell,
 } from 'recharts';
-import { MORIN_COLORS } from '../utils/useMorinAlgorithm';
+import { DAR_COLORS } from '../utils/useDARAlgorithm';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -32,7 +32,7 @@ export interface StackedZonePoint {
   zone?: 'GREEN' | 'BLUE' | 'YELLOW';
 }
 
-interface MorinStackedChartProps {
+interface DARStackedChartProps {
   data: StackedZonePoint[];
   mode: 'timeline' | 'byPlayer';
   singlePlayer?: boolean;
@@ -67,15 +67,15 @@ function StackedTooltip({ active, payload, label, mode }: any) {
         {displayLabel}
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, marginBottom: 3 }}>
-        <span style={{ color: MORIN_COLORS.BLUE }}>Under-load</span>
+        <span style={{ color: DAR_COLORS.BLUE }}>Under-load</span>
         <span style={{ color: '#fff', fontWeight: 600 }}>{Math.round(d?.blue ?? 0)}%</span>
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, marginBottom: 3 }}>
-        <span style={{ color: MORIN_COLORS.GREEN }}>Normal</span>
+        <span style={{ color: DAR_COLORS.GREEN }}>Normal</span>
         <span style={{ color: '#fff', fontWeight: 600 }}>{Math.round(d?.green ?? 0)}%</span>
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}>
-        <span style={{ color: MORIN_COLORS.YELLOW }}>Spike</span>
+        <span style={{ color: DAR_COLORS.YELLOW }}>Spike</span>
         <span style={{ color: '#fff', fontWeight: 600 }}>{Math.round(d?.yellow ?? 0)}%</span>
       </div>
       {d?.total != null && (
@@ -91,12 +91,12 @@ function StackedTooltip({ active, payload, label, mode }: any) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function MorinStackedChart({
+export default function DARStackedChart({
   data,
   mode,
   singlePlayer = false,
   height = 280,
-}: MorinStackedChartProps) {
+}: DARStackedChartProps) {
   if (data.length === 0) {
     return (
       <div style={{
@@ -158,9 +158,9 @@ export default function MorinStackedChart({
           >
             {data.map((d, i) => {
               const fill =
-                d.zone === 'BLUE'   ? MORIN_COLORS.BLUE   :
-                d.zone === 'YELLOW' ? MORIN_COLORS.YELLOW :
-                                      MORIN_COLORS.GREEN;
+                d.zone === 'BLUE'   ? DAR_COLORS.BLUE   :
+                d.zone === 'YELLOW' ? DAR_COLORS.YELLOW :
+                                      DAR_COLORS.GREEN;
               return <Cell key={i} fill={fill} fillOpacity={0.85} />;
             })}
             <LabelList
@@ -212,7 +212,7 @@ export default function MorinStackedChart({
           cursor={{ fill: 'rgba(255,255,255,0.04)' }}
         />
 
-        <Bar dataKey="blue"   name="Under-load" stackId="z" fill={MORIN_COLORS.BLUE}   maxBarSize={20} isAnimationActive={false}>
+        <Bar dataKey="blue"   name="Under-load" stackId="z" fill={DAR_COLORS.BLUE}   maxBarSize={20} isAnimationActive={false}>
           <LabelList
             dataKey="blue"
             position="center"
@@ -220,7 +220,7 @@ export default function MorinStackedChart({
             style={{ fill: 'rgba(255,255,255,0.85)', fontSize: 9, fontFamily: "'Space Mono', monospace" }}
           />
         </Bar>
-        <Bar dataKey="green"  name="Normal"     stackId="z" fill={MORIN_COLORS.GREEN}  maxBarSize={20} isAnimationActive={false}>
+        <Bar dataKey="green"  name="Normal"     stackId="z" fill={DAR_COLORS.GREEN}  maxBarSize={20} isAnimationActive={false}>
           <LabelList
             dataKey="green"
             position="center"
@@ -228,7 +228,7 @@ export default function MorinStackedChart({
             style={{ fill: 'rgba(255,255,255,0.85)', fontSize: 9, fontFamily: "'Space Mono', monospace" }}
           />
         </Bar>
-        <Bar dataKey="yellow" name="Spike"      stackId="z" fill={MORIN_COLORS.YELLOW} maxBarSize={20} radius={[2, 2, 0, 0] as any} isAnimationActive={false}>
+        <Bar dataKey="yellow" name="Spike"      stackId="z" fill={DAR_COLORS.YELLOW} maxBarSize={20} radius={[2, 2, 0, 0] as any} isAnimationActive={false}>
           <LabelList
             dataKey="yellow"
             position="center"

@@ -1,5 +1,5 @@
 /**
- * useMorinAlgorithm.ts — Morin Zone-based EMA methodology
+ * useDARAlgorithm.ts — DAR (Dynamic Adaptive Reserve) Zone-based EMA methodology
  *
  * Classifies each daily score as GREEN / BLUE / YELLOW based on its
  * deviation from a 28-day Exponential Moving Average (EMA) baseline.
@@ -11,24 +11,24 @@ import type { RawResponse } from './analytics';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type MorinZone = 'GREEN' | 'BLUE' | 'YELLOW' | 'INSUFFICIENT_DATA';
+export type DARZone = 'GREEN' | 'BLUE' | 'YELLOW' | 'INSUFFICIENT_DATA';
 
 export interface DailyLog {
   date: string;       // ISO date 'YYYY-MM-DD'
   rawScore: number | null; // null = athlete missed that day
 }
 
-export interface MorinDataPoint {
+export interface DARDataPoint {
   date: string;
   rawScore: number | null;
   ema: number;
   deviation: number | null; // percentage deviation from EMA
-  zone: MorinZone;
+  zone: DARZone;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-export const MORIN_COLORS: Record<MorinZone, string> = {
+export const DAR_COLORS: Record<DARZone, string> = {
   GREEN:             '#00C853',
   BLUE:              '#2196F3',
   YELLOW:            '#FFB800',
@@ -47,10 +47,10 @@ const MIN_DATA_POINTS  = 3;    // below this → INSUFFICIENT_DATA for all point
  * Step B: Deviation = ((rawScore - ema) / ema) × 100, rounded to 1 decimal.
  * Step C: Zone classification by threshold comparison.
  */
-export function processMorinData(
+export function processDARData(
   logs: DailyLog[],
   windowSize = EMA_WINDOW
-): MorinDataPoint[] {
+): DARDataPoint[] {
   if (logs.length === 0) return [];
 
   const alpha = 2 / (windowSize + 1); // ≈ 0.0690 for 28-day window
@@ -67,7 +67,7 @@ export function processMorinData(
     }
   }
 
-  const result: MorinDataPoint[] = [];
+  const result: DARDataPoint[] = [];
 
   for (const log of logs) {
     if (log.rawScore !== null) {
@@ -79,7 +79,7 @@ export function processMorinData(
     // null rawScore → EMAₜ = EMAₜ₋₁ (carry forward, baseline unbroken)
 
     let deviation: number | null = null;
-    let zone: MorinZone;
+    let zone: DARZone;
 
     if (log.rawScore === null || insufficientData) {
       zone = 'INSUFFICIENT_DATA';
@@ -118,15 +118,15 @@ function toDateKey(r: RawResponse): string | null {
 }
 
 /**
- * Converts RawResponse[] into a continuous daily log, then runs Morin algorithm.
+ * Converts RawResponse[] into a continuous daily log, then runs DAR algorithm.
  * Accepts a custom extractor to support single metrics and compound averages.
  * Days with no response are filled with rawScore = null (EMA carries forward).
  */
-export function getMorinDataForResponses(
+export function getDARDataForResponses(
   responses: RawResponse[],
   extractor: MetricExtractor,
   windowSize = EMA_WINDOW
-): MorinDataPoint[] {
+): DARDataPoint[] {
   // Aggregate by date (average multiple responses on same day)
   const byDate: Record<string, number[]> = {};
 
@@ -158,19 +158,19 @@ export function getMorinDataForResponses(
     cur.setDate(cur.getDate() + 1);
   }
 
-  return processMorinData(logs, windowSize);
+  return processDARData(logs, windowSize);
 }
 
 /**
  * Convenience wrapper: extracts a single named metric from a response
- * using extractV2Metrics(), then runs the Morin algorithm.
+ * using extractV2Metrics(), then runs the DAR algorithm.
  * Handles both V2 (1-10 scale → scaled to 1-100) and V3 (1-100 native).
  */
-export function getMorinZoneForMetric(
+export function getDARZoneForMetric(
   responses: RawResponse[],
   metric: string,
   windowSize = EMA_WINDOW
-): MorinDataPoint[] {
+): DARDataPoint[] {
   const extractor: MetricExtractor = (r) => {
     // V3: check r.metrics directly (1-100 scale)
     if (r.metrics) {
@@ -191,5 +191,5 @@ export function getMorinZoneForMetric(
     return null;
   };
 
-  return getMorinDataForResponses(responses, extractor, windowSize);
+  return getDARDataForResponses(responses, extractor, windowSize);
 }
