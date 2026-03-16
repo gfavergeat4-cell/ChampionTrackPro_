@@ -2,7 +2,7 @@ import React, { useState, useEffect, useLayoutEffect } from "react";
 import { useNavigation, useRoute, CommonActions } from "@react-navigation/native";
 import { View, Platform, Alert } from "react-native";
 import MobileViewport from "../src/components/MobileViewport";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, getDocs, collection, query, where } from "firebase/firestore";
 import { db, auth } from "../src/lib/firebase";
 import { DateTime } from "luxon";
 import { computeQuestionnaireStatus, getQuestionnaireWindowFromEnd } from "../src/utils/questionnaire";
@@ -65,6 +65,7 @@ export default function StitchQuestionnaireScreen() {
 
         const userData = userDoc.data();
         const teamId = userData.teamId;
+        setTeamIdState(teamId);
         if (!teamId) {
           setIsCheckingAccess(false);
           setAccessDeniedReason("Aucune équipe associée");
@@ -186,6 +187,11 @@ export default function StitchQuestionnaireScreen() {
   const [sessionType, setSessionType] = useState("conditioning");
   const [trainingDuration, setTrainingDuration] = useState(60);
 
+  // Dynamic questionnaire state
+  const [activeQuestions, setActiveQuestions] = useState(null); // null = not loaded yet
+  const [usedQuestionnaireId, setUsedQuestionnaireId] = useState(null);
+  const [teamIdState, setTeamIdState] = useState(null);
+
   // Part 1 — Daily Baseline (1-100, default 50)
   const [metrics, setMetrics] = useState({
     tankLevel: 50,
@@ -203,17 +209,37 @@ export default function StitchQuestionnaireScreen() {
   const [frictionImpact, setFrictionImpact] = useState(30);
   const [worryLevel, setWorryLevel] = useState(30);
 
+  // ─── Effective questions (dynamic or V3 fallback) ─────────────────────────
+  const Q5_CATEGORY_RESOLVED = sessionType === "scrimmage" ? "Game IQ" : "Tactical Execution";
+  const effectiveQuestions = (activeQuestions && activeQuestions.length > 0)
+    ? activeQuestions.map(q => ({
+        key: q.id || q.metricKey,
+        metricKey: q.metricKey,
+        category: q.category,
+        question: q.questionText || q.question,
+        leftAnchor: q.leftAnchor,
+        rightAnchor: q.rightAnchor,
+        weight: q.weight,
+        inverted: !!q.inverted,
+      }))
+    : QUESTIONS_V3;
+
   // ─── V3 Readiness Calculation ─────────────────────────────────────────────
   const calculateReadiness = (m) => {
-    const invertedCardio = 101 - m.cardioLoad;
-    return Math.round(
-      m.tankLevel         * 0.20 +
-      invertedCardio      * 0.20 +
-      m.legBounce         * 0.20 +
-      m.motorControl      * 0.15 +
-      m.tacticalSharpness * 0.15 +
-      m.teamChemistry     * 0.10
-    );
+    const qs = effectiveQuestions;
+    let score = 0;
+    for (const q of qs) {
+      const key = q.metricKey || q.key;
+      let val = m[key] ?? 50;
+      const isInverted = q.inverted !== undefined ? q.inverted : key === 'cardioLoad';
+      if (isInverted) val = 101 - val;
+      const weight = q.weight != null ? q.weight : (
+        key === 'tankLevel' ? 0.20 : key === 'cardioLoad' ? 0.20 : key === 'legBounce' ? 0.20 :
+        key === 'motorControl' ? 0.15 : key === 'tacticalSharpness' ? 0.15 : 0.10
+      );
+      score += val * weight;
+    }
+    return Math.max(1, Math.min(100, Math.round(score)));
   };
 
   // ─── Submit ───────────────────────────────────────────────────────────────
@@ -237,17 +263,11 @@ export default function StitchQuestionnaireScreen() {
       const worryFlag = isFriction && worryLevel > 70;
 
       const responsePayload = {
-        metrics: {
-          tankLevel:         metrics.tankLevel,
-          cardioLoad:        metrics.cardioLoad,
-          legBounce:         metrics.legBounce,
-          motorControl:      metrics.motorControl,
-          tacticalSharpness: metrics.tacticalSharpness,
-          teamChemistry:     metrics.teamChemistry,
-        },
+        metrics: { ...metrics }, // dynamic keys from questionnaire
         readinessScore: calculateReadiness(metrics),
         workloadAU:     null, // sessionRPE removed in V3
         sessionType,
+        questionnaireId: usedQuestionnaireId || null,
         hasFriction:    isFriction,
         frictionType:   isFriction ? frictionType  : null,
         frictionImpact: isFriction ? frictionImpact : null,
@@ -255,10 +275,10 @@ export default function StitchQuestionnaireScreen() {
         worryFlag,
         isTest: isTestSession || false,
         // V2 backward-compat aliases (for PerformanceDashboard V1/V2 fallback)
-        neuroLoad:       metrics.legBounce,
-        stressLevel:     101 - metrics.teamChemistry,
-        sleepQuality:    metrics.tankLevel,
-        tacticalLucidity: metrics.tacticalSharpness,
+        neuroLoad:       metrics.legBounce      ?? 50,
+        stressLevel:     101 - (metrics.teamChemistry ?? 50),
+        sleepQuality:    metrics.tankLevel      ?? 50,
+        tacticalLucidity: metrics.tacticalSharpness ?? 50,
       };
 
       const { saveQuestionnaireResponse } = await import("../src/lib/responses");
@@ -296,7 +316,57 @@ export default function StitchQuestionnaireScreen() {
     }
   };
 
-  // ─── V3 Question Definitions ──────────────────────────────────────────────
+  // ─── Load questionnaire from Firestore ────────────────────────────────────
+  useEffect(() => {
+    if (!teamIdState) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const teamSnap = await getDoc(doc(db, "teams", teamIdState));
+        const teamData = teamSnap.exists() ? teamSnap.data() : {};
+        const questionnaireId = teamData.questionnaireId;
+        const teamSport = teamData.sport || "Basketball";
+
+        let qDoc = null;
+
+        if (questionnaireId) {
+          const qSnap = await getDoc(doc(db, "questionnaires", questionnaireId));
+          if (qSnap.exists() && qSnap.data().questions?.length > 0) {
+            qDoc = qSnap.data();
+            if (!cancelled) setUsedQuestionnaireId(questionnaireId);
+          }
+        }
+
+        if (!qDoc) {
+          const q = query(
+            collection(db, "questionnaires"),
+            where("sport", "==", teamSport),
+            where("isDefault", "==", true),
+            where("sessionType", "==", "any"),
+          );
+          const snap = await getDocs(q);
+          if (!snap.empty) {
+            qDoc = snap.docs[0].data();
+            if (!cancelled) setUsedQuestionnaireId(snap.docs[0].id);
+          }
+        }
+
+        if (!cancelled && qDoc?.questions?.length > 0) {
+          const qs = qDoc.questions;
+          setActiveQuestions(qs);
+          // Initialize metrics for all question keys
+          const initMetrics = {};
+          qs.forEach(q => { initMetrics[q.metricKey] = 50; });
+          setMetrics(initMetrics);
+        }
+      } catch (e) {
+        console.warn("[QUESTIONNAIRE] Failed to load questionnaire, using V3 defaults:", e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [teamIdState]);
+
+  // ─── V3 Question Definitions (fallback when no questionnaire in Firestore) ──
   const Q5_CATEGORY = sessionType === "scrimmage" ? "Game IQ" : "Tactical Execution";
 
   const QUESTIONS_V3 = [
@@ -594,11 +664,11 @@ export default function StitchQuestionnaireScreen() {
 
             {/* ── PART 1: Daily Baseline (6 questions) ── */}
             <div style={{ display: "flex", flexDirection: "column", gap: "14px", marginBottom: "14px" }}>
-              {QUESTIONS_V3.map((q, index) => {
-                const value = metrics[q.key];
+              {effectiveQuestions.map((q, index) => {
+                const value = metrics[q.metricKey || q.key] ?? 50;
                 return (
                   <div
-                    key={q.key}
+                    key={q.metricKey || q.key}
                     className="card-animate"
                     style={{
                       background: "#0D1526",
@@ -653,7 +723,7 @@ export default function StitchQuestionnaireScreen() {
                       min="1"
                       max="100"
                       value={value}
-                      onChange={(e) => handleMetricChange(q.key, parseInt(e.target.value))}
+                      onChange={(e) => handleMetricChange(q.metricKey || q.key, parseInt(e.target.value))}
                       className="slider-v3"
                       style={{ background: sliderFill(value) }}
                     />

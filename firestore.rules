@@ -173,6 +173,14 @@ service cloud.firestore {
     }
 
     // ─────────────────────────────────────────────────────────
+    // questionnaires — readable by all signed-in users, writable by admin only
+    // ─────────────────────────────────────────────────────────
+    match /questionnaires/{questionnaireId} {
+      allow read: if signedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ─────────────────────────────────────────────────────────
     // pendingQuestionnaireReminders — internal collection, Cloud Functions only
     // ─────────────────────────────────────────────────────────
     match /pendingQuestionnaireReminders/{docId} {
