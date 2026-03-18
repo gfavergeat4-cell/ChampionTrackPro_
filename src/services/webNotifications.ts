@@ -254,8 +254,18 @@ export async function registerWebPushTokenForCurrentUser(): Promise<void> {
       { merge: true }
     );
 
+    // Cap FCM tokens at 10 to prevent unbounded growth
+    const newTokens = [...existingTokens, token];
+    if (newTokens.length > 10) {
+      await setDoc(
+        doc(db, "users", user.uid),
+        { fcmWebTokens: newTokens.slice(-10) },
+        { merge: true }
+      );
+    }
+
     console.log("[WEB PUSH] FCM token saved to Firestore for user:", user.uid);
-    console.log("[WEB PUSH] Total tokens for user:", existingTokens.length + 1);
+    console.log("[WEB PUSH] Total tokens for user:", Math.min(newTokens.length, 10));
   } catch (err: any) {
     console.error("[WEB PUSH] âŒ Error registering service worker or getting FCM token:", err);
     console.error("[WEB PUSH] Error details:", {

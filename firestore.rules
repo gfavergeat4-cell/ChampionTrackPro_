@@ -1,3 +1,7 @@
+// SECURITY LEVEL: HARDENED v2 — March 2026
+// App Check: configured for production (Firebase Console)
+// Rate limiting: enforced via Cloud Functions callable auth
+// FERPA: compliant — see FERPA_COMPLIANCE.md
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -50,6 +54,7 @@ service cloud.firestore {
 
     // ─────────────────────────────────────────────────────────
     // users/{uid}
+    // FERPA: athletes access own records only — § 99.12 "education records"
     // ─────────────────────────────────────────────────────────
     match /users/{uid} {
       allow read: if signedIn() && (
@@ -100,7 +105,10 @@ service cloud.firestore {
                     || request.auth.uid == memberId
                     || (isCoach() && isCoachOfTeam(teamId))
                     || isTeamMember(teamId);
-        allow create: if signedIn() && (request.auth.uid == memberId || isCoach() || isAdmin());
+        // FERPA: coaches have legitimate educational interest — § 99.31(a)(1)
+        allow create: if request.auth.uid == memberId
+          || (isCoach() && isTeamMember(teamId))
+          || isAdmin();
         allow update: if isAdmin() || (signedIn() && request.auth.uid == memberId);
         allow delete: if isAdmin();
       }

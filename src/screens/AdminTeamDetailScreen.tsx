@@ -12,7 +12,7 @@ import { Platform, ActivityIndicator } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import {
   doc, getDoc, updateDoc, setDoc, serverTimestamp,
-  collection, getDocs, query, where, orderBy,
+  collection, getDocs, query, where, orderBy, deleteDoc,
 } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { db, functions } from "../lib/firebase";
@@ -53,7 +53,7 @@ interface TrainingEvent {
   title?: string;
 }
 
-type AccordionKey = "info" | "codes" | "calendar" | "questionnaire";
+type AccordionKey = "info" | "codes" | "members" | "calendar" | "questionnaire";
 type CopiedKey = "coach-code" | "coach-link" | "athlete-code" | "athlete-link" | null;
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -63,6 +63,9 @@ const SPORTS = ["Basketball", "Soccer", "Volleyball", "Football", "Baseball", "S
 const DIVISIONS = ["NCAA D1", "NCAA D2", "NCAA D3", "NAIA", "JUCO", "High School", "Pro", "Club", "Other"];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+const sanitize = (str: string, maxLen = 200): string =>
+  str.trim().replace(/[<>"']/g, "").slice(0, maxLen);
 
 function generateCode(len = 6): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -151,6 +154,20 @@ export default function AdminTeamDetailScreen() {
   const [showPicker, setShowPicker] = useState(false);
   const [savingQuestionnaire, setSavingQuestionnaire] = useState(false);
   const seededRef = useRef(false);
+
+  // Members
+  interface MemberEntry {
+    uid: string;
+    name: string;
+    email: string;
+    role: string;
+    joinedAt: any;
+  }
+  const [members, setMembers] = useState<MemberEntry[]>([]);
+  const [membersLoading, setMembersLoading] = useState(false);
+  const [membersLoaded, setMembersLoaded] = useState(false);
+  const [removingUid, setRemovingUid] = useState<string | null>(null);
+  const [confirmRemoveUid, setConfirmRemoveUid] = useState<string | null>(null);
 
   // Access codes
   const [copied, setCopied] = useState<CopiedKey>(null);
@@ -245,6 +262,35 @@ export default function AdminTeamDetailScreen() {
     return () => { cancelled = true; };
   }, [openAccordion, teamId, team?.sport]);
 
+  // ── Load members (lazy on accordion open) ────────────────────────────────
+
+  useEffect(() => {
+    if (openAccordion !== "members" || membersLoaded || !teamId) return;
+    let cancelled = false;
+    setMembersLoading(true);
+    (async () => {
+      try {
+        const snap = await getDocs(collection(db, "teams", teamId, "members"));
+        if (cancelled) return;
+        const list: MemberEntry[] = snap.docs.map((d) => {
+          const data = d.data() as any;
+          return {
+            uid: d.id,
+            name: data.displayName || data.name || data.fullName || d.id,
+            email: data.email || "",
+            role: data.role || "athlete",
+            joinedAt: data.joinedAt || null,
+          };
+        });
+        list.sort((a, b) => a.role.localeCompare(b.role) || a.name.localeCompare(b.name));
+        setMembers(list);
+        setMembersLoaded(true);
+      } catch {}
+      finally { if (!cancelled) setMembersLoading(false); }
+    })();
+    return () => { cancelled = true; };
+  }, [openAccordion, teamId, membersLoaded]);
+
   // ── Handlers ──────────────────────────────────────────────────────────────
 
   const handleSaveTeamInfo = useCallback(async () => {
@@ -252,8 +298,8 @@ export default function AdminTeamDetailScreen() {
     setSavingInfo(true); setInfoMsg(null);
     try {
       await updateDoc(doc(db, "teams", teamId), {
-        name: editName.trim(), sport: editSport, division: editDivision,
-        seasonStart: editSeasonStart, seasonEnd: editSeasonEnd,
+        name: sanitize(editName, 100), sport: sanitize(editSport, 50), division: sanitize(editDivision, 50),
+        seasonStart: sanitize(editSeasonStart, 20), seasonEnd: sanitize(editSeasonEnd, 20),
         updatedAt: serverTimestamp(),
       });
       setTeam(prev => prev ? { ...prev, name: editName.trim(), sport: editSport, division: editDivision } : prev);
@@ -310,6 +356,21 @@ export default function AdminTeamDetailScreen() {
     } catch (e: any) {
       alert("Error: " + (e?.message || String(e)));
     } finally { setSavingQuestionnaire(false); }
+  }, [teamId]);
+
+  const handleRemoveMember = useCallback(async (uid: string) => {
+    if (!teamId) return;
+    setRemovingUid(uid);
+    try {
+      await deleteDoc(doc(db, "teams", teamId, "members", uid));
+      await updateDoc(doc(db, "users", uid), { teamId: null });
+      setMembers(prev => prev.filter(m => m.uid !== uid));
+    } catch (e: any) {
+      alert("Error removing member: " + (e?.message || String(e)));
+    } finally {
+      setRemovingUid(null);
+      setConfirmRemoveUid(null);
+    }
   }, [teamId]);
 
   const toggleAccordion = (key: AccordionKey) => {
@@ -391,6 +452,74 @@ export default function AdminTeamDetailScreen() {
           <CodeCard label="Coach Code" color="#00D4FF" code={coachCode} link={coachLink} copied={copied} codeKey="coach-code" linkKey="coach-link" onCopyCode={() => handleCopy("coach-code", coachCode)} onCopyLink={() => handleCopy("coach-link", coachLink)} />
           <CodeCard label="Athlete Code" color="#00FF9D" code={athleteCode} link={athleteLink} copied={copied} codeKey="athlete-code" linkKey="athlete-link" onCopyCode={() => handleCopy("athlete-code", athleteCode)} onCopyLink={() => handleCopy("athlete-link", athleteLink)} />
         </div>
+      </div>
+    );
+  }
+
+  function renderMembersAccordion() {
+    const coaches = members.filter(m => m.role === "coach");
+    const athletes = members.filter(m => m.role === "athlete");
+    const countLabel = membersLoaded
+      ? `${coaches.length} Coach${coaches.length !== 1 ? "es" : ""} · ${athletes.length} Athlete${athletes.length !== 1 ? "s" : ""}`
+      : "";
+
+    if (membersLoading) {
+      return <div style={{ display: "flex", justifyContent: "center", padding: 16 }}><ActivityIndicator color="#00D4FF" size="small" /></div>;
+    }
+
+    return (
+      <div>
+        {countLabel ? (
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.38)", marginBottom: 12, fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
+            {countLabel}
+          </div>
+        ) : null}
+
+        {members.length === 0 ? (
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.30)", padding: "8px 0" }}>No members yet.</div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {members.map(m => {
+              const initials = m.name.split(" ").filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join("");
+              const isCoachRole = m.role === "coach";
+              const isConfirming = confirmRemoveUid === m.uid;
+              const isRemoving = removingUid === m.uid;
+              return (
+                <div key={m.uid} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 10px", borderRadius: 9, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                  {/* Avatar */}
+                  <div style={{ width: 32, height: 32, borderRadius: "50%", background: isCoachRole ? "rgba(0,212,255,0.15)" : "rgba(0,255,157,0.12)", border: `1px solid ${isCoachRole ? "rgba(0,212,255,0.35)" : "rgba(0,255,157,0.35)"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: isCoachRole ? "#00D4FF" : "#00FF9D", flexShrink: 0 }}>
+                    {initials || "?"}
+                  </div>
+                  {/* Info */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.name}</div>
+                    {m.email ? <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.email}</div> : null}
+                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", marginTop: 1 }}>{m.joinedAt ? formatDate(m.joinedAt) : ""}</div>
+                  </div>
+                  {/* Role badge */}
+                  <span style={{ fontSize: 9, fontWeight: 700, color: isCoachRole ? "#00D4FF" : "#00FF9D", background: isCoachRole ? "rgba(0,212,255,0.10)" : "rgba(0,255,157,0.10)", border: `1px solid ${isCoachRole ? "rgba(0,212,255,0.25)" : "rgba(0,255,157,0.25)"}`, borderRadius: 10, padding: "2px 7px", textTransform: "uppercase" as const, letterSpacing: 0.5, flexShrink: 0 }}>
+                    {m.role}
+                  </span>
+                  {/* Remove button */}
+                  {isConfirming ? (
+                    <div style={{ display: "flex", gap: 5, flexShrink: 0 }}>
+                      <button type="button" disabled={isRemoving} onClick={() => handleRemoveMember(m.uid)} style={{ padding: "4px 9px", borderRadius: 6, border: "1px solid rgba(255,68,68,0.5)", background: "rgba(255,68,68,0.12)", color: "#FF4444", fontSize: 10, fontWeight: 700, cursor: isRemoving ? "not-allowed" : "pointer", opacity: isRemoving ? 0.6 : 1 }}>
+                        {isRemoving ? "…" : "Confirm"}
+                      </button>
+                      <button type="button" onClick={() => setConfirmRemoveUid(null)} style={{ padding: "4px 9px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.15)", background: "transparent", color: "rgba(255,255,255,0.45)", fontSize: 10, cursor: "pointer" }}>
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button type="button" onClick={() => setConfirmRemoveUid(m.uid)} style={{ height: 28, padding: "0 10px", borderRadius: 6, border: "1px solid rgba(255,68,68,0.35)", background: "transparent", color: "rgba(255,68,68,0.70)", fontSize: 10, fontWeight: 600, cursor: "pointer", flexShrink: 0 }}>
+                      Remove
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     );
   }
@@ -640,6 +769,10 @@ export default function AdminTeamDetailScreen() {
 
           <Accordion icon="🔑" title="Access Codes" isOpen={openAccordion === "codes"} onToggle={() => toggleAccordion("codes")}>
             {renderAccessCodesAccordion()}
+          </Accordion>
+
+          <Accordion icon="👥" title="Members" isOpen={openAccordion === "members"} onToggle={() => toggleAccordion("members")}>
+            {renderMembersAccordion()}
           </Accordion>
 
           <Accordion icon="📅" title="Calendar Sync" isOpen={openAccordion === "calendar"} onToggle={() => toggleAccordion("calendar")}>

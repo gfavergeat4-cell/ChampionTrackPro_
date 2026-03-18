@@ -1029,6 +1029,9 @@ export default function StitchQuestionnaireScreen() {
               >
                 {isSubmitting ? "Sending..." : "Submit"}
               </button>
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.20)', textAlign: 'center', marginTop: 10, lineHeight: 1.5 }}>
+                Your responses are used solely by your coaching staff for training decisions. FERPA rights apply.
+              </div>
             </div>
           </div>
 

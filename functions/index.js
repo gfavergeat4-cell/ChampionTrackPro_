@@ -15,6 +15,15 @@ const cors = require("cors")({ origin: true });
 try { admin.app(); } catch { admin.initializeApp(); }
 const db = admin.firestore();
 
+// ── Input validation helper ──────────────────────────────────────────────────
+function validateString(val, name, maxLen = 200) {
+  if (typeof val !== 'string' || val.trim().length === 0)
+    throw new functions.https.HttpsError('invalid-argument', `${name} must be a non-empty string`);
+  if (val.length > maxLen)
+    throw new functions.https.HttpsError('invalid-argument', `${name} exceeds max length of ${maxLen}`);
+  return val.trim();
+}
+
 const REGION = "us-central1";   // adapte si besoin
 const CRON   = "every 15 minutes";
 const EXPANSION_DAYS = 180;     // 6 mois
@@ -151,95 +160,250 @@ function expandEvents(parsed, windowStart, windowEnd) {
   return out;
 }
 
+// ─── FIX 2B: SSRF protection ─────────────────────────────────────────────────
+function isUrlSafe(urlString) {
+  let url;
+  try { url = new URL(urlString); } catch { return false; }
+  if (url.protocol !== "https:") return false;
+  const hostname = url.hostname;
+  const privatePatterns = [
+    /^localhost$/i,
+    /^127\./,
+    /^10\./,
+    /^172\.(1[6-9]|2\d|3[01])\./,
+    /^192\.168\./,
+    /^169\.254\./,       // GCP metadata endpoint
+    /^::1$/,
+    /\.internal$/i,
+    /\.local$/i,
+  ];
+  if (privatePatterns.some(p => p.test(hostname))) return false;
+  return true;
+}
+
+// ─── FIX 3: Unified status writer (all sync paths use this) ──────────────────
+async function updateTeamSyncStatus(teamId, status, error = null, counts = null) {
+  const update = {
+    calendarLastSyncAt: admin.firestore.FieldValue.serverTimestamp(),
+    calendarLastSyncStatus: status,  // "syncing" | "ok" | "error"
+    calendarSyncError: error,
+  };
+  if (counts) {
+    update.calendarLastSyncCounts = counts;
+    // counts = { created, updated, deleted, cancelled }
+  }
+  await db.collection("teams").doc(teamId).set(update, { merge: true });
+}
+
+// ─── FIX 4: Questionnaire auto-link resolution ───────────────────────────────
+async function resolveQuestionnaireId(teamData, sport, sessionType) {
+  // 1. Team has a specific questionnaire assigned
+  if (teamData.questionnaireId) return teamData.questionnaireId;
+
+  const sportStr = sport || "Basketball";
+
+  // 2. Sport + sessionType specific default
+  const specificSnap = await db.collection("questionnaires")
+    .where("sport", "==", sportStr)
+    .where("sessionType", "==", sessionType)
+    .where("isDefault", "==", true)
+    .where("isArchived", "==", false)
+    .limit(1)
+    .get();
+  if (!specificSnap.empty) return specificSnap.docs[0].id;
+
+  // 3. Sport + "any" fallback
+  const anySnap = await db.collection("questionnaires")
+    .where("sport", "==", sportStr)
+    .where("sessionType", "==", "any")
+    .where("isDefault", "==", true)
+    .where("isArchived", "==", false)
+    .limit(1)
+    .get();
+  if (!anySnap.empty) return anySnap.docs[0].id;
+
+  // 4. Generic "any" fallback
+  const genericSnap = await db.collection("questionnaires")
+    .where("sport", "==", "Generic")
+    .where("sessionType", "==", "any")
+    .where("isDefault", "==", true)
+    .limit(1)
+    .get();
+  if (!genericSnap.empty) return genericSnap.docs[0].id;
+
+  return null;
+}
+
 async function syncTeam(teamId) {
   const tRef = db.collection("teams").doc(teamId);
   const tSnap = await tRef.get();
   if (!tSnap.exists) throw new Error("Team " + teamId + " introuvable");
   const t = tSnap.data() || {};
-  const icsUrl = t.icsUrl;
-  if (!icsUrl) return { seen: 0, created: 0, updated: 0, cancelled: 0, note: "no icsUrl" };
 
-  const now = new Date();
-  const windowStart = new Date();
-  const windowEnd = new Date();
-  windowEnd.setDate(windowEnd.getDate() + EXPANSION_DAYS);
+  // FIX 5D: legacy calendarUrl fallback
+  const icsUrl = t.icsUrl || t.calendarUrl;
+  if (!icsUrl) return { seen: 0, created: 0, updated: 0, cancelled: 0, deleted: 0, note: "no icsUrl" };
 
-  const res = await fetch(icsUrl);
-  if (!res.ok) throw new Error("Fetch ICS HTTP " + res.status);
-  const icsText = await res.text();
-  const parsed = ical.sync.parseICS(icsText);
+  // FIX 3: mark as syncing before any work
+  await updateTeamSyncStatus(teamId, "syncing");
 
-  const instances = expandEvents(parsed, windowStart, windowEnd);
+  try {
+    // FIX 2B: SSRF protection — reject non-public or non-HTTPS URLs
+    if (!isUrlSafe(icsUrl)) {
+      await updateTeamSyncStatus(teamId, "error", "Invalid calendar URL: must be a public HTTPS address");
+      return { seen: 0, created: 0, updated: 0, cancelled: 0, deleted: 0, note: "url_blocked" };
+    }
 
-  let seen = 0, created = 0, updated = 0, cancelled = 0;
-  // Use 'trainings' collection instead of 'events' (matching the app structure)
-  const evCol = tRef.collection("trainings");
-  const batch = db.batch();
+    // FIX 5A: fetch with 30-second timeout
+    const controller = new AbortController();
+    const fetchTimeout = setTimeout(() => controller.abort(), 30000);
+    let res;
+    try {
+      res = await fetch(icsUrl, { signal: controller.signal });
+    } catch (err) {
+      if (err.name === "AbortError") {
+        throw new Error("Calendar URL timed out after 30 seconds");
+      }
+      throw err;
+    } finally {
+      clearTimeout(fetchTimeout);
+    }
 
-  for (const ev of instances) {
-    seen++;
-    const id = eventDocId(ev.uid, ev.start);
-    const ref = evCol.doc(id);
+    if (!res.ok) throw new Error("Fetch ICS HTTP " + res.status);
+    const icsText = await res.text();
+    const parsed = ical.sync.parseICS(icsText);
 
-    // Format compatible with app's training structure
-    const startTimestamp = admin.firestore.Timestamp.fromDate(ev.start);
-    const endTimestamp = admin.firestore.Timestamp.fromDate(ev.end);
-    const startUtcMillis = ev.start.getTime();
-    const endUtcMillis = ev.end.getTime();
+    const windowStart = new Date();
+    const windowEnd = new Date();
+    windowEnd.setDate(windowEnd.getDate() + EXPANSION_DAYS);
 
-    const cleanedTitle = cleanTitle(ev.title, ev.description || "");
-    const derived = deriveEventFields(cleanedTitle, ev.description || "", ev.start, ev.end, ev.uid);
-    const payload = {
-      teamId: teamId,
-      title: cleanedTitle,
-      summary: cleanedTitle, // Alias for compatibility
-      description: ev.description || "",
-      location: ev.location || "",
-      startUtc: startTimestamp, // For Firestore queries
-      endUtc: endTimestamp, // For Firestore queries
-      startUTC: startUtcMillis, // Milliseconds UTC for app
-      endUTC: endUtcMillis, // Milliseconds UTC for app
-      allDay: !!ev.allDay,
-      uid: ev.uid || null,
-      status: ev.status || "CONFIRMED",
-      source: "ics",
-      cancelled: !!ev.cancelled,
-      hash: makeHash(ev),
-      timeZone: t.timeZone || "Europe/Paris",
-      displayTz: t.timeZone || "Europe/Paris",
-      lastSeenAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      questionnaireNotified: false, // For notification system
-      // Enriched fields derived from event title/description
-      date: derived.date,
-      sessionType: derived.sessionType,
-      isGame: derived.isGame,
-      durationMinutes: derived.durationMinutes,
-      calendarEventId: derived.calendarEventId,
-      syncedAt: admin.firestore.FieldValue.serverTimestamp(),
-    };
+    const instances = expandEvents(parsed, windowStart, windowEnd);
 
-    const cur = await ref.get();
-    if (!cur.exists) {
-      batch.set(ref, payload, { merge: true });
-      if (payload.cancelled) cancelled++;
-      else created++;
-    } else {
-      const prev = cur.data() || {};
-      if (prev.hash !== payload.hash || prev.cancelled !== payload.cancelled) {
-        batch.set(ref, payload, { merge: true });
-        if (payload.cancelled && !prev.cancelled) cancelled++;
-        else updated++;
+    // FIX 5B: hard cap — prevent timeout on oversized public feeds
+    if (instances.length > 500) {
+      throw new Error(
+        `Calendar contains ${instances.length} events — max 500 allowed. Use a more specific calendar feed.`
+      );
+    }
+
+    // FIX 1A: build set of incoming doc IDs for orphan detection
+    const incomingDocIds = new Set();
+    for (const ev of instances) {
+      incomingDocIds.add(eventDocId(ev.uid, ev.start));
+    }
+
+    // FIX 5E: timezone fallback — prefer explicit team field, then UTC
+    const displayTz = t.timeZone || t.timezone || "UTC";
+
+    // FIX 4: questionnaire ID cache — one set of Firestore reads per unique sessionType
+    const questionnaireIdCache = new Map();
+    async function getQuestionnaireForSession(sessionType) {
+      if (questionnaireIdCache.has(sessionType)) return questionnaireIdCache.get(sessionType);
+      const qid = await resolveQuestionnaireId(t, t.sport, sessionType);
+      questionnaireIdCache.set(sessionType, qid);
+      return qid;
+    }
+
+    let seen = 0, created = 0, updated = 0, cancelled = 0, deleted = 0;
+    const evCol = tRef.collection("trainings");
+    const batch = db.batch();
+
+    for (const ev of instances) {
+      seen++;
+      const id = eventDocId(ev.uid, ev.start);
+      const ref = evCol.doc(id);
+
+      const startTimestamp = admin.firestore.Timestamp.fromDate(ev.start);
+      const endTimestamp = admin.firestore.Timestamp.fromDate(ev.end);
+      const startUtcMillis = ev.start.getTime();
+      const endUtcMillis = ev.end.getTime();
+
+      const cleanedTitle = cleanTitle(ev.title, ev.description || "");
+      const derived = deriveEventFields(cleanedTitle, ev.description || "", ev.start, ev.end, ev.uid);
+
+      // FIX 4: auto-link questionnaire (cached)
+      const questionnaireId = await getQuestionnaireForSession(derived.sessionType);
+
+      const payload = {
+        teamId: teamId,
+        title: cleanedTitle,
+        summary: cleanedTitle,
+        description: ev.description || "",
+        location: ev.location || "",
+        startUtc: startTimestamp,
+        endUtc: endTimestamp,
+        startUTC: startUtcMillis,
+        endUTC: endUtcMillis,
+        allDay: !!ev.allDay,
+        uid: ev.uid || null,
+        status: ev.status || "CONFIRMED",
+        source: "ics",
+        syncedFromCalendar: true,  // FIX 1B: marks doc as calendar-owned
+        cancelled: !!ev.cancelled,
+        hash: makeHash(ev),
+        timeZone: displayTz,
+        displayTz: displayTz,
+        lastSeenAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        questionnaireNotified: false,
+        date: derived.date,
+        sessionType: derived.sessionType,
+        isGame: derived.isGame,
+        durationMinutes: derived.durationMinutes,
+        calendarEventId: derived.calendarEventId,
+        syncedAt: admin.firestore.FieldValue.serverTimestamp(),
+        questionnaireId: questionnaireId || null,  // FIX 4
+      };
+
+      const cur = await ref.get();
+      if (!cur.exists) {
+        batch.set(ref, { ...payload, createdAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+        if (payload.cancelled) cancelled++;
+        else created++;
       } else {
-        batch.set(ref, { lastSeenAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+        const prev = cur.data() || {};
+        if (prev.hash !== payload.hash || prev.cancelled !== payload.cancelled) {
+          batch.set(ref, payload, { merge: true });
+          if (payload.cancelled && !prev.cancelled) cancelled++;
+          else updated++;
+        } else {
+          // Unchanged event — only refresh sync marker fields
+          batch.set(ref, {
+            lastSeenAt: admin.firestore.FieldValue.serverTimestamp(),
+            syncedFromCalendar: true,
+          }, { merge: true });
+        }
       }
     }
+
+    await batch.commit();
+
+    // FIX 1C: phantom deletion — delete docs that came from sync but are no longer in feed
+    const existingSnap = await evCol.where("syncedFromCalendar", "==", true).get();
+    const toDelete = [];
+    existingSnap.forEach(doc => {
+      if (!incomingDocIds.has(doc.id)) toDelete.push(doc.ref);
+    });
+    for (let i = 0; i < toDelete.length; i += 499) {
+      const chunk = toDelete.slice(i, i + 499);
+      const delBatch = db.batch();
+      chunk.forEach(ref => delBatch.delete(ref));
+      await delBatch.commit();
+    }
+    deleted = toDelete.length;
+    if (deleted > 0) console.log(`[sync] ${teamId} — deleted ${deleted} phantom sessions`);
+
+    // FIX 3: write unified success status
+    const counts = { created, updated, deleted, cancelled };
+    await updateTeamSyncStatus(teamId, "ok", null, counts);
+
+    return { seen, created, updated, cancelled, deleted };
+
+  } catch (err) {
+    // FIX 3: write unified error status before re-throwing
+    await updateTeamSyncStatus(teamId, "error", err.message || "Unknown error");
+    throw err;
   }
-
-  await batch.commit();
-  await tRef.set({ lastIcsSyncAt: admin.firestore.Timestamp.fromDate(now) }, { merge: true });
-
-  return { seen: seen, created: created, updated: updated, cancelled: cancelled };
 }
 
 // Callable function (preferred method with automatic CORS)
@@ -285,89 +449,35 @@ exports.syncIcsNow = functions
     }
   });
 
-// HTTP function with explicit CORS (fallback if onCall has CORS issues)
-exports.syncIcsNowHttp = functions
-  .region(REGION)
-  .runWith({
-    timeoutSeconds: 540,
-    memory: '256MB'
-  })
-  .https.onRequest((req, res) => {
-    // Use cors middleware to handle CORS properly
-    cors(req, res, async () => {
-      // Only allow POST
-      if (req.method !== 'POST') {
-        res.status(405).json({ error: 'Method not allowed' });
-        return;
-      }
-      
-      try {
-        // Parse JSON body
-        let body = req.body;
-        if (typeof body === 'string') {
-          try {
-            body = JSON.parse(body);
-          } catch (e) {
-            console.error("[SYNC_ICS][HTTP] Error parsing body:", e);
-            res.status(400).json({ error: 'Invalid JSON body' });
-            return;
-          }
-        }
-        
-        const { teamId } = body || {};
-        
-        if (!teamId) {
-          res.status(400).json({ error: 'teamId requis' });
-          return;
-        }
-        
-        console.log("[SYNC_ICS][HTTP] Syncing team:", teamId);
-        const result = await syncTeam(teamId);
-        console.log("[SYNC_ICS][HTTP] Sync result:", result);
-        
-        res.status(200).json(result);
-      } catch (error) {
-        console.error("[SYNC_ICS][HTTP] Error:", error);
-        res.status(500).json({ error: error.message || "Internal error during sync" });
-      }
-    });
-  });
+// FIX 2A: syncIcsNowHttp removed — it had no auth check.
+// Use the auth-gated syncIcsNow callable instead.
 
-exports.syncIcsEvery10min = functions
+// FIX 3+5C: renamed syncIcsEvery10min → syncCalendarCron; parallel team processing
+exports.syncCalendarCron = functions
   .region(REGION)
-  .pubsub.schedule(CRON)
+  .pubsub.schedule(CRON) // every 15 minutes
   .onRun(async () => {
-    // Only sync teams with calendarActive === true
     const snap = await db.collection("teams").where("calendarActive", "==", true).get();
-    let totals = { seen: 0, created: 0, updated: 0, cancelled: 0 };
-    for (const teamDoc of snap.docs) {
-      const data = teamDoc.data() || {};
-      if (!data.icsUrl) continue; // skip teams without a calendar URL
-      const teamRef = db.collection("teams").doc(teamDoc.id);
-      try {
-        const t = await syncTeam(teamDoc.id);
-        totals.seen += t.seen;
-        totals.created += t.created;
-        totals.updated += t.updated;
-        totals.cancelled += t.cancelled;
-        await teamRef.set({
-          calendarLastSyncStatus: "ok",
-          calendarLastSyncAt: admin.firestore.FieldValue.serverTimestamp(),
-          calendarSyncError: admin.firestore.FieldValue.delete(),
-        }, { merge: true });
-      } catch (e) {
-        console.error("sync error team:", teamDoc.id, e.message);
-        await teamRef.set({
-          calendarLastSyncStatus: "error",
-          calendarSyncError: e.message || "Unknown error",
-          calendarLastSyncAt: admin.firestore.FieldValue.serverTimestamp(),
-        }, { merge: true });
-      }
+    // FIX 5D: filter teams that have either field set
+    const teamIds = snap.docs
+      .filter(d => { const td = d.data(); return td.icsUrl || td.calendarUrl; })
+      .map(d => d.id);
+
+    // FIX 5C: process up to 10 teams concurrently; syncTeam handles status internally
+    const CONCURRENCY = 10;
+    for (let i = 0; i < teamIds.length; i += CONCURRENCY) {
+      const chunk = teamIds.slice(i, i + CONCURRENCY);
+      await Promise.allSettled(
+        chunk.map(teamId => syncTeam(teamId).catch(err => {
+          console.error(`[cron] Team ${teamId} failed:`, err.message);
+        }))
+      );
     }
-    console.log("ICS sync done:", totals);
+    console.log(`[cron] ICS sync complete for ${teamIds.length} teams`);
     return null;
   });
 
+// FIX 3: own status writes removed — syncTeam handles all status fields internally
 exports.syncCalendarOnSave = functions
   .region(REGION)
   .firestore.document("teams/{teamId}")
@@ -382,23 +492,10 @@ exports.syncCalendarOnSave = functions
     if (after.calendarActive !== true) return null; // auto-sync disabled
 
     const { teamId } = context.params;
-    const teamRef = db.collection("teams").doc(teamId);
-
-    await teamRef.set({ calendarLastSyncStatus: "syncing" }, { merge: true });
     try {
-      const result = await syncTeam(teamId);
-      await teamRef.set({
-        calendarLastSyncStatus: "ok",
-        calendarLastSyncAt: admin.firestore.FieldValue.serverTimestamp(),
-        calendarSyncError: admin.firestore.FieldValue.delete(),
-      }, { merge: true });
+      const result = await syncTeam(teamId); // syncTeam writes all status fields
       console.log("[SYNC_ON_SAVE]", teamId, "synced:", result);
     } catch (e) {
-      await teamRef.set({
-        calendarLastSyncStatus: "error",
-        calendarSyncError: e.message || "Unknown error",
-        calendarLastSyncAt: admin.firestore.FieldValue.serverTimestamp(),
-      }, { merge: true });
       console.error("[SYNC_ON_SAVE] Error for team", teamId, e.message);
     }
     return null;
@@ -695,11 +792,11 @@ exports.createMembership = functions.region(REGION).https.onCall(async (data, co
 
   const uid = context.auth.uid;
   const { teamId, email, name, role: requestedRole } = data || {};
-  const memberRole = requestedRole === "coach" ? "coach" : "athlete";
-
-  if (!teamId) {
-    throw new functions.https.HttpsError("invalid-argument", "teamId required");
+  validateString(teamId, 'teamId', 128);
+  if (requestedRole !== 'coach' && requestedRole !== 'athlete') {
+    throw new functions.https.HttpsError('invalid-argument', 'role must be exactly "coach" or "athlete"');
   }
+  const memberRole = requestedRole;
 
   return db.runTransaction(async (tx) => {
     const teamRef = db.doc(`teams/${teamId}`);
@@ -1445,11 +1542,12 @@ exports.lookupTeamByCode = functions
   .region(REGION)
   .https.onCall(async (data, context) => {
     const { code } = data || {};
-    if (!code || typeof code !== "string" || code.trim().length === 0) {
-      throw new functions.https.HttpsError("invalid-argument", "code is required");
+    const rawCode = validateString(code, 'code', 12);
+    if (!/^[A-Z0-9a-z\-]{4,12}$/i.test(rawCode)) {
+      throw new functions.https.HttpsError('invalid-argument', 'code must be 4-12 alphanumeric characters (with optional dash)');
     }
 
-    const normalizedCode = code.trim().toUpperCase();
+    const normalizedCode = rawCode.toUpperCase();
 
     // Rate limiting: 10 calls per 60s per caller key
     const callerKey = context.auth?.uid || "anonymous";

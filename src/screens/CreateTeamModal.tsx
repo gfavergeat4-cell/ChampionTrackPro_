@@ -27,6 +27,9 @@ const DAR_QUESTIONS = [
   { key: "motivation", label: "Motivation", icon: "🎯" },
 ];
 
+const sanitize = (str: string, maxLen = 200): string =>
+  str.trim().replace(/[<>"']/g, "").slice(0, maxLen);
+
 function generateCode(len = 6): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let out = "";
@@ -90,12 +93,12 @@ export default function CreateTeamModal() {
     try {
       const inviteCode = generateCode(6);
       const docRef = await addDoc(collection(db, "teams"), {
-        name: name.trim(),
-        sport,
-        division,
+        name: sanitize(name, 100),
+        sport: sanitize(sport, 50),
+        division: sanitize(division, 50),
         logoUrl: logoBase64 || null,
-        seasonStart,
-        seasonEnd,
+        seasonStart: sanitize(seasonStart, 20),
+        seasonEnd: sanitize(seasonEnd, 20),
         activeDARMetrics,
         calendarUrl: calendarUrl.trim(),
         icsUrl: calendarUrl.trim(),

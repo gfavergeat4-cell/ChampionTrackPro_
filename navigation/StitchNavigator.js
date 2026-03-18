@@ -20,7 +20,6 @@ import HomeScreen from "../screens/StitchHomeScreenClean";
 import ScheduleScreen from "../screens/StitchScheduleScreen";
 import ProfileScreen from "../screens/StitchProfileScreen";
 import QuestionnaireScreen from "../screens/StitchQuestionnaireScreen";
-import AdminDashboard from "../screens/StitchAdminDashboard";
 import TeamDetails from "../screens/StitchTeamDetails";
 import DevEventsProbe from "../screens/DevEventsProbe";
 import DebugTestQuestionnaireScreen from "../screens/DebugTestQuestionnaireScreen";

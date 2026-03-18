@@ -236,6 +236,9 @@ export default function OnboardingNotifScreen({ onComplete }: Props) {
         Get instant alerts when your coach needs your data.{"\n"}
         Takes less than 60 seconds to respond.
       </div>
+      <div style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", textAlign: "center", maxWidth: 300, lineHeight: 1.5, marginBottom: 16 }}>
+        Your data is used solely for performance tracking by your coaching staff. You may request deletion at any time. FERPA rights apply.
+      </div>
 
       {isDenied ? (
         <>
