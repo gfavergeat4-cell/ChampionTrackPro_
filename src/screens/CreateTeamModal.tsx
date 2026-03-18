@@ -1,50 +1,54 @@
 /**
  * CreateTeamModal.tsx
- * Full-screen modal for creating a new team.
- * On save: writes Firestore doc, triggers calendar sync if URL provided,
- * then navigates to AdminTeamDetailScreen with initialTab="Settings".
+ * Simplified team creation: Name · Logo · Calendar URL · Questionnaire template.
+ * On save: writes Firestore doc, shows success screen with access codes.
  */
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Platform, ActivityIndicator } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, getDocs, serverTimestamp } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { db, functions } from "../lib/firebase";
 import { useIsDesktop } from "../hooks/useIsDesktop";
+import {
+  seedDefaultQuestionnaires,
+  QuestionnaireDoc,
+} from "../utils/questionnaireTemplates";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const SPORTS = ["Basketball", "Soccer", "Volleyball", "Football", "Baseball", "Swimming", "Track & Field", "Tennis", "Other"];
-const DIVISIONS = ["NCAA D1", "NCAA D2", "NCAA D3", "NAIA", "JUCO", "High School", "Pro", "Club", "Other"];
-
-const DAR_QUESTIONS = [
-  { key: "fatigue", label: "Fatigue", icon: "⚡" },
-  { key: "stress", label: "Stress", icon: "🧠" },
-  { key: "sleep", label: "Sleep Quality", icon: "😴" },
-  { key: "soreness", label: "Muscle Soreness", icon: "💪" },
-  { key: "mood", label: "Mood", icon: "😊" },
-  { key: "motivation", label: "Motivation", icon: "🎯" },
-];
+const JOIN_BASE = "https://champion-track-pro.vercel.app";
 
 const sanitize = (str: string, maxLen = 200): string =>
   str.trim().replace(/[<>"']/g, "").slice(0, maxLen);
 
-function generateCode(len = 6): string {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let out = "";
-  for (let i = 0; i < len; i++) out += chars[Math.floor(Math.random() * chars.length)];
-  return out;
+function generateCode(): string {
+  return Math.random().toString(36).substring(2, 8).toUpperCase();
 }
 
-// ── Input style ───────────────────────────────────────────────────────────────
+async function copyText(text: string): Promise<void> {
+  if (typeof navigator !== "undefined" && navigator?.clipboard?.writeText) {
+    return navigator.clipboard.writeText(text);
+  }
+  const el = document.createElement("textarea");
+  el.value = text;
+  document.body.appendChild(el);
+  el.select();
+  document.execCommand("copy");
+  document.body.removeChild(el);
+}
+
+type CopiedKey = "coach-code" | "coach-link" | "athlete-code" | "athlete-link" | null;
+
+// ── Styles ────────────────────────────────────────────────────────────────────
 
 const inputStyle: React.CSSProperties = {
   width: "100%",
   padding: "10px 12px",
   borderRadius: 10,
   border: "1px solid rgba(0,212,255,0.20)",
-  background: "rgba(255,255,255,0.05)",
+  background: "#0A0F1E",
   color: "#fff",
   fontSize: 13,
   fontFamily: "'DM Sans', system-ui",
@@ -58,20 +62,49 @@ export default function CreateTeamModal() {
   const navigation = useNavigation<any>();
   const isDesktop = useIsDesktop();
 
+  // Form state
   const [name, setName] = useState("");
-  const [sport, setSport] = useState("");
-  const [division, setDivision] = useState("");
   const [logoBase64, setLogoBase64] = useState<string | null>(null);
-  const [seasonStart, setSeasonStart] = useState("");
-  const [seasonEnd, setSeasonEnd] = useState("");
-  const [activeDARMetrics, setActiveDARMetrics] = useState<string[]>(DAR_QUESTIONS.map(q => q.key));
   const [calendarUrl, setCalendarUrl] = useState("");
   const [calendarActive, setCalendarActive] = useState(true);
 
+  // Questionnaire state
+  const [questionnaires, setQuestionnaires] = useState<QuestionnaireDoc[]>([]);
+  const [questionnairesLoading, setQuestionnairesLoading] = useState(true);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // Save state
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Success screen state
+  const [saved, setSaved] = useState(false);
+  const [savedTeamId, setSavedTeamId] = useState<string | null>(null);
+  const [savedInviteCode, setSavedInviteCode] = useState<string | null>(null);
+  const [savedName, setSavedName] = useState("");
+  const [copied, setCopied] = useState<CopiedKey>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Load questionnaires on mount
+  useEffect(() => {
+    if (Platform.OS !== "web") return;
+    (async () => {
+      try {
+        await seedDefaultQuestionnaires();
+        const snap = await getDocs(collection(db, "questionnaires"));
+        const all: QuestionnaireDoc[] = snap.docs
+          .map(d => ({ id: d.id, ...(d.data() as any) } as QuestionnaireDoc))
+          .filter(q => !q.isArchived)
+          .sort((a, b) => a.sport.localeCompare(b.sport) || a.name.localeCompare(b.name));
+        setQuestionnaires(all);
+        const defaultQ =
+          all.find(q => q.sport === "Basketball" && q.isDefault) || all[0] || null;
+        if (defaultQ) setSelectedId(defaultQ.id);
+      } catch {}
+      finally { setQuestionnairesLoading(false); }
+    })();
+  }, []);
 
   if (Platform.OS !== "web") return null;
 
@@ -79,36 +112,36 @@ export default function CreateTeamModal() {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (ev) => {
-      setLogoBase64((ev.target?.result as string) || null);
-    };
+    reader.onload = (ev) => setLogoBase64((ev.target?.result as string) || null);
     reader.readAsDataURL(file);
+  };
+
+  const handleCopy = async (key: CopiedKey, text: string) => {
+    try {
+      await copyText(text);
+      setCopied(key);
+      setTimeout(() => setCopied(null), 2000);
+    } catch {}
   };
 
   const handleSave = async () => {
     if (!name.trim()) { setError("Team name is required."); return; }
-    if (activeDARMetrics.length < 3) { setError("Select at least 3 DAR metrics."); return; }
     setSaving(true);
     setError(null);
     try {
-      const inviteCode = generateCode(6);
+      const inviteCode = generateCode();
       const docRef = await addDoc(collection(db, "teams"), {
         name: sanitize(name, 100),
-        sport: sanitize(sport, 50),
-        division: sanitize(division, 50),
         logoUrl: logoBase64 || null,
-        seasonStart: sanitize(seasonStart, 20),
-        seasonEnd: sanitize(seasonEnd, 20),
-        activeDARMetrics,
-        calendarUrl: calendarUrl.trim(),
         icsUrl: calendarUrl.trim(),
+        calendarUrl: calendarUrl.trim(),
         calendarActive: calendarUrl.trim() ? calendarActive : false,
+        questionnaireId: selectedId || null,
         inviteCode,
+        status: "active",
         createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
       });
 
-      // Trigger calendar sync if URL provided
       if (calendarUrl.trim()) {
         try {
           const fn = httpsCallable(functions, "syncIcsNow");
@@ -116,11 +149,10 @@ export default function CreateTeamModal() {
         } catch {}
       }
 
-      navigation.navigate("AdminTeamDetailScreen", {
-        teamId: docRef.id,
-        teamName: name.trim(),
-        initialTab: "Settings",
-      });
+      setSavedTeamId(docRef.id);
+      setSavedInviteCode(inviteCode);
+      setSavedName(name.trim());
+      setSaved(true);
     } catch (e: any) {
       setError(e?.message || String(e));
       setSaving(false);
@@ -129,13 +161,131 @@ export default function CreateTeamModal() {
 
   const contentWidth = isDesktop ? 600 : "100%";
 
+  // ── Success screen ──────────────────────────────────────────────────────────
+
+  if (saved && savedTeamId && savedInviteCode) {
+    const coachCode = `${savedInviteCode}-C`;
+    const athleteCode = `${savedInviteCode}-A`;
+    const coachLink = `${JOIN_BASE}/?code=${savedInviteCode}-C`;
+    const athleteLink = `${JOIN_BASE}/?code=${savedInviteCode}-A`;
+
+    return (
+      <div style={{
+        minHeight: "100vh",
+        background: "radial-gradient(ellipse at top, #0D1F3C 0%, #0A0F1E 60%)",
+        color: "#fff",
+        fontFamily: "'DM Sans', system-ui, sans-serif",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: isDesktop ? "32px 48px" : "20px 16px",
+      }}>
+        <div style={{ width: "100%", maxWidth: contentWidth }}>
+
+          {/* Header */}
+          <div style={{ textAlign: "center", marginBottom: 32 }}>
+            <div style={{ fontSize: 44, marginBottom: 14 }}>✅</div>
+            <h1 style={{ margin: "0 0 8px 0", fontSize: isDesktop ? 24 : 20, fontWeight: 700, color: "#fff" }}>
+              Team created successfully
+            </h1>
+            <div style={{ fontSize: 14, color: "rgba(255,255,255,0.50)" }}>{savedName}</div>
+          </div>
+
+          {/* Coach access */}
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 10, fontFamily: "'Space Mono', monospace", letterSpacing: 1.5, color: "rgba(0,212,255,0.70)", textTransform: "uppercase" as const, marginBottom: 8 }}>
+              Coach Access
+            </div>
+            <div style={{ background: "rgba(0,212,255,0.06)", border: "1px solid rgba(0,212,255,0.28)", borderRadius: 12, padding: "16px 18px" }}>
+              <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 22, fontWeight: 700, color: "#00D4FF", letterSpacing: 3, marginBottom: 12 }}>
+                {coachCode}
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <CopyBtn isCopied={copied === "coach-code"} onClick={() => handleCopy("coach-code", coachCode)}>
+                  Copy Code
+                </CopyBtn>
+                <CopyBtn isCopied={copied === "coach-link"} onClick={() => handleCopy("coach-link", coachLink)}>
+                  Copy Link
+                </CopyBtn>
+              </div>
+            </div>
+          </div>
+
+          {/* Athlete access */}
+          <div style={{ marginBottom: 28 }}>
+            <div style={{ fontSize: 10, fontFamily: "'Space Mono', monospace", letterSpacing: 1.5, color: "rgba(0,255,157,0.70)", textTransform: "uppercase" as const, marginBottom: 8 }}>
+              Athlete Access
+            </div>
+            <div style={{ background: "rgba(0,255,157,0.05)", border: "1px solid rgba(0,255,157,0.28)", borderRadius: 12, padding: "16px 18px" }}>
+              <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 22, fontWeight: 700, color: "#00FF9D", letterSpacing: 3, marginBottom: 12 }}>
+                {athleteCode}
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <CopyBtn isCopied={copied === "athlete-code"} onClick={() => handleCopy("athlete-code", athleteCode)}>
+                  Copy Code
+                </CopyBtn>
+                <CopyBtn isCopied={copied === "athlete-link"} onClick={() => handleCopy("athlete-link", athleteLink)}>
+                  Copy Link
+                </CopyBtn>
+              </div>
+            </div>
+          </div>
+
+          {/* Instructions */}
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.38)", marginBottom: 28, lineHeight: 1.7, textAlign: "center" as const }}>
+            Share these codes with your team.<br />
+            Coach code → staff only.&nbsp;&nbsp;Athlete code → players.
+          </div>
+
+          {/* Go to dashboard */}
+          <button
+            type="button"
+            onClick={() => navigation.navigate("AdminTeamDetailScreen", {
+              teamId: savedTeamId,
+              teamName: savedName,
+            })}
+            style={{
+              width: "100%",
+              padding: "16px",
+              borderRadius: 12,
+              border: "none",
+              background: "linear-gradient(135deg,#00BFFF,#0066FF)",
+              color: "#fff",
+              fontWeight: 700,
+              fontSize: 15,
+              cursor: "pointer",
+              fontFamily: "'DM Sans', system-ui",
+              letterSpacing: 0.5,
+            }}
+          >
+            Go to Team Dashboard →
+          </button>
+
+        </div>
+      </div>
+    );
+  }
+
+  // ── Form ────────────────────────────────────────────────────────────────────
+
   return (
-    <div style={{ minHeight: "100vh", overflowY: "auto", background: "radial-gradient(ellipse at top, #0D1F3C 0%, #0A0F1E 60%)", color: "#fff", fontFamily: "'DM Sans', system-ui, sans-serif", padding: isDesktop ? "32px 48px 80px 48px" : "20px 16px 80px 16px" }}>
+    <div style={{
+      minHeight: "100vh",
+      overflowY: "auto",
+      background: "radial-gradient(ellipse at top, #0D1F3C 0%, #0A0F1E 60%)",
+      color: "#fff",
+      fontFamily: "'DM Sans', system-ui, sans-serif",
+      padding: isDesktop ? "32px 48px 80px 48px" : "20px 16px 80px 16px",
+    }}>
       <div style={{ maxWidth: contentWidth, margin: "0 auto" }}>
 
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 32 }}>
-          <button type="button" onClick={() => navigation.goBack()} style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 10, color: "rgba(255,255,255,0.55)", padding: "8px 14px", cursor: "pointer", fontSize: 13, fontFamily: "'DM Sans', system-ui" }}>
+          <button
+            type="button"
+            onClick={() => navigation.goBack()}
+            style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 10, color: "rgba(255,255,255,0.55)", padding: "8px 14px", cursor: "pointer", fontSize: 13, fontFamily: "'DM Sans', system-ui" }}
+          >
             ← Cancel
           </button>
           <h1 style={{ margin: 0, fontSize: isDesktop ? 22 : 18, fontWeight: 700, color: "#fff" }}>
@@ -143,7 +293,7 @@ export default function CreateTeamModal() {
           </h1>
         </div>
 
-        {/* Team Name */}
+        {/* 1 — Team Name */}
         <Field label="Team Name *">
           <input
             value={name}
@@ -153,23 +303,7 @@ export default function CreateTeamModal() {
           />
         </Field>
 
-        {/* Sport + Division */}
-        <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 14, marginBottom: 20 }}>
-          <Field label="Sport">
-            <select value={sport} onChange={(e: any) => setSport(e.target.value)} style={inputStyle}>
-              <option value="">— Select sport —</option>
-              {SPORTS.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </Field>
-          <Field label="Division">
-            <select value={division} onChange={(e: any) => setDivision(e.target.value)} style={inputStyle}>
-              <option value="">— Select division —</option>
-              {DIVISIONS.map(d => <option key={d} value={d}>{d}</option>)}
-            </select>
-          </Field>
-        </div>
-
-        {/* Logo upload */}
+        {/* 2 — Logo */}
         <Field label="Team Logo">
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
             {logoBase64 ? (
@@ -183,11 +317,19 @@ export default function CreateTeamModal() {
             )}
             <div>
               <input ref={fileInputRef} type="file" accept="image/*" onChange={handleLogoChange} style={{ display: "none" }} />
-              <button type="button" onClick={() => fileInputRef.current?.click()} style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid rgba(0,212,255,0.30)", background: "transparent", color: "#00D4FF", fontSize: 12, cursor: "pointer", fontFamily: "'DM Sans', system-ui" }}>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid rgba(0,212,255,0.30)", background: "transparent", color: "#00D4FF", fontSize: 12, cursor: "pointer", fontFamily: "'DM Sans', system-ui" }}
+              >
                 {logoBase64 ? "Change Logo" : "Upload Logo"}
               </button>
               {logoBase64 && (
-                <button type="button" onClick={() => setLogoBase64(null)} style={{ marginLeft: 8, padding: "8px 12px", borderRadius: 8, border: "1px solid rgba(255,77,77,0.25)", background: "transparent", color: "rgba(255,77,77,0.60)", fontSize: 12, cursor: "pointer", fontFamily: "'DM Sans', system-ui" }}>
+                <button
+                  type="button"
+                  onClick={() => setLogoBase64(null)}
+                  style={{ marginLeft: 8, padding: "8px 12px", borderRadius: 8, border: "1px solid rgba(255,77,77,0.25)", background: "transparent", color: "rgba(255,77,77,0.60)", fontSize: 12, cursor: "pointer", fontFamily: "'DM Sans', system-ui" }}
+                >
                   Remove
                 </button>
               )}
@@ -196,49 +338,95 @@ export default function CreateTeamModal() {
           </div>
         </Field>
 
-        {/* Season dates */}
-        <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 14, marginBottom: 20 }}>
-          <Field label="Season Start">
-            <input type="date" value={seasonStart} onChange={(e: any) => setSeasonStart(e.target.value)} style={inputStyle} />
-          </Field>
-          <Field label="Season End">
-            <input type="date" value={seasonEnd} onChange={(e: any) => setSeasonEnd(e.target.value)} style={inputStyle} />
-          </Field>
-        </div>
-
-        {/* Active DAR Metrics */}
-        <Field label="Active DAR Metrics (min. 3)">
-          <div style={{ display: "flex", flexWrap: "wrap" as const, gap: 10, marginTop: 4 }}>
-            {DAR_QUESTIONS.map(q => {
-              const active = activeDARMetrics.includes(q.key);
-              return (
-                <button key={q.key} type="button"
-                  onClick={() => {
-                    if (active && activeDARMetrics.length <= 3) return;
-                    setActiveDARMetrics(prev => active ? prev.filter(k => k !== q.key) : [...prev, q.key]);
-                  }}
-                  style={{ padding: "7px 16px", borderRadius: 20, border: active ? "1px solid #00D4FF" : "1px solid rgba(255,255,255,0.15)", background: active ? "rgba(0,212,255,0.12)" : "transparent", color: active ? "#00D4FF" : "rgba(255,255,255,0.40)", fontSize: 12, cursor: "pointer", fontFamily: "'DM Sans', system-ui", fontWeight: active ? 600 : 400, display: "flex", alignItems: "center", gap: 5 }}>
-                  <span>{q.icon}</span>{q.label}
-                </button>
-              );
-            })}
-          </div>
-        </Field>
-
-        {/* ICS Calendar URL */}
+        {/* 3 — Calendar URL */}
         <Field label="ICS Calendar URL (optional)">
-          <input type="url" value={calendarUrl} onChange={(e: any) => setCalendarUrl(e.target.value)} placeholder="https://calendar.google.com/calendar/ical/..." style={{ ...inputStyle, fontFamily: "'Space Mono', monospace" }} />
+          <input
+            type="url"
+            value={calendarUrl}
+            onChange={(e: any) => setCalendarUrl(e.target.value)}
+            placeholder="https://calendar.google.com/calendar/ical/..."
+            style={{ ...inputStyle, fontFamily: "'Space Mono', monospace", fontSize: 11 }}
+          />
         </Field>
 
         {/* Auto-sync toggle */}
         {calendarUrl.trim() && (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, padding: "12px 14px", borderRadius: 10, background: "rgba(0,212,255,0.04)", border: "1px solid rgba(0,212,255,0.12)" }}>
             <span style={{ fontSize: 13, color: "rgba(255,255,255,0.65)" }}>Auto-sync (every 15 min)</span>
-            <button type="button" onClick={() => setCalendarActive(v => !v)} style={{ width: 44, height: 24, borderRadius: 12, border: "none", background: calendarActive ? "#00D4FF" : "rgba(255,255,255,0.15)", cursor: "pointer", position: "relative", transition: "background 0.2s", flexShrink: 0 }}>
+            <button
+              type="button"
+              onClick={() => setCalendarActive(v => !v)}
+              style={{ width: 44, height: 24, borderRadius: 12, border: "none", background: calendarActive ? "#00D4FF" : "rgba(255,255,255,0.15)", cursor: "pointer", position: "relative", transition: "background 0.2s", flexShrink: 0 }}
+            >
               <div style={{ position: "absolute", top: 3, left: calendarActive ? 22 : 3, width: 18, height: 18, borderRadius: "50%", background: "#fff", transition: "left 0.2s" }} />
             </button>
           </div>
         )}
+
+        {/* 4 — Questionnaire template */}
+        <Field label="Questionnaire Template">
+          {questionnairesLoading ? (
+            <div style={{ display: "flex", justifyContent: "center", padding: 28 }}>
+              <ActivityIndicator color="#00D4FF" size="small" />
+            </div>
+          ) : questionnaires.length === 0 ? (
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", padding: "8px 0" }}>
+              No questionnaire templates found.
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {questionnaires.map(q => {
+                const isSelected = selectedId === q.id;
+                const sessionLabel =
+                  q.sessionType === "any" ? "Any Session" :
+                  q.sessionType === "game" ? "Game Day" :
+                  q.sessionType;
+                return (
+                  <button
+                    key={q.id}
+                    type="button"
+                    onClick={() => setSelectedId(q.id)}
+                    style={{
+                      width: "100%",
+                      padding: "12px 14px",
+                      borderRadius: 10,
+                      border: isSelected ? "2px solid #00D4FF" : "1px solid rgba(255,255,255,0.10)",
+                      background: isSelected ? "rgba(0,212,255,0.08)" : "rgba(255,255,255,0.03)",
+                      color: "#fff",
+                      textAlign: "left" as const,
+                      cursor: "pointer",
+                      fontFamily: "'DM Sans', system-ui",
+                      transition: "all 0.15s",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", marginBottom: 6 }}>
+                          {q.name}
+                        </div>
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" as const, marginBottom: q.description ? 6 : 0 }}>
+                          <QBadge label={q.sport} color="#00D4FF" />
+                          <QBadge label={sessionLabel} color="#00FF9D" />
+                          {q.isDefault && <QBadge label="Default" color="#FFB800" />}
+                        </div>
+                        {q.description && (
+                          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.38)", lineHeight: 1.4 }}>
+                            {q.description}
+                          </div>
+                        )}
+                      </div>
+                      {isSelected && (
+                        <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#00D4FF", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          <span style={{ color: "#0A0F1E", fontSize: 11, fontWeight: 800 }}>✓</span>
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </Field>
 
         {/* Error */}
         {error && (
@@ -252,7 +440,23 @@ export default function CreateTeamModal() {
           type="button"
           onClick={handleSave}
           disabled={saving}
-          style={{ width: "100%", padding: "16px", borderRadius: 12, border: "none", background: saving ? "rgba(0,212,255,0.3)" : "linear-gradient(135deg,#00BFFF,#0066FF)", color: "#fff", fontWeight: 700, fontSize: 15, cursor: saving ? "not-allowed" : "pointer", fontFamily: "'DM Sans', system-ui", letterSpacing: 0.5, display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}
+          style={{
+            width: "100%",
+            padding: "16px",
+            borderRadius: 12,
+            border: "none",
+            background: saving ? "rgba(0,212,255,0.3)" : "linear-gradient(135deg,#00BFFF,#0066FF)",
+            color: "#fff",
+            fontWeight: 700,
+            fontSize: 15,
+            cursor: saving ? "not-allowed" : "pointer",
+            fontFamily: "'DM Sans', system-ui",
+            letterSpacing: 0.5,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 10,
+          }}
         >
           {saving ? (
             <>
@@ -269,13 +473,62 @@ export default function CreateTeamModal() {
   );
 }
 
-// ── Sub-components ────────────────────────────────────────────────────────────
+// ── Sub-components ─────────────────────────────────────────────────────────────
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: 20 }}>
-      <label style={{ display: "block", fontSize: 11, color: "rgba(255,255,255,0.40)", letterSpacing: 1, textTransform: "uppercase" as const, marginBottom: 8 }}>{label}</label>
+      <label style={{
+        display: "block",
+        fontSize: 10,
+        fontFamily: "'Space Mono', monospace",
+        color: "rgba(0,212,255,0.70)",
+        letterSpacing: 1,
+        textTransform: "uppercase" as const,
+        marginBottom: 8,
+      }}>
+        {label}
+      </label>
       {children}
     </div>
+  );
+}
+
+function QBadge({ label, color }: { label: string; color: string }) {
+  return (
+    <span style={{
+      padding: "2px 8px",
+      borderRadius: 10,
+      background: `${color}18`,
+      border: `1px solid ${color}40`,
+      color,
+      fontSize: 10,
+      fontFamily: "'Space Mono', monospace",
+      letterSpacing: 0.5,
+    }}>
+      {label}
+    </span>
+  );
+}
+
+function CopyBtn({ children, isCopied, onClick }: { children: React.ReactNode; isCopied: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        padding: "7px 14px",
+        borderRadius: 8,
+        border: isCopied ? "1px solid #00FF9D" : "1px solid rgba(255,255,255,0.18)",
+        background: isCopied ? "rgba(0,255,157,0.10)" : "transparent",
+        color: isCopied ? "#00FF9D" : "rgba(255,255,255,0.60)",
+        fontSize: 12,
+        cursor: "pointer",
+        fontFamily: "'DM Sans', system-ui",
+        transition: "all 0.15s",
+      }}
+    >
+      {isCopied ? "✓ Copied!" : children}
+    </button>
   );
 }
