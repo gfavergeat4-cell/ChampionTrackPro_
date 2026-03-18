@@ -325,16 +325,28 @@ export default function StitchQuestionnaireScreen() {
       try {
         const teamSnap = await getDoc(doc(db, "teams", teamIdState));
         const teamData = teamSnap.exists() ? teamSnap.data() : {};
-        const questionnaireId = teamData.questionnaireId;
         const teamSport = teamData.sport || "Basketball";
+        // Support both multi-select (questionnaireIds[]) and legacy single (questionnaireId)
+        const questionnaireIds = teamData.questionnaireIds?.length > 0
+          ? teamData.questionnaireIds
+          : teamData.questionnaireId ? [teamData.questionnaireId] : [];
 
         let qDoc = null;
 
-        if (questionnaireId) {
-          const qSnap = await getDoc(doc(db, "questionnaires", questionnaireId));
-          if (qSnap.exists() && qSnap.data().questions?.length > 0) {
-            qDoc = qSnap.data();
-            if (!cancelled) setUsedQuestionnaireId(questionnaireId);
+        if (questionnaireIds.length > 0) {
+          // Fetch all assigned questionnaires then pick best match for this sessionType
+          const fetchedQs = [];
+          for (const qid of questionnaireIds) {
+            const qSnap = await getDoc(doc(db, "questionnaires", qid));
+            if (qSnap.exists()) fetchedQs.push({ id: qid, ...qSnap.data() });
+          }
+          // Priority: exact sessionType match > "any" > first
+          const exactMatch = fetchedQs.find(q => q.sessionType === sType);
+          const anyMatch = fetchedQs.find(q => q.sessionType === "any");
+          const picked = exactMatch || anyMatch || fetchedQs[0] || null;
+          if (picked?.questions?.length > 0) {
+            qDoc = picked;
+            if (!cancelled) setUsedQuestionnaireId(picked.id);
           }
         }
 

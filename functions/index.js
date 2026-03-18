@@ -197,8 +197,22 @@ async function updateTeamSyncStatus(teamId, status, error = null, counts = null)
 
 // ─── FIX 4: Questionnaire auto-link resolution ───────────────────────────────
 async function resolveQuestionnaireId(teamData, sport, sessionType) {
-  // 1. Team has a specific questionnaire assigned
-  if (teamData.questionnaireId) return teamData.questionnaireId;
+  // 1. Team has multiple questionnaires — pick best for this sessionType
+  const questionnaireIds = teamData.questionnaireIds?.length > 0
+    ? teamData.questionnaireIds
+    : teamData.questionnaireId ? [teamData.questionnaireId] : [];
+
+  if (questionnaireIds.length > 0) {
+    const fetchedQs = [];
+    for (const qid of questionnaireIds) {
+      const qSnap = await db.collection("questionnaires").doc(qid).get();
+      if (qSnap.exists) fetchedQs.push({ id: qid, ...qSnap.data() });
+    }
+    const exact = fetchedQs.find(q => q.sessionType === sessionType);
+    const any = fetchedQs.find(q => q.sessionType === "any");
+    const picked = exact || any || fetchedQs[0] || null;
+    if (picked) return picked.id;
+  }
 
   const sportStr = sport || "Basketball";
 

@@ -41,6 +41,7 @@ interface TeamDoc {
   calendarSyncError?: string;
   calendarLastSyncAt?: any;
   questionnaireId?: string;
+  questionnaireIds?: string[];
 }
 
 type AccordionKey = "info" | "codes" | "members";
@@ -128,7 +129,7 @@ export default function AdminTeamDetailScreen() {
   const [questionnaire, setQuestionnaire] = useState<QuestionnaireDoc | null>(null);
   const [questionnaireLoading, setQuestionnaireLoading] = useState(false);
   const [allQuestionnaires, setAllQuestionnaires] = useState<QuestionnaireDoc[]>([]);
-  const [editSelectedQId, setEditSelectedQId] = useState<string | null>(null);
+  const [editSelectedQIds, setEditSelectedQIds] = useState<string[]>([]);
   const seededRef = useRef(false);
   const editLogoFileRef = useRef<HTMLInputElement>(null);
 
@@ -164,7 +165,7 @@ export default function AdminTeamDetailScreen() {
         setCalendarActive(data.calendarActive !== false);
         setEditName(data.name || "");
         setEditLogoBase64(data.logoUrl || null);
-        setEditSelectedQId(data.questionnaireId || null);
+        setEditSelectedQIds(data.questionnaireIds || (data.questionnaireId ? [data.questionnaireId] : []));
         let code = data.inviteCode;
         if (!code) {
           code = generateCode(6);
@@ -198,7 +199,7 @@ export default function AdminTeamDetailScreen() {
         const teamQ = await fetchTeamQuestionnaire(teamId, team?.sport);
         if (!cancelled && teamQ) {
           setQuestionnaire(teamQ);
-          setEditSelectedQId(prev => prev || teamQ.id);
+          setEditSelectedQIds(prev => prev.length > 0 ? prev : [teamQ.id]);
         }
 
         // Load all for inline picker
@@ -257,7 +258,8 @@ export default function AdminTeamDetailScreen() {
         calendarUrl: calendarUrl.trim(),
         icsUrl: calendarUrl.trim(),
         calendarActive,
-        questionnaireId: editSelectedQId || null,
+        questionnaireIds: editSelectedQIds,
+        questionnaireId: editSelectedQIds[0] || null,
         updatedAt: serverTimestamp(),
       });
       setTeam(prev => prev ? { ...prev, name: editName.trim(), logoUrl: editLogoBase64 || undefined } : prev);
@@ -266,7 +268,7 @@ export default function AdminTeamDetailScreen() {
     } catch (e: any) {
       setInfoMsg("Error: " + (e?.message || String(e)));
     } finally { setSavingInfo(false); }
-  }, [teamId, editName, editLogoBase64, calendarUrl, calendarActive, editSelectedQId]);
+  }, [teamId, editName, editLogoBase64, calendarUrl, calendarActive, editSelectedQIds]);
 
   const handleSyncNow = useCallback(async () => {
     if (!teamId) return;
@@ -393,12 +395,15 @@ export default function AdminTeamDetailScreen() {
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 14 }}>
               {allQuestionnaires.map(q => {
-                const isSelected = editSelectedQId === q.id;
+                const isSelected = editSelectedQIds.includes(q.id);
                 const sessionLabel =
                   q.sessionType === "any" ? "Any Session" :
                   q.sessionType === "game" ? "Game Day" : q.sessionType;
+                const toggle = () => setEditSelectedQIds(prev =>
+                  prev.includes(q.id) ? prev.filter(x => x !== q.id) : [...prev, q.id]
+                );
                 return (
-                  <button key={q.id} type="button" onClick={() => setEditSelectedQId(q.id)} style={{ width: "100%", padding: "10px 12px", borderRadius: 9, border: isSelected ? "2px solid #00D4FF" : "1px solid rgba(255,255,255,0.08)", background: isSelected ? "rgba(0,212,255,0.08)" : "rgba(255,255,255,0.02)", color: "#fff", textAlign: "left" as const, cursor: "pointer", fontFamily: "'DM Sans', system-ui", transition: "all 0.15s" }}>
+                  <button key={q.id} type="button" onClick={toggle} style={{ width: "100%", padding: "10px 12px", borderRadius: 9, border: isSelected ? "2px solid #00D4FF" : "1px solid rgba(255,255,255,0.08)", background: isSelected ? "rgba(0,212,255,0.08)" : "rgba(255,255,255,0.02)", color: "#fff", textAlign: "left" as const, cursor: "pointer", fontFamily: "'DM Sans', system-ui", transition: "all 0.15s" }}>
                     <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 12, fontWeight: 600, color: "#fff", marginBottom: 5 }}>{q.name}</div>
@@ -408,11 +413,10 @@ export default function AdminTeamDetailScreen() {
                           {q.isDefault && <Badge label="Default" color="#FFB800" />}
                         </div>
                       </div>
-                      {isSelected && (
-                        <div style={{ width: 18, height: 18, borderRadius: "50%", background: "#00D4FF", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2 }}>
-                          <span style={{ color: "#0A0F1E", fontSize: 10, fontWeight: 800 }}>✓</span>
-                        </div>
-                      )}
+                      {/* Checkbox */}
+                      <div style={{ width: 16, height: 16, borderRadius: 4, border: isSelected ? "none" : "1.5px solid rgba(255,255,255,0.25)", background: isSelected ? "#00D4FF" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2, transition: "all 0.15s" }}>
+                        {isSelected && <span style={{ color: "#0A0F1E", fontSize: 9, fontWeight: 800 }}>✓</span>}
+                      </div>
                     </div>
                   </button>
                 );

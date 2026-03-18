@@ -185,14 +185,24 @@ export async function fetchTeamQuestionnaire(
   try {
     const teamSnap = await getDoc(doc(db, "teams", teamId));
     const teamData = teamSnap.exists() ? (teamSnap.data() as any) : {};
-    const questionnaireId: string | undefined = teamData.questionnaireId;
     const sport: string = teamSport || teamData.sport || "Basketball";
+    // Support both multi-select (questionnaireIds[]) and legacy single (questionnaireId)
+    const questionnaireIds: string[] = teamData.questionnaireIds?.length > 0
+      ? teamData.questionnaireIds
+      : teamData.questionnaireId ? [teamData.questionnaireId] : [];
 
-    if (questionnaireId) {
-      const qSnap = await getDoc(doc(db, "questionnaires", questionnaireId));
-      if (qSnap.exists() && (qSnap.data() as any).questions?.length > 0) {
-        return { id: qSnap.id, ...(qSnap.data() as any) } as QuestionnaireDoc;
+    if (questionnaireIds.length > 0) {
+      const fetchedQs: QuestionnaireDoc[] = [];
+      for (const qid of questionnaireIds) {
+        const qSnap = await getDoc(doc(db, "questionnaires", qid));
+        if (qSnap.exists() && (qSnap.data() as any).questions?.length > 0) {
+          fetchedQs.push({ id: qSnap.id, ...(qSnap.data() as any) } as QuestionnaireDoc);
+        }
       }
+      // Return "any" session type as the default view (admin preview)
+      const anyQ = fetchedQs.find(q => q.sessionType === "any");
+      if (anyQ) return anyQ;
+      if (fetchedQs.length > 0) return fetchedQs[0];
     }
 
     // Default for sport

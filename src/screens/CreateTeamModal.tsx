@@ -71,7 +71,7 @@ export default function CreateTeamModal() {
   // Questionnaire state
   const [questionnaires, setQuestionnaires] = useState<QuestionnaireDoc[]>([]);
   const [questionnairesLoading, setQuestionnairesLoading] = useState(true);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   // Save state
   const [saving, setSaving] = useState(false);
@@ -98,9 +98,8 @@ export default function CreateTeamModal() {
           .filter(q => !q.isArchived)
           .sort((a, b) => a.sport.localeCompare(b.sport) || a.name.localeCompare(b.name));
         setQuestionnaires(all);
-        const defaultQ =
-          all.find(q => q.sport === "Basketball" && q.isDefault) || all[0] || null;
-        if (defaultQ) setSelectedId(defaultQ.id);
+        const defaults = all.filter(q => q.sport === "Basketball" && q.isDefault);
+        setSelectedIds(defaults.length > 0 ? defaults.map(q => q.id) : (all[0] ? [all[0].id] : []));
       } catch {}
       finally { setQuestionnairesLoading(false); }
     })();
@@ -136,7 +135,8 @@ export default function CreateTeamModal() {
         icsUrl: calendarUrl.trim(),
         calendarUrl: calendarUrl.trim(),
         calendarActive: calendarUrl.trim() ? calendarActive : false,
-        questionnaireId: selectedId || null,
+        questionnaireIds: selectedIds,
+        questionnaireId: selectedIds[0] || null,
         inviteCode,
         status: "active",
         createdAt: serverTimestamp(),
@@ -376,16 +376,19 @@ export default function CreateTeamModal() {
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {questionnaires.map(q => {
-                const isSelected = selectedId === q.id;
+                const isSelected = selectedIds.includes(q.id);
                 const sessionLabel =
                   q.sessionType === "any" ? "Any Session" :
                   q.sessionType === "game" ? "Game Day" :
                   q.sessionType;
+                const toggle = () => setSelectedIds(prev =>
+                  prev.includes(q.id) ? prev.filter(x => x !== q.id) : [...prev, q.id]
+                );
                 return (
                   <button
                     key={q.id}
                     type="button"
-                    onClick={() => setSelectedId(q.id)}
+                    onClick={toggle}
                     style={{
                       width: "100%",
                       padding: "12px 14px",
@@ -415,11 +418,10 @@ export default function CreateTeamModal() {
                           </div>
                         )}
                       </div>
-                      {isSelected && (
-                        <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#00D4FF", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                          <span style={{ color: "#0A0F1E", fontSize: 11, fontWeight: 800 }}>✓</span>
-                        </div>
-                      )}
+                      {/* Checkbox */}
+                      <div style={{ width: 20, height: 20, borderRadius: 5, border: isSelected ? "none" : "1.5px solid rgba(255,255,255,0.25)", background: isSelected ? "#00D4FF" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "all 0.15s" }}>
+                        {isSelected && <span style={{ color: "#0A0F1E", fontSize: 11, fontWeight: 800 }}>✓</span>}
+                      </div>
                     </div>
                   </button>
                 );
