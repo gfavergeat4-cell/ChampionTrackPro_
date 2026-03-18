@@ -10,7 +10,8 @@ import { computeQuestionnaireStatus, getQuestionnaireWindowFromEnd } from "../sr
 export default function StitchQuestionnaireScreen() {
   const navigation = useNavigation();
   const route = useRoute();
-  const { sessionId, eventTitle, eventDate } = route.params || {};
+  const { sessionId: sessionIdParam, trainingId, eventTitle, eventDate } = route.params || {};
+  const sessionId = trainingId || sessionIdParam;
 
   const handleGoBack = () => {
     navigation.goBack();

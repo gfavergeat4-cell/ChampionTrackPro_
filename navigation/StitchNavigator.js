@@ -182,18 +182,19 @@ function AdminTabs() {
           ),
         }}
       />
-      <AdminTab.Screen 
-        name="Teams" 
-        component={AdminDashboard}
+      <AdminTab.Screen
+        name="Teams"
+        component={AdminHomeScreen}
         options={{
           tabBarIcon: ({ color, size, focused }) => (
             <TabIcon name="Teams" color={color} size={size} focused={focused} />
           ),
         }}
       />
-      <AdminTab.Screen 
-        name="Analytics" 
-        component={AdminDashboard}
+      <AdminTab.Screen
+        name="Analytics"
+        component={PerformanceDashboard}
+        initialParams={{ role: "admin" }}
         options={{
           tabBarIcon: ({ color, size, focused }) => (
             <TabIcon name="Analytics" color={color} size={size} focused={focused} />
@@ -591,7 +592,7 @@ export default function StitchNavigator() {
 
     // FIX 4: new URL format /?screen=questionnaire&trainingId=X&teamId=Y
     if (startScreen === "questionnaire" && startTrainingId) {
-      pendingDeepLink.current = { trainingId: startTrainingId, teamId: startTeamId };
+      pendingDeepLink.current = { trainingId: startTrainingId, sessionId: startTrainingId, teamId: startTeamId };
       window.history.replaceState({}, "", "/");
     } else if (startSessionId && startOpenQ === "1") {
       pendingDeepLink.current = { sessionId: startSessionId };
@@ -618,7 +619,7 @@ export default function StitchNavigator() {
 
       // FIX 4: new deep link format
       if (screen === "questionnaire" && trainingId) {
-        pendingDeepLink.current = { trainingId, teamId };
+        pendingDeepLink.current = { trainingId, sessionId: trainingId, teamId };
         window.history.replaceState({}, "", window.location.pathname || "/");
         if (navigationRef.current?.isReady()) {
           setTimeout(() => {

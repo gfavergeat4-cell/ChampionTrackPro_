@@ -22,7 +22,7 @@ type ViewTab = "Day" | "Week" | "Month";
 interface MemberStatus {
   uid: string;
   name: string;
-  status: "completed" | "pending" | "pain";
+  status: "completed" | "pending" | "friction" | "worry";
 }
 
 interface TrainingWithStats {
@@ -176,11 +176,12 @@ function TrainingCard({
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
             {t.memberStatuses.map((ms) => {
-              const isPain = ms.status === "pain";
               const isCompleted = ms.status === "completed";
-              const statusColor = isPain ? "#FF4D4D" : isCompleted ? "#4ADE80" : ORANGE;
-              const statusLabel = isPain ? "Pain reported" : isCompleted ? "Completed" : "Pending";
-              const statusIcon = isPain ? "🔴" : isCompleted ? "✅" : "⏳";
+              const isWorry = ms.status === "worry";
+              const isFriction = ms.status === "friction";
+              const statusColor = isWorry ? "#FF4D4D" : isFriction ? "#FFB800" : isCompleted ? "#4ADE80" : ORANGE;
+              const statusLabel = isWorry ? "High worry" : isFriction ? "High friction" : isCompleted ? "Completed" : "Pending";
+              const statusIcon = isWorry ? "🔴" : isFriction ? "⚡" : isCompleted ? "✅" : "⏳";
               return (
                 <div
                   key={ms.uid}
@@ -296,7 +297,8 @@ export default function CoachScheduleScreen() {
             const memberStatuses: MemberStatus[] = memberList.map((m) => {
               const resp = responseMap[m.uid];
               if (!resp) return { uid: m.uid, name: m.name, status: "pending" as const };
-              if (resp.physicalPain === true) return { uid: m.uid, name: m.name, status: "pain" as const };
+              if (resp.worryFlag === true) return { uid: m.uid, name: m.name, status: "worry" as const };
+              if (resp.hasFriction === true) return { uid: m.uid, name: m.name, status: "friction" as const };
               return { uid: m.uid, name: m.name, status: "completed" as const };
             });
 

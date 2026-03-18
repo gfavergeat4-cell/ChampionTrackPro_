@@ -18,7 +18,7 @@ interface Athlete {
   name: string;
   position: string;
   jerseyNumber?: number;
-  status: "completed" | "pending" | "pain";
+  status: "completed" | "pending" | "worry" | "friction";
 }
 
 function getInitials(name: string): string {
@@ -95,7 +95,8 @@ export default function CoachTeamScreen() {
 
         // Get responses for last training
         const respondedUids = new Set<string>();
-        const painUids = new Set<string>();
+        const worryUids = new Set<string>();
+        const frictionUids = new Set<string>();
         if (lastTrainingId) {
           try {
             const respSnap = await getDocs(
@@ -104,14 +105,15 @@ export default function CoachTeamScreen() {
             respSnap.docs.forEach((d) => {
               respondedUids.add(d.id);
               const data = d.data() as any;
-              const hasPain =
-                (typeof data.impactMusculaire === "number" && data.impactMusculaire >= 70) ||
-                (typeof data.fatigue === "number" && data.fatigue >= 80) ||
-                (data.values && (
-                  (typeof data.values.douleur === "number" && data.values.douleur > 5) ||
-                  (typeof data.values.impactMusculaire === "number" && data.values.impactMusculaire >= 70)
-                ));
-              if (hasPain) painUids.add(d.id);
+              // V3 at-risk detection
+              if (data.worryFlag === true) {
+                worryUids.add(d.id);
+              } else if (
+                (typeof data.readinessScore === "number" && data.readinessScore < 40) ||
+                (typeof data.frictionImpact === "number" && data.frictionImpact > 70)
+              ) {
+                frictionUids.add(d.id);
+              }
             });
           } catch { /* ignore */ }
         }
@@ -120,14 +122,16 @@ export default function CoachTeamScreen() {
         const athleteList: Athlete[] = (memberList as any[]).map((m) => {
           let status: Athlete["status"] = "pending";
           if (respondedUids.has(m.uid)) {
-            status = painUids.has(m.uid) ? "pain" : "completed";
+            if (worryUids.has(m.uid)) status = "worry";
+            else if (frictionUids.has(m.uid)) status = "friction";
+            else status = "completed";
           }
           return { uid: m.uid, name: m.name, position: (m as any).position || "", jerseyNumber: (m as any).jerseyNumber, status };
         });
 
-        // Sort: pain first, then pending, then completed
+        // Sort: worry first, friction, then pending, then completed
         athleteList.sort((a, b) => {
-          const order = { pain: 0, pending: 1, completed: 2 };
+          const order = { worry: 0, friction: 1, pending: 2, completed: 3 };
           return order[a.status] - order[b.status];
         });
 
@@ -153,9 +157,10 @@ export default function CoachTeamScreen() {
   const maxWidth = isDesktop ? 960 : 480;
 
   const statusConfig = {
-    completed: { label: "Completed ✅",      color: "#00FF88", bg: "rgba(0,255,136,0.08)",  border: "rgba(0,255,136,0.25)" },
-    pending:   { label: "Pending ⏳",         color: "#FFB800", bg: "rgba(255,184,0,0.08)",  border: "rgba(255,184,0,0.25)" },
-    pain:      { label: "Pain reported 🔴",   color: "#FF4444", bg: "rgba(255,68,68,0.08)",  border: "rgba(255,68,68,0.25)" },
+    completed: { label: "Completed ✅",          color: "#00FF88", bg: "rgba(0,255,136,0.08)",  border: "rgba(0,255,136,0.25)" },
+    pending:   { label: "Pending ⏳",             color: "#FFB800", bg: "rgba(255,184,0,0.08)",  border: "rgba(255,184,0,0.25)" },
+    worry:     { label: "⚠️ High worry",          color: "#FFB800", bg: "rgba(255,184,0,0.08)",  border: "rgba(255,184,0,0.35)" },
+    friction:  { label: "⚡ High friction impact", color: "#FB7100", bg: "rgba(251,113,0,0.08)",  border: "rgba(251,113,0,0.25)" },
   };
 
   return (

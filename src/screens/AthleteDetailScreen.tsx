@@ -203,20 +203,28 @@ export default function AthleteDetailScreen() {
     }));
   }, [sortedAsc]);
 
-  // Radar data from last session
+  // Radar data from last session — V3/V2 bridge
   const radarData = useMemo(() => {
     if (sortedAsc.length === 0) return [];
-    const last = sortedAsc[sortedAsc.length - 1];
-    const cardioLoad = getMetric(last, "cardioLoad");
-    const motorControl = getMetric(last, "motorControl");
-    const neuroLoad = getMetric(last, "neuroLoad");
-    const stressLevel = getMetric(last, "stressLevel");
-    const tacticalLucidity = getMetric(last, "tacticalLucidity");
-    const sessionRPE = getMetric(last, "sessionRPE");
+    const r = sortedAsc[sortedAsc.length - 1];
+    // V3→V2 bridge: prefer V3 metric key, fall back to V2 key
+    const getMetricV3 = (v3key: string, v2key: string): number =>
+      r?.metrics?.[v3key] ?? r?.metrics?.[v2key] ?? r?.[v2key] ?? 0;
+
+    const physical  = getMetricV3("legBounce",       "neuroLoad");
+    const cardio    = getMetricV3("cardioLoad",       "cardioLoad");
+    const sleep     = getMetricV3("tankLevel",        "sleepQuality");
+    const stress    = 100 - getMetricV3("teamChemistry", "stressLevel");
+    const motor     = getMetricV3("motorControl",     "motorControl");
+    const tactical  = getMetricV3("tacticalSharpness","tacticalLucidity");
+
     return [
-      { subject: "Physical", value: Math.round(((cardioLoad + motorControl) / 2) * 10) },
-      { subject: "Mental",   value: Math.round(((neuroLoad + stressLevel) / 2) * 10) },
-      { subject: "Technical", value: Math.round(((tacticalLucidity + sessionRPE) / 2) * 10) },
+      { subject: "Physical",  value: Math.round(physical) },
+      { subject: "Cardio",    value: Math.round(cardio) },
+      { subject: "Sleep",     value: Math.round(sleep) },
+      { subject: "Stress",    value: Math.round(stress) },
+      { subject: "Motor",     value: Math.round(motor) },
+      { subject: "Tactical",  value: Math.round(tactical) },
     ];
   }, [sortedAsc]);
 

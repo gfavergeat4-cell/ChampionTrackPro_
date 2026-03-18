@@ -23,7 +23,8 @@ interface AlertEntry {
   uid: string;
   name: string;
   jerseyNumber?: number;
-  type: "no_response" | "pain";
+  type: "no_response" | "worry" | "low_readiness" | "friction";
+  readinessScore?: number;
 }
 
 export default function CoachHomeScreen() {
@@ -126,20 +127,19 @@ export default function CoachHomeScreen() {
             );
 
             const respondedUids = new Set<string>();
-            const painUids: string[] = [];
+            const atRiskEntries: { uid: string; type: AlertEntry["type"]; readinessScore?: number }[] = [];
 
             responsesSnap.docs.forEach((d) => {
               const data = d.data() as any;
               respondedUids.add(d.id);
-              // Pain: impactMusculaire >= 70 or fatigue >= 80 or douleur flag
-              const hasPain =
-                (typeof data.impactMusculaire === "number" && data.impactMusculaire >= 70) ||
-                (typeof data.fatigue === "number" && data.fatigue >= 80) ||
-                (data.values && (
-                  (typeof data.values.douleur === "number" && data.values.douleur > 5) ||
-                  (typeof data.values.impactMusculaire === "number" && data.values.impactMusculaire >= 70)
-                ));
-              if (hasPain) painUids.push(d.id);
+              // V3 at-risk detection: worryFlag, low readiness, or high friction impact
+              if (data.worryFlag === true) {
+                atRiskEntries.push({ uid: d.id, type: "worry" });
+              } else if (typeof data.readinessScore === "number" && data.readinessScore < 40) {
+                atRiskEntries.push({ uid: d.id, type: "low_readiness", readinessScore: data.readinessScore });
+              } else if (typeof data.frictionImpact === "number" && data.frictionImpact > 70) {
+                atRiskEntries.push({ uid: d.id, type: "friction" });
+              }
             });
 
             const rate = Math.round((respondedUids.size / memberCount) * 100);
@@ -153,9 +153,9 @@ export default function CoachHomeScreen() {
                 alertList.push({ uid, name: memberMap[uid], jerseyNumber: jerseyMap[uid], type: "no_response" });
               }
             });
-            // Pain alerts
-            painUids.forEach((uid) => {
-              alertList.push({ uid, name: memberMap[uid] || uid, jerseyNumber: jerseyMap[uid], type: "pain" });
+            // V3 at-risk alerts
+            atRiskEntries.forEach(({ uid, type, readinessScore }) => {
+              alertList.push({ uid, name: memberMap[uid] || uid, jerseyNumber: jerseyMap[uid], type, readinessScore });
             });
             if (!cancelled) setAlerts(alertList);
           } else {
@@ -272,7 +272,13 @@ export default function CoachHomeScreen() {
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   {alerts.map((a) => {
-                    const isPain = a.type === "pain";
+                    const alertConfig = {
+                      worry:         { bg: "rgba(255,184,0,0.08)",  border: "rgba(255,184,0,0.25)",  dot: "#FFB800", labelColor: "#FFB800", label: "⚠️ High worry" },
+                      low_readiness: { bg: "rgba(239,68,68,0.08)",  border: "rgba(239,68,68,0.25)",  dot: "#EF4444", labelColor: "#EF4444", label: `🔴 Readiness ${a.readinessScore ?? "?"}/100` },
+                      friction:      { bg: "rgba(251,113,0,0.08)",  border: "rgba(251,113,0,0.25)",  dot: "#FB7100", labelColor: "#FB7100", label: "⚡ High friction impact" },
+                      no_response:   { bg: "rgba(239,68,68,0.08)",  border: "rgba(239,68,68,0.25)",  dot: "#EF4444", labelColor: "#EF4444", label: "No response" },
+                    };
+                    const cfg = alertConfig[a.type] ?? alertConfig.no_response;
                     return (
                       <div key={`${a.uid}-${a.type}`} style={{
                         display: "flex",
@@ -280,14 +286,14 @@ export default function CoachHomeScreen() {
                         gap: 12,
                         padding: "10px 12px",
                         borderRadius: 10,
-                        background: isPain ? "rgba(251,113,0,0.08)" : "rgba(239,68,68,0.08)",
-                        border: `1px solid ${isPain ? "rgba(251,113,0,0.25)" : "rgba(239,68,68,0.25)"}`,
+                        background: cfg.bg,
+                        border: `1px solid ${cfg.border}`,
                       }}>
                         <div style={{
                           width: 8,
                           height: 8,
                           borderRadius: "50%",
-                          background: isPain ? "#FB7100" : "#EF4444",
+                          background: cfg.dot,
                           flexShrink: 0,
                         }} />
                         <span style={{ fontSize: 14, color: "#FFFFFF", flex: 1 }}>
@@ -299,14 +305,14 @@ export default function CoachHomeScreen() {
                         <span style={{
                           fontSize: 11,
                           fontWeight: 600,
-                          color: isPain ? "#FB7100" : "#EF4444",
+                          color: cfg.labelColor,
                           padding: "2px 8px",
                           borderRadius: 20,
-                          background: isPain ? "rgba(251,113,0,0.15)" : "rgba(239,68,68,0.15)",
+                          background: cfg.bg,
                           textTransform: "uppercase",
                           letterSpacing: "0.06em",
                         }}>
-                          {isPain ? "Pain reported" : "No response"}
+                          {cfg.label}
                         </span>
                       </div>
                     );
