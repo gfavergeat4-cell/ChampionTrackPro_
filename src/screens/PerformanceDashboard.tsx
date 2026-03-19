@@ -76,28 +76,49 @@ interface ChartPoint {
   [seriesKey: string]: number | string | null;
 }
 
+// ── V3 field definitions ───────────────────────────────────────────────────────
+const V3_FIELDS = ["tankLevel", "cardioLoad", "legBounce", "motorControl", "tacticalSharpness", "teamChemistry"] as const;
+
+const V3_LABELS: Record<string, string> = {
+  tankLevel:         "Energy Tank",
+  cardioLoad:        "Cardio Load *",
+  legBounce:         "Leg Bounce",
+  motorControl:      "Motor Control",
+  tacticalSharpness: "Tactical Sharpness",
+  teamChemistry:     "Team Chemistry",
+};
+
+const V3_COLORS: Record<string, string> = {
+  tankLevel:         "#00D4FF",
+  cardioLoad:        "#FF6B6B",
+  legBounce:         "#00FF9D",
+  motorControl:      "#FFB800",
+  tacticalSharpness: "#7B61FF",
+  teamChemistry:     "#FF9F43",
+};
+
 const CATEGORY_FIELDS: Record<CategoryKey, string[]> = {
-  physical:  ["cardioLoad", "neuroLoad", "sessionRPE"],
-  mental:    ["sleepQuality", "stressLevel"],
-  technical: ["motorControl", "tacticalLucidity"],
+  physical:  ["tankLevel", "cardioLoad", "legBounce"],
+  mental:    ["teamChemistry"],
+  technical: ["motorControl", "tacticalSharpness"],
 };
 
 const CATEGORY_COLORS: Record<CategoryKey, string> = {
-  physical: "#00D4FF",
-  mental: "#00FF88",
-  technical: "#A855F7",
+  physical:  "#00D4FF",
+  mental:    "#7B61FF",
+  technical: "#00FF9D",
 };
 
 const INDICATOR_COLORS: Record<CategoryKey, string[]> = {
-  physical:  ["#00D4FF", "#00B8CC", "#0088AA", "#005577", "#003344"],
-  mental:    ["#00FF88", "#00CC66", "#009944", "#006622", "#004411"],
-  technical: ["#A855F7", "#8833DD", "#6611BB", "#440099", "#220077"],
+  physical:  ["#00D4FF", "#FF6B6B", "#00FF9D"],
+  mental:    ["#7B61FF"],
+  technical: ["#FFB800", "#7B61FF"],
 };
 
 const CATEGORY_LABEL: Record<CategoryKey, string> = {
-  physical: "Physical",
-  mental: "Mental",
-  technical: "Technical",
+  physical:  "Physical Engine",
+  mental:    "Mental Energy",
+  technical: "Technical Execution",
 };
 
 const DURATION_LABEL: Record<DurationKey, string> = {
@@ -108,35 +129,58 @@ const DURATION_LABEL: Record<DurationKey, string> = {
 };
 
 const INDICATOR_LABELS: Record<string, string> = {
-  // V2 fields
-  cardioLoad:       "Cardio Load",
+  ...V3_LABELS,
+  // legacy
   neuroLoad:        "Neuro Load",
   sessionRPE:       "Session RPE",
   sleepQuality:     "Sleep Quality",
   stressLevel:      "Stress Level",
-  motorControl:     "Motor Control",
   tacticalLucidity: "Tactical Lucidity",
-  // V1 French legacy
-  intensiteMoyenne: "Average Intensity",
-  hautesIntensites: "High Intensity",
-  impactCardiaque:  "Cardiac Impact",
-  impactMusculaire: "Muscular Impact",
-  fatigue:          "Fatigue",
-  concentration:    "Concentration",
-  confiance:        "Confidence",
-  bienEtre:         "Well-being",
-  nervosite:        "Nervousness",
-  sommeil:          "Sleep",
-  technique:        "Technique",
-  tactique:         "Tactics",
-  dynamisme:        "Dynamism",
 };
 
 const ALL_INDICATORS_BY_CATEGORY: Record<CategoryKey, string[]> = {
-  physical:  ["cardioLoad", "neuroLoad", "sessionRPE"],
-  mental:    ["sleepQuality", "stressLevel"],
-  technical: ["motorControl", "tacticalLucidity"],
+  physical:  ["tankLevel", "cardioLoad", "legBounce"],
+  mental:    ["teamChemistry"],
+  technical: ["motorControl", "tacticalSharpness"],
 };
+
+// ── Quartile helper ───────────────────────────────────────────────────────────
+function calcQuartiles(values: number[]): { q1: number; median: number; q3: number } {
+  const sorted = [...values].filter((v) => v != null && !isNaN(v)).sort((a, b) => a - b);
+  if (sorted.length === 0) return { q1: 0, median: 0, q3: 0 };
+  return {
+    q1:     sorted[Math.floor(sorted.length * 0.25)],
+    median: sorted[Math.floor(sorted.length * 0.50)],
+    q3:     sorted[Math.floor(sorted.length * 0.75)],
+  };
+}
+
+// ── V3 metric extraction helpers ──────────────────────────────────────────────
+function getV3Metric(r: RawResponse, key: string): number | null {
+  const m = (r as any).metrics;
+  if (m && typeof m[key] === "number") return m[key];
+  if (typeof (r as any)[key] === "number") return (r as any)[key];
+  return null;
+}
+
+function computePhysicalComposite(r: RawResponse): number | null {
+  const tank = getV3Metric(r, "tankLevel");
+  const leg  = getV3Metric(r, "legBounce");
+  const card = getV3Metric(r, "cardioLoad");
+  if (tank == null || leg == null || card == null) return null;
+  return Math.round((tank + leg + (101 - card)) / 3);
+}
+
+function computeMentalComposite(r: RawResponse): number | null {
+  return getV3Metric(r, "teamChemistry");
+}
+
+function computeTechnicalComposite(r: RawResponse): number | null {
+  const motor    = getV3Metric(r, "motorControl");
+  const tactical = getV3Metric(r, "tacticalSharpness");
+  if (motor == null || tactical == null) return null;
+  return Math.round((motor + tactical) / 2);
+}
 
 function getDateRangeFromKey(key: DurationKey): { start: Date; end: Date } {
   const end = new Date();
@@ -222,7 +266,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
   const [customStart, setCustomStart] = useState<string>("");
   const [customEnd, setCustomEnd] = useState<string>("");
 
-  const [indicatorMode, setIndicatorMode] = useState<"category" | "indicator">("category");
+  const [indicatorMode, setIndicatorMode] = useState<"category" | "indicator" | "combined">("category");
   const [category, setCategory] = useState<CategoryKey>("physical");
   const [selectedIndicators, setSelectedIndicators] = useState<string[]>([]);
 
@@ -450,113 +494,105 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
 
   const activeFields = useMemo(() => {
     if (indicatorMode === "category") return CATEGORY_FIELDS[category];
+    if (indicatorMode === "combined") return [...V3_FIELDS];
     if (selectedIndicators.length > 0) return selectedIndicators;
-    return CATEGORY_FIELDS.physical;
+    return [...V3_FIELDS];
   }, [indicatorMode, category, selectedIndicators]);
 
   const chartData: ChartPoint[] = useMemo(() => {
     if (!selectedTeamId || filteredResponses.length === 0) return [];
 
     const { start, end } = getDateRange(
-      durationMode,
-      duration,
-      customStart || undefined,
-      customEnd || undefined
+      durationMode, duration, customStart || undefined, customEnd || undefined
     );
 
-    const byDate: Record<
-      string,
-      { byUser: Record<string, RawResponse[]> }
-    > = {};
-
+    const byDate: Record<string, { byUser: Record<string, RawResponse[]> }> = {};
     for (const r of filteredResponses) {
       if (!r.submittedAt) continue;
-      const dt: Date =
-        typeof (r.submittedAt as any).toDate === "function"
-          ? (r.submittedAt as any).toDate()
-          : new Date(r.submittedAt);
+      const dt: Date = typeof (r.submittedAt as any).toDate === "function"
+        ? (r.submittedAt as any).toDate()
+        : new Date(r.submittedAt);
       if (dt < start || dt > end) continue;
-
       const dateKey = formatDateKey(dt);
       if (!byDate[dateKey]) byDate[dateKey] = { byUser: {} };
-      if (!byDate[dateKey].byUser[r.userId]) {
-        byDate[dateKey].byUser[r.userId] = [];
-      }
+      if (!byDate[dateKey].byUser[r.userId]) byDate[dateKey].byUser[r.userId] = [];
       byDate[dateKey].byUser[r.userId].push(r);
     }
 
     const dates = Object.keys(byDate).sort();
-    const fields = activeFields;
+    const data: ChartPoint[] = [];
 
-    if (viewMode === "categories") {
-      const data: ChartPoint[] = [];
-
+    if (viewMode === "individual") {
+      // Per-player physical composite as readiness proxy per day
+      const userIdsSet = new Set<string>();
+      Object.values(byDate).forEach((e) => Object.keys(e.byUser).forEach((uid) => userIdsSet.add(uid)));
+      const userIds = Array.from(userIdsSet);
       for (const dateKey of dates) {
         const entry = byDate[dateKey];
         const point: ChartPoint = { date: dateKey };
-
-        for (const field of fields) {
-          let sum = 0;
-          let count = 0;
-
-          Object.values(entry.byUser).forEach((list) => {
-            list.forEach((resp) => {
-              const v = getMetricValue(resp, field);
-              if (typeof v === "number") {
-                sum += v;
-                count += 1;
-              }
-            });
+        for (const uid of userIds) {
+          const list = entry.byUser[uid] || [];
+          if (list.length === 0) { point[uid] = null; continue; }
+          let sum = 0, count = 0;
+          list.forEach((resp) => {
+            const phy = computePhysicalComposite(resp);
+            if (phy != null) { sum += phy; count++; }
           });
-
-          point[field] = count > 0 ? Math.round(sum / count) : null;
+          point[uid] = count > 0 ? Math.round(sum / count) : null;
         }
-
         data.push(point);
       }
-
       return data;
     }
 
-    // Individual: une série par athlète, valeur = moyenne des indicateurs par jour
-    const userIdsSet = new Set<string>();
-    Object.values(byDate).forEach((entry) => {
-      Object.keys(entry.byUser).forEach((uid) => userIdsSet.add(uid));
-    });
-    const userIds = Array.from(userIdsSet.values());
-
-    const data: ChartPoint[] = [];
-
-    for (const dateKey of dates) {
-      const entry = byDate[dateKey];
-      const point: ChartPoint = { date: dateKey };
-
-      for (const uid of userIds) {
-        const list = entry.byUser[uid] || [];
-        if (list.length === 0) {
-          point[uid] = null;
-          continue;
+    if (indicatorMode === "category") {
+      // 3 category composite series
+      for (const dateKey of dates) {
+        const resps = Object.values(byDate[dateKey].byUser).flat();
+        const point: ChartPoint = { date: dateKey };
+        let phySum = 0, phyCount = 0, menSum = 0, menCount = 0, techSum = 0, techCount = 0;
+        for (const r of resps) {
+          const phy = computePhysicalComposite(r); if (phy != null) { phySum += phy; phyCount++; }
+          const men = computeMentalComposite(r);   if (men != null) { menSum += men; menCount++; }
+          const tec = computeTechnicalComposite(r); if (tec != null) { techSum += tec; techCount++; }
         }
-        let sum = 0;
-        let count = 0;
-        list.forEach((resp) => {
-          for (const field of fields) {
-            const v = getMetricValue(resp, field);
-            if (typeof v === "number") {
-              sum += v;
-              count += 1;
-            }
-          }
-        });
-        const avg = count > 0 ? Math.round(sum / count) : null;
-        point[uid] = avg;
+        point["physical"]  = phyCount  > 0 ? Math.round(phySum  / phyCount)  : null;
+        point["mental"]    = menCount  > 0 ? Math.round(menSum  / menCount)   : null;
+        point["technical"] = techCount > 0 ? Math.round(techSum / techCount)  : null;
+        data.push(point);
       }
-
-      data.push(point);
+      return data;
     }
 
+    // "indicator" or "combined" — raw V3 fields
+    const fields = indicatorMode === "indicator" && selectedIndicators.length > 0
+      ? selectedIndicators
+      : [...V3_FIELDS];
+    for (const dateKey of dates) {
+      const resps = Object.values(byDate[dateKey].byUser).flat();
+      const point: ChartPoint = { date: dateKey };
+      for (const field of fields) {
+        let sum = 0, count = 0;
+        for (const r of resps) {
+          const v = getV3Metric(r, field);
+          if (v != null) { sum += v; count++; }
+        }
+        point[field] = count > 0 ? Math.round(sum / count) : null;
+      }
+      data.push(point);
+    }
     return data;
-  }, [filteredResponses, durationMode, duration, customStart, customEnd, viewMode, selectedTeamId, activeFields]);
+  }, [filteredResponses, durationMode, duration, customStart, customEnd, viewMode, selectedTeamId, indicatorMode, selectedIndicators]);
+
+  const chartQuartiles = useMemo(() => {
+    const allValues: number[] = [];
+    for (const point of chartData) {
+      for (const [k, v] of Object.entries(point)) {
+        if (k !== "date" && typeof v === "number") allValues.push(v);
+      }
+    }
+    return calcQuartiles(allValues);
+  }, [chartData]);
 
   function formatPlayerName(fullName: string, jerseyNumber: number): string {
     const parts = fullName.trim().split(' ');
@@ -692,27 +728,19 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
   }, [filteredResponses]);
 
 
-  // ─── V2: Radar data (latest team averages Physical/Mental/Technical) ──────
+  // ─── V3: Radar data (6 V3 axes, team average over recent responses) ──────
   const radarData = useMemo(() => {
     if (filteredResponses.length === 0) return [];
-    const recent = filteredResponses.slice(-30);
-    const metrics = {
-      cardioLoad: recent.map(r => (extractV2Metrics(r) ?? {}).cardioLoad ?? 5),
-      neuroLoad: recent.map(r => (extractV2Metrics(r) ?? {}).neuroLoad ?? 5),
-      sleepQuality: recent.map(r => (extractV2Metrics(r) ?? {}).sleepQuality ?? 5),
-      stressLevel: recent.map(r => (extractV2Metrics(r) ?? {}).stressLevel ?? 5),
-      motorControl: recent.map(r => (extractV2Metrics(r) ?? {}).motorControl ?? 5),
-      sessionRPE: recent.map(r => (extractV2Metrics(r) ?? {}).sessionRPE ?? 5),
-    };
-    const avg = (arr: number[]) => arr.reduce((a, b) => a + b, 0) / arr.length;
-    // Convert to readiness (inverted: high metric = bad)
+    const recent = filteredResponses.slice(-60);
+    const avg = (vals: number[]) => vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : 50;
+    const getVals = (key: string) => recent.map((r) => getV3Metric(r, key)).filter((v): v is number => v != null);
     return [
-      { subject: "Cardio",   value: Math.round((10 - avg(metrics.cardioLoad)) * 10) },
-      { subject: "Neuro",    value: Math.round((10 - avg(metrics.neuroLoad)) * 10) },
-      { subject: "Sleep",    value: Math.round((10 - avg(metrics.sleepQuality)) * 10) },
-      { subject: "Stress",   value: Math.round((10 - avg(metrics.stressLevel)) * 10) },
-      { subject: "Motor",    value: Math.round((10 - avg(metrics.motorControl)) * 10) },
-      { subject: "Load",     value: Math.round((10 - avg(metrics.sessionRPE)) * 10) },
+      { subject: "Energy Tank",       value: Math.round(avg(getVals("tankLevel"))) },
+      { subject: "Cardio Load *",      value: Math.round(101 - avg(getVals("cardioLoad"))) },
+      { subject: "Leg Bounce",         value: Math.round(avg(getVals("legBounce"))) },
+      { subject: "Motor Control",      value: Math.round(avg(getVals("motorControl"))) },
+      { subject: "Tactical Sharp.",    value: Math.round(avg(getVals("tacticalSharpness"))) },
+      { subject: "Team Chemistry",     value: Math.round(avg(getVals("teamChemistry"))) },
     ];
   }, [filteredResponses]);
 
@@ -767,6 +795,8 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
     }
 
     if (chartType === "deviation") {
+      const devVals = deviationChartData.map((d) => d.deviation).filter((v): v is number => typeof v === "number");
+      const devQ = calcQuartiles(devVals);
       return (
         <ComposedChart data={deviationChartData} margin={margin}>
           <CartesianGrid {...gridProps} />
@@ -774,6 +804,9 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
           <YAxis stroke="rgba(255,255,255,0.6)" />
           <Tooltip contentStyle={tooltipStyle} />
           <ReferenceLine y={0} stroke="rgba(255,255,255,0.3)" strokeDasharray="4 4" />
+          {devQ.q1 !== 0 && <ReferenceLine y={devQ.q1} stroke="rgba(33,150,243,0.6)" strokeDasharray="4 3" strokeWidth={1} label={{ value: "Q1", position: "insideTopLeft" as const, fontSize: 10, fill: "rgba(33,150,243,0.8)" }} />}
+          {devQ.median !== 0 && <ReferenceLine y={devQ.median} stroke="rgba(0,212,255,0.8)" strokeDasharray="4 3" strokeWidth={1.5} label={{ value: "Med", position: "insideTopLeft" as const, fontSize: 10, fill: "#00D4FF" }} />}
+          {devQ.q3 !== 0 && <ReferenceLine y={devQ.q3} stroke="rgba(255,184,0,0.6)" strokeDasharray="4 3" strokeWidth={1} label={{ value: "Q3", position: "insideTopLeft" as const, fontSize: 10, fill: "rgba(255,184,0,0.8)" }} />}
           <Bar dataKey="deviation" name="Deviation %" fill="#00D4FF" fillOpacity={0.7} radius={[4, 4, 0, 0] as any} />
           <Line type="monotone" dataKey="ema" name="EMA 28d" stroke="#0066FF" strokeWidth={2} dot={false} strokeDasharray="4 2" />
         </ComposedChart>
@@ -781,6 +814,8 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
     }
 
     if (chartType === "workload") {
+      const wlVals = workloadChartData.map((d) => d.ema7).filter((v): v is number => typeof v === "number");
+      const wlQ = calcQuartiles(wlVals);
       return (
         <ComposedChart data={workloadChartData} margin={margin}>
           <CartesianGrid {...gridProps} />
@@ -788,6 +823,9 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
           <YAxis stroke="rgba(255,255,255,0.6)" />
           <Tooltip contentStyle={tooltipStyle} />
           <ReferenceLine y={700} stroke="#FF3B30" strokeDasharray="4 4" label={{ value: "Danger", fill: "#FF3B30", fontSize: 10 }} />
+          {wlQ.q1 > 0 && <ReferenceLine y={wlQ.q1} stroke="rgba(33,150,243,0.6)" strokeDasharray="4 3" strokeWidth={1} label={{ value: "Q1", position: "insideTopLeft" as const, fontSize: 10, fill: "rgba(33,150,243,0.8)" }} />}
+          {wlQ.median > 0 && <ReferenceLine y={wlQ.median} stroke="rgba(0,212,255,0.8)" strokeDasharray="4 3" strokeWidth={1.5} label={{ value: "Med", position: "insideTopLeft" as const, fontSize: 10, fill: "#00D4FF" }} />}
+          {wlQ.q3 > 0 && <ReferenceLine y={wlQ.q3} stroke="rgba(255,184,0,0.6)" strokeDasharray="4 3" strokeWidth={1} label={{ value: "Q3", position: "insideTopLeft" as const, fontSize: 10, fill: "rgba(255,184,0,0.8)" }} />}
           <Area type="monotone" dataKey="ema7" name="EMA 7d" stroke="#00D4FF" fill="#00D4FF" fillOpacity={0.12} strokeWidth={2} />
           <Line type="monotone" dataKey="ema28" name="EMA 28d" stroke="#0066FF" strokeWidth={2} dot={false} strokeDasharray="5 3" />
         </ComposedChart>
@@ -1259,6 +1297,20 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                     </button>
                   );
                 })}
+                <button
+                  type="button"
+                  onClick={() => { setDurationMode("custom"); setCustomStart("2025-10-01"); setCustomEnd("2026-03-31"); }}
+                  style={{
+                    padding: "6px 10px",
+                    borderRadius: 12,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    ...(durationMode === "custom" && customStart === "2025-10-01" ? btnActiveStyle : { ...btnInactiveStyle, color: "rgba(0,212,255,0.7)", border: "1px solid rgba(0,212,255,0.3)" }),
+                    cursor: "pointer",
+                  }}
+                >
+                  Full Season
+                </button>
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -1297,7 +1349,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
           {/* Indicators */}
           <div style={{ ...filterBoxStyle, position: "relative", gridColumn: "span 1" }}>
             <label style={labelStyle}>Indicators</label>
-            <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+            <div style={{ display: "flex", gap: 6, marginBottom: 8, flexWrap: "wrap" }}>
               <button
                 type="button"
                 onClick={() => { setIndicatorMode("category"); setOpenIndicators(false); }}
@@ -1312,6 +1364,21 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                 }}
               >
                 By Category
+              </button>
+              <button
+                type="button"
+                onClick={() => { setIndicatorMode("combined"); setOpenIndicators(false); }}
+                style={{
+                  flex: 1,
+                  padding: "6px 8px",
+                  borderRadius: 12,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  ...(indicatorMode === "combined" ? btnActiveStyle : btnInactiveStyle),
+                  cursor: "pointer",
+                }}
+              >
+                Combined
               </button>
               <button
                 type="button"
@@ -1556,96 +1623,43 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
             <div style={{ minHeight: 400, marginBottom: 16 }}>
               <ResponsiveContainer width="100%" height="100%">
                 {chartType === "line" ? (
-                  <LineChart
-                    data={chartData}
-                    margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
-                  >
+                  <LineChart data={chartData} margin={{ top: 20, right: 40, left: 20, bottom: 60 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                    <XAxis dataKey="date" stroke="rgba(255,255,255,0.6)" tick={{ fill: "rgba(255,255,255,0.6)", fontSize: 11 }} angle={-35} textAnchor="end" interval="preserveStartEnd" tickFormatter={(dateStr) => { const d = new Date(dateStr); return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }); }} />
-                    <YAxis domain={[1, 10]} stroke="rgba(255,255,255,0.6)" />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "#0E1528",
-                        border: "1px solid #00D4FF",
-                        borderRadius: 8,
-                        color: "#FFFFFF",
-                      }}
-                    />
+                    <XAxis dataKey="date" stroke="rgba(255,255,255,0.6)" tick={{ fill: "rgba(255,255,255,0.6)", fontSize: 11 }} angle={-35} textAnchor="end" interval="preserveStartEnd" tickFormatter={(d: string) => new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" })} />
+                    <YAxis domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} stroke="rgba(255,255,255,0.6)" />
+                    <Tooltip contentStyle={{ backgroundColor: "#0D1526", border: "1px solid rgba(0,212,255,0.25)", borderRadius: 8, color: "#FFF", fontFamily: "'DM Sans',system-ui", fontSize: 12 }} formatter={(v: any, name: string) => [`${v}/100`, name]} />
+                    {chartQuartiles.q1 > 0 && <ReferenceLine y={chartQuartiles.q1} stroke="rgba(33,150,243,0.6)" strokeDasharray="4 3" strokeWidth={1} label={{ value: "Q1", position: "insideTopLeft" as const, fontSize: 10, fill: "rgba(33,150,243,0.8)" }} />}
+                    {chartQuartiles.median > 0 && <ReferenceLine y={chartQuartiles.median} stroke="rgba(0,212,255,0.8)" strokeDasharray="4 3" strokeWidth={1.5} label={{ value: "Med", position: "insideTopLeft" as const, fontSize: 10, fill: "#00D4FF" }} />}
+                    {chartQuartiles.q3 > 0 && <ReferenceLine y={chartQuartiles.q3} stroke="rgba(255,184,0,0.6)" strokeDasharray="4 3" strokeWidth={1} label={{ value: "Q3", position: "insideTopLeft" as const, fontSize: 10, fill: "rgba(255,184,0,0.8)" }} />}
                     {seriesKeys.map((k, idx) => {
-                      const playerPalette = ["#00D4FF","#00FF88","#A855F7","#FFB800","#FF6B6B","#4ECDC4","#45B7D1","#96CEB4"];
-                      let color: string;
-                      if (viewMode === "categories") {
-                        if (indicatorMode === "indicator") {
-                          const cat = getIndicatorCategory(k);
-                          const catIdx = ALL_INDICATORS_BY_CATEGORY[cat].indexOf(k);
-                          color = INDICATOR_COLORS[cat][catIdx >= 0 ? catIdx : idx % INDICATOR_COLORS[cat].length];
-                        } else {
-                          color = INDICATOR_COLORS[category][idx % INDICATOR_COLORS[category].length];
-                        }
-                      } else {
-                        color = playerPalette[idx % playerPalette.length];
-                      }
-                      const name =
-                        viewMode === "categories"
-                          ? (indicatorMode === "indicator" ? (INDICATOR_LABELS[k] || k) : (INDICATOR_LABELS[k] || k))
-                          : athleteLabel(k);
-                      return (
-                        <Line
-                          key={k}
-                          type="monotone"
-                          dataKey={k}
-                          name={name}
-                          stroke={color}
-                          strokeWidth={2}
-                          dot={false}
-                          connectNulls
-                        />
-                      );
+                      const palette = ["#00D4FF","#00FF88","#A855F7","#FFB800","#FF6B6B","#4ECDC4","#45B7D1","#96CEB4"];
+                      const color = viewMode === "individual" ? palette[idx % palette.length]
+                        : indicatorMode === "category" ? (CATEGORY_COLORS[k as CategoryKey] || palette[idx % palette.length])
+                        : (V3_COLORS[k] || palette[idx % palette.length]);
+                      const name = viewMode === "individual" ? athleteLabel(k)
+                        : indicatorMode === "category" ? (CATEGORY_LABEL[k as CategoryKey] || k)
+                        : (V3_LABELS[k] || INDICATOR_LABELS[k] || k);
+                      return <Line key={k} type="monotone" dataKey={k} name={name} stroke={color} strokeWidth={2} dot={false} connectNulls />;
                     })}
                   </LineChart>
                 ) : (
-                  <BarChart
-                    data={chartData}
-                    margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
-                  >
+                  <BarChart data={chartData} margin={{ top: 20, right: 40, left: 20, bottom: 60 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                    <XAxis dataKey="date" stroke="rgba(255,255,255,0.6)" tick={{ fill: "rgba(255,255,255,0.6)", fontSize: 11 }} angle={-35} textAnchor="end" interval="preserveStartEnd" tickFormatter={(dateStr) => { const d = new Date(dateStr); return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }); }} />
-                    <YAxis domain={[1, 10]} stroke="rgba(255,255,255,0.6)" />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "#0E1528",
-                        border: "1px solid #00D4FF",
-                        borderRadius: 8,
-                        color: "#FFFFFF",
-                      }}
-                    />
+                    <XAxis dataKey="date" stroke="rgba(255,255,255,0.6)" tick={{ fill: "rgba(255,255,255,0.6)", fontSize: 11 }} angle={-35} textAnchor="end" interval="preserveStartEnd" tickFormatter={(d: string) => new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" })} />
+                    <YAxis domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} stroke="rgba(255,255,255,0.6)" />
+                    <Tooltip contentStyle={{ backgroundColor: "#0D1526", border: "1px solid rgba(0,212,255,0.25)", borderRadius: 8, color: "#FFF", fontFamily: "'DM Sans',system-ui", fontSize: 12 }} formatter={(v: any, name: string) => [`${v}/100`, name]} />
+                    {chartQuartiles.q1 > 0 && <ReferenceLine y={chartQuartiles.q1} stroke="rgba(33,150,243,0.6)" strokeDasharray="4 3" strokeWidth={1} label={{ value: "Q1", position: "insideTopLeft" as const, fontSize: 10, fill: "rgba(33,150,243,0.8)" }} />}
+                    {chartQuartiles.median > 0 && <ReferenceLine y={chartQuartiles.median} stroke="rgba(0,212,255,0.8)" strokeDasharray="4 3" strokeWidth={1.5} label={{ value: "Med", position: "insideTopLeft" as const, fontSize: 10, fill: "#00D4FF" }} />}
+                    {chartQuartiles.q3 > 0 && <ReferenceLine y={chartQuartiles.q3} stroke="rgba(255,184,0,0.6)" strokeDasharray="4 3" strokeWidth={1} label={{ value: "Q3", position: "insideTopLeft" as const, fontSize: 10, fill: "rgba(255,184,0,0.8)" }} />}
                     {seriesKeys.map((k, idx) => {
-                      const playerPalette = ["#00D4FF","#00FF88","#A855F7","#FFB800","#FF6B6B","#4ECDC4","#45B7D1","#96CEB4"];
-                      let color: string;
-                      if (viewMode === "categories") {
-                        if (indicatorMode === "indicator") {
-                          const cat = getIndicatorCategory(k);
-                          const catIdx = ALL_INDICATORS_BY_CATEGORY[cat].indexOf(k);
-                          color = INDICATOR_COLORS[cat][catIdx >= 0 ? catIdx : idx % INDICATOR_COLORS[cat].length];
-                        } else {
-                          color = INDICATOR_COLORS[category][idx % INDICATOR_COLORS[category].length];
-                        }
-                      } else {
-                        color = playerPalette[idx % playerPalette.length];
-                      }
-                      const name =
-                        viewMode === "categories"
-                          ? (indicatorMode === "indicator" ? (INDICATOR_LABELS[k] || k) : (INDICATOR_LABELS[k] || k))
-                          : athleteLabel(k);
-                      return (
-                        <Bar
-                          key={k}
-                          dataKey={k}
-                          name={name}
-                          fill={color}
-                          radius={[6, 6, 0, 0]}
-                        />
-                      );
+                      const palette = ["#00D4FF","#00FF88","#A855F7","#FFB800","#FF6B6B","#4ECDC4","#45B7D1","#96CEB4"];
+                      const color = viewMode === "individual" ? palette[idx % palette.length]
+                        : indicatorMode === "category" ? (CATEGORY_COLORS[k as CategoryKey] || palette[idx % palette.length])
+                        : (V3_COLORS[k] || palette[idx % palette.length]);
+                      const name = viewMode === "individual" ? athleteLabel(k)
+                        : indicatorMode === "category" ? (CATEGORY_LABEL[k as CategoryKey] || k)
+                        : (V3_LABELS[k] || INDICATOR_LABELS[k] || k);
+                      return <Bar key={k} dataKey={k} name={name} fill={color} radius={[6, 6, 0, 0]} />;
                     })}
                   </BarChart>
                 )}
@@ -1660,20 +1674,13 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
               {/* Custom legend */}
               <div style={{ display: "flex", flexWrap: "wrap", gap: "10px 20px", padding: "16px 20px 4px", justifyContent: "center" }}>
                 {seriesKeys.map((k, idx) => {
-                  const playerPalette = ["#00D4FF","#00FF88","#A855F7","#FFB800","#FF6B6B","#4ECDC4","#45B7D1","#96CEB4"];
-                  let color: string;
-                  if (viewMode === "categories") {
-                    if (indicatorMode === "indicator") {
-                      const cat = getIndicatorCategory(k);
-                      const catIdx = ALL_INDICATORS_BY_CATEGORY[cat].indexOf(k);
-                      color = INDICATOR_COLORS[cat][catIdx >= 0 ? catIdx : idx % INDICATOR_COLORS[cat].length];
-                    } else {
-                      color = INDICATOR_COLORS[category][idx % INDICATOR_COLORS[category].length];
-                    }
-                  } else {
-                    color = playerPalette[idx % playerPalette.length];
-                  }
-                  const label = viewMode === "categories" ? (INDICATOR_LABELS[k] || k) : athleteLabel(k);
+                  const palette = ["#00D4FF","#00FF88","#A855F7","#FFB800","#FF6B6B","#4ECDC4","#45B7D1","#96CEB4"];
+                  const color = viewMode === "individual" ? palette[idx % palette.length]
+                    : indicatorMode === "category" ? (CATEGORY_COLORS[k as CategoryKey] || palette[idx % palette.length])
+                    : (V3_COLORS[k] || palette[idx % palette.length]);
+                  const label = viewMode === "individual" ? athleteLabel(k)
+                    : indicatorMode === "category" ? (CATEGORY_LABEL[k as CategoryKey] || k)
+                    : (V3_LABELS[k] || INDICATOR_LABELS[k] || k);
                   return (
                     <div key={k} style={{ display: "flex", alignItems: "center", gap: 6 }}>
                       <div style={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: color, flexShrink: 0 }} />
@@ -1682,6 +1689,11 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                   );
                 })}
               </div>
+              {(indicatorMode === "indicator" || indicatorMode === "combined") && (
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.28)", textAlign: "center" as const, marginTop: 4 }}>
+                  * Cardio Load: lower = better (fatigue metric)
+                </div>
+              )}
             </div>
           )}
         </div>
