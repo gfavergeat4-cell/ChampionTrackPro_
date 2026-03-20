@@ -15,21 +15,15 @@ import { calculateEMA, calculateDeviation, calculateReadiness, extractV2Metrics 
 import type { V2Metrics, RawResponse } from "../utils/analytics";
 import DARPerformanceChart from "../components/DARPerformanceChart";
 import {
-  LineChart,
   Line,
   BarChart,
   Bar,
   ComposedChart,
   Area,
-  RadarChart,
-  Radar,
-  PolarGrid,
-  PolarAngleAxis,
   ReferenceLine,
   XAxis,
   YAxis,
   Tooltip,
-  Legend,
   CartesianGrid,
   ResponsiveContainer,
 } from "recharts";
@@ -39,7 +33,7 @@ type Role = "admin" | "coach";
 type DurationKey = "7d" | "14d" | "30d" | "90d";
 type CategoryKey = "physical" | "mental" | "technical";
 type ViewMode = "categories" | "individual";
-type ChartType = "line" | "bar" | "radar" | "deviation" | "workload" | "dar";
+type ChartType = "bar" | "deviation" | "workload" | "dar";
 type DashTab = "brief" | "analytics";
 
 interface PerformanceDashboardProps {
@@ -271,7 +265,7 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
   const [selectedIndicators, setSelectedIndicators] = useState<string[]>([]);
 
   const [viewMode, setViewMode] = useState<ViewMode>("categories");
-  const [chartType, setChartType] = useState<ChartType>("line");
+  const [chartType, setChartType] = useState<ChartType>("bar");
 
   const [loadingInit, setLoadingInit] = useState<boolean>(true);
   const [loadingData, setLoadingData] = useState<boolean>(false);
@@ -782,17 +776,6 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
     };
     const gridProps = { strokeDasharray: "3 3", stroke: "rgba(255,255,255,0.08)" };
     const margin = { top: 20, right: 30, left: 20, bottom: 60 };
-
-    if (chartType === "radar") {
-      return (
-        <RadarChart data={radarData} margin={{ top: 10, right: 30, left: 30, bottom: 10 }}>
-          <PolarGrid stroke="rgba(255,255,255,0.1)" />
-          <PolarAngleAxis dataKey="subject" tick={{ fill: "rgba(255,255,255,0.65)", fontSize: 12 }} />
-          <Radar name="Team Readiness" dataKey="value" stroke="#00D4FF" fill="#00D4FF" fillOpacity={0.18} strokeWidth={2} />
-          <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => [`${v}`, "Readiness"]} />
-        </RadarChart>
-      );
-    }
 
     if (chartType === "deviation") {
       const devVals = deviationChartData.map((d) => d.deviation).filter((v): v is number => typeof v === "number");
@@ -1518,12 +1501,10 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
             <label style={labelStyle}>Chart Type</label>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
               {([
-                { key: "line",      label: "Line" },
                 { key: "bar",       label: "Bar" },
-                { key: "radar",     label: "Radar" },
                 { key: "deviation", label: "Deviation" },
                 { key: "workload",  label: "Workload" },
-              { key: "dar",       label: "DAR" },
+                { key: "dar",       label: "DAR" },
               ] as { key: ChartType; label: string }[]).map(({ key, label }) => {
                 const active = chartType === key;
                 return (
@@ -1621,28 +1602,14 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
             </div>
           ) : (
             <div style={{ minHeight: 400, marginBottom: 16 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                {chartType === "line" ? (
-                  <LineChart data={chartData} margin={{ top: 20, right: 40, left: 20, bottom: 60 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                    <XAxis dataKey="date" stroke="rgba(255,255,255,0.6)" tick={{ fill: "rgba(255,255,255,0.6)", fontSize: 11 }} angle={-35} textAnchor="end" interval="preserveStartEnd" tickFormatter={(d: string) => new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" })} />
-                    <YAxis domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} stroke="rgba(255,255,255,0.6)" />
-                    <Tooltip contentStyle={{ backgroundColor: "#0D1526", border: "1px solid rgba(0,212,255,0.25)", borderRadius: 8, color: "#FFF", fontFamily: "'DM Sans',system-ui", fontSize: 12 }} formatter={(v: any, name: string) => [`${v}/100`, name]} />
-                    {chartQuartiles.q1 > 0 && <ReferenceLine y={chartQuartiles.q1} stroke="rgba(33,150,243,0.6)" strokeDasharray="4 3" strokeWidth={1} label={{ value: "Q1", position: "insideTopLeft" as const, fontSize: 10, fill: "rgba(33,150,243,0.8)" }} />}
-                    {chartQuartiles.median > 0 && <ReferenceLine y={chartQuartiles.median} stroke="rgba(0,212,255,0.8)" strokeDasharray="4 3" strokeWidth={1.5} label={{ value: "Med", position: "insideTopLeft" as const, fontSize: 10, fill: "#00D4FF" }} />}
-                    {chartQuartiles.q3 > 0 && <ReferenceLine y={chartQuartiles.q3} stroke="rgba(255,184,0,0.6)" strokeDasharray="4 3" strokeWidth={1} label={{ value: "Q3", position: "insideTopLeft" as const, fontSize: 10, fill: "rgba(255,184,0,0.8)" }} />}
-                    {seriesKeys.map((k, idx) => {
-                      const palette = ["#00D4FF","#00FF88","#A855F7","#FFB800","#FF6B6B","#4ECDC4","#45B7D1","#96CEB4"];
-                      const color = viewMode === "individual" ? palette[idx % palette.length]
-                        : indicatorMode === "category" ? (CATEGORY_COLORS[k as CategoryKey] || palette[idx % palette.length])
-                        : (V3_COLORS[k] || palette[idx % palette.length]);
-                      const name = viewMode === "individual" ? athleteLabel(k)
-                        : indicatorMode === "category" ? (CATEGORY_LABEL[k as CategoryKey] || k)
-                        : (V3_LABELS[k] || INDICATOR_LABELS[k] || k);
-                      return <Line key={k} type="monotone" dataKey={k} name={name} stroke={color} strokeWidth={2} dot={false} connectNulls />;
-                    })}
-                  </LineChart>
-                ) : (
+              {/* Root cause fix: height="100%" on ResponsiveContainer needs explicit parent height.
+                  Use height={360} directly to avoid 0-height invisible chart. */}
+              {(chartType === "deviation" || chartType === "workload") ? (
+                <ResponsiveContainer width="100%" height={360}>
+                  {renderChartContent() as React.ReactElement}
+                </ResponsiveContainer>
+              ) : (
+                <ResponsiveContainer width="100%" height={360}>
                   <BarChart data={chartData} margin={{ top: 20, right: 40, left: 20, bottom: 60 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
                     <XAxis dataKey="date" stroke="rgba(255,255,255,0.6)" tick={{ fill: "rgba(255,255,255,0.6)", fontSize: 11 }} angle={-35} textAnchor="end" interval="preserveStartEnd" tickFormatter={(d: string) => new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" })} />
@@ -1662,13 +1629,6 @@ export default function PerformanceDashboard({ route }: PerformanceDashboardProp
                       return <Bar key={k} dataKey={k} name={name} fill={color} radius={[6, 6, 0, 0]} />;
                     })}
                   </BarChart>
-                )}
-              </ResponsiveContainer>
-
-              {/* V2 charts rendered separately (avoid ResponsiveContainer child type issues) */}
-              {(chartType === "radar" || chartType === "deviation" || chartType === "workload") && (
-                <ResponsiveContainer width="100%" height={360}>
-                  {renderChartContent() as React.ReactElement}
                 </ResponsiveContainer>
               )}
               {/* Custom legend */}
