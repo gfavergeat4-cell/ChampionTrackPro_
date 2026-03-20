@@ -5,7 +5,7 @@ if (fs.existsSync('public/icons/badge-72.png')) {
 }
 
 const sharp = require('sharp');
-sharp('public/logo/logo_final.jpeg')
+sharp('public/logo/logo_final.png')
   .resize(72, 72, {
     fit: 'contain',
     background: { r: 0, g: 0, b: 0, alpha: 0 }

@@ -12,7 +12,7 @@ export const SliderDivider = () => (
       <line x1='0' y1='1' x2='60' y2='1' stroke='url(#sdg-l)' strokeWidth='2' strokeLinecap='round'/>
     </svg>
     <img
-      src='/logo/logo_final.jpeg'
+      src='/logo/logo_final.png'
       alt=''
       style={{ width: 80, height: 'auto', display: 'block', margin: '4px auto 0', mixBlendMode: 'screen' as any }}
     />
