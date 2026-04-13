@@ -341,7 +341,7 @@ export default function StitchQuestionnaireScreen() {
             if (qSnap.exists()) fetchedQs.push({ id: qid, ...qSnap.data() });
           }
           // Priority: exact sessionType match > "any" > first
-          const exactMatch = fetchedQs.find(q => q.sessionType === sType);
+          const exactMatch = fetchedQs.find(q => q.sessionType === sessionType);
           const anyMatch = fetchedQs.find(q => q.sessionType === "any");
           const picked = exactMatch || anyMatch || fetchedQs[0] || null;
           if (picked?.questions?.length > 0) {
@@ -377,7 +377,7 @@ export default function StitchQuestionnaireScreen() {
       }
     })();
     return () => { cancelled = true; };
-  }, [teamIdState]);
+  }, [teamIdState, sessionType]);
 
   // ─── V3 Question Definitions (fallback when no questionnaire in Firestore) ──
   const Q5_CATEGORY = sessionType === "scrimmage" ? "Game IQ" : "Tactical Execution";
@@ -446,9 +446,9 @@ export default function StitchQuestionnaireScreen() {
   // Submit is ready once Q7 (hasFriction) is answered
   const isSubmitReady = hasFriction !== null;
 
-  if (Platform.OS === "web") {
-    // Inject CSS
-    React.useEffect(() => {
+  // Inject CSS (always called, guards internally)
+  React.useEffect(() => {
+    if (Platform.OS !== "web") return;
       const style = document.createElement('style');
       style.textContent = `
         .hide-scrollbar::-webkit-scrollbar { display: none; }
@@ -516,8 +516,9 @@ export default function StitchQuestionnaireScreen() {
       `;
       document.head.appendChild(style);
       return () => document.head.removeChild(style);
-    }, []);
+  }, []);
 
+  if (Platform.OS === "web") {
     // Loading screen
     if (isCheckingAccess) {
       return (
