@@ -550,7 +550,43 @@ export default function StitchQuestionnaireScreen() {
     }
 
     if (!isAccessible && !isCheckingAccess) {
-      return null;
+      // Show a brief message instead of blank screen while goBack() completes
+      return (
+        <MobileViewport>
+          <div style={{
+            width: "100%",
+            height: "100vh",
+            background: "linear-gradient(to bottom, #0B0F1A, #020409)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexDirection: "column",
+            gap: "16px",
+          }}>
+            <div style={{ color: "rgba(255,255,255,0.5)", fontSize: "15px", textAlign: "center", padding: "0 32px" }}>
+              {accessDeniedReason === "already_completed"
+                ? "You have already completed this questionnaire."
+                : accessDeniedReason === "closed" || accessDeniedReason === "not_open_yet"
+                ? "This questionnaire is not available right now."
+                : "Access denied."}
+            </div>
+            <button
+              onClick={handleGoBack}
+              style={{
+                background: "rgba(0,212,255,0.08)",
+                border: "1px solid rgba(0,212,255,0.20)",
+                borderRadius: "10px",
+                padding: "10px 20px",
+                color: "#00D4FF",
+                fontSize: "14px",
+                cursor: "pointer",
+              }}
+            >
+              Go Back
+            </button>
+          </div>
+        </MobileViewport>
+      );
     }
 
     return (

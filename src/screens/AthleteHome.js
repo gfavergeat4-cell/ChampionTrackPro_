@@ -45,17 +45,14 @@ export default function AthleteHome() {
       questionnaireState: fullEventData?.questionnaireState,
     });
     
-    navigation.navigate("Questionnaire", { 
-      teamId,
+    // Only pass serializable primitives — React Navigation v7 serializes params
+    // to the URL on web; non-serializable objects (Firestore Timestamps, Dates)
+    // corrupt the entire params object and make trainingId arrive as undefined.
+    navigation.navigate("Questionnaire", {
       trainingId,
-      eventData: fullEventData, // Passer l'event complet pour avoir toutes les infos
-      eventTitle: fullEventData?.title || eventData?.title || "Training Session",
-      eventDate: fullEventData?.time || eventData?.time || new Date().toLocaleTimeString(),
-      eventStartDate: fullEventData?.startDate || eventData?.startDate,
-      eventEndDate: fullEventData?.endDate || eventData?.endDate,
-      // Support ancien format (deprecated)
       sessionId,
-      eventId: trainingId,
+      eventTitle: fullEventData?.title || eventData?.title || "Training Session",
+      eventDate: fullEventData?.time || eventData?.time || "",
     });
   };
 

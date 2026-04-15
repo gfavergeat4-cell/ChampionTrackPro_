@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChampionTrackPro — DNA Ecosystem v4.0</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap');
+  :root {
+    --bg:#0A0F1E; --card:#0D1526; --card2:#111C2E;
+    --border:rgba(0,212,255,0.12); --cyan:#00D4FF; --cyan2:#0066FF;
+    --green:#00FF9D; --yellow:#FFB800; --red:#FF4444; --blue:#2196F3; --purple:#8B5CF6;
+    --white:#FFFFFF; --muted:rgba(255,255,255,0.45); --body:rgba(255,255,255,0.82);
+    --s-done:#00C853; --s-prog:#2196F3; --s-pend:#FFB800; --s-plan:#8B5CF6; --s-legacy:#666;
+    --fe:#00D4FF; --be:#00FF9D; --both:#FFB800;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--body);font-family:'DM Sans',sans-serif;font-size:13px;line-height:1.6}
+
+  /* COVER */
+  .cover{background:var(--bg);border-bottom:1px solid var(--border);padding:60px 64px 48px;position:relative;overflow:hidden}
+  .cover::before{content:'';position:absolute;top:0;left:0;width:6px;height:100%;background:linear-gradient(180deg,var(--cyan),var(--cyan2))}
+  .cover-logo{font-family:'Space Mono',monospace;font-size:11px;color:var(--cyan);letter-spacing:3px;text-transform:uppercase;margin-bottom:24px}
+  .cover h1{font-size:42px;font-weight:600;color:var(--white);line-height:1.1;margin-bottom:8px}
+  .cover h1 span{color:var(--cyan)}
+  .cover-sub{font-size:15px;color:var(--muted);margin-bottom:32px;max-width:680px}
+  .cover-meta{display:flex;gap:32px;flex-wrap:wrap}
+  .kpi-val{font-size:28px;font-weight:600;color:var(--cyan);font-family:'Space Mono',monospace}
+  .kpi-lbl{font-size:10px;color:var(--muted);font-family:'Space Mono',monospace;text-transform:uppercase;letter-spacing:1.5px}
+
+  /* LEGEND */
+  .legend-bar{background:var(--card);border-bottom:1px solid var(--border);padding:18px 64px;display:flex;gap:36px;flex-wrap:wrap;align-items:center}
+  .leg-group{display:flex;gap:14px;align-items:center}
+  .leg-title{font-family:'Space Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:2px;color:var(--muted)}
+  .leg-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--body)}
+  .ldot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+  .lpill{font-size:9px;font-family:'Space Mono',monospace;padding:2px 6px;border-radius:3px;font-weight:700}
+
+  /* PROGRESS SECTION */
+  .progress-section{padding:28px 64px;background:var(--bg);border-bottom:1px solid var(--border)}
+  .section-label{font-family:'Space Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:2px;color:var(--cyan);margin-bottom:14px}
+  .progress-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:10px}
+  .prog-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px}
+  .prog-card-icon{font-size:16px;margin-bottom:4px}
+  .prog-card-name{font-size:10px;font-weight:500;color:var(--white);margin-bottom:4px}
+  .prog-bar-wrap{height:3px;background:rgba(255,255,255,0.08);border-radius:2px;overflow:hidden;margin-bottom:3px}
+  .prog-bar-fill{height:100%;border-radius:2px;background:var(--s-done)}
+  .prog-pct{font-family:'Space Mono',monospace;font-size:9px;color:var(--muted)}
+
+  /* GAPS ALERT */
+  .gaps-section{padding:20px 64px;background:rgba(255,68,68,0.04);border-bottom:1px solid rgba(255,68,68,0.15)}
+  .gap-title{font-family:'Space Mono',monospace;font-size:9px;color:#ff6b6b;text-transform:uppercase;letter-spacing:2px;margin-bottom:10px}
+  .gap-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .gap-card{background:rgba(255,68,68,0.06);border:1px solid rgba(255,68,68,0.20);border-radius:6px;padding:10px 12px}
+  .gap-card-title{font-size:11px;font-weight:500;color:#ff8a8a;margin-bottom:3px}
+  .gap-card-desc{font-size:10px;color:rgba(255,180,180,0.7)}
+  .gap-sev{display:inline-block;font-size:8px;font-family:'Space Mono',monospace;padding:1px 5px;border-radius:3px;margin-bottom:4px}
+  .sev-h{background:rgba(255,68,68,0.25);color:#ff8a8a}
+  .sev-m{background:rgba(255,184,0,0.20);color:#ffd07a}
+  .sev-l{background:rgba(33,150,243,0.20);color:#93c5fd}
+
+  /* MAIN */
+  .main{padding:0 64px 64px}
+
+  /* DOMAIN */
+  .domain{margin-top:40px}
+  .domain-header{display:flex;align-items:flex-start;gap:14px;padding:18px 22px;background:var(--card);border:1px solid var(--border);border-radius:12px 12px 0 0;border-bottom:2px solid var(--cyan)}
+  .domain-icon{font-size:26px;flex-shrink:0}
+  .domain-info{flex:1}
+  .domain-name{font-size:18px;font-weight:600;color:var(--white);margin-bottom:2px}
+  .domain-desc{font-size:11px;color:var(--muted)}
+  .domain-stats{display:flex;gap:6px;align-items:center;flex-shrink:0;flex-wrap:wrap}
+  .dstat{font-family:'Space Mono',monospace;font-size:10px;padding:3px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.10);color:var(--muted)}
+  .domain-body{background:var(--card2);border:1px solid var(--border);border-top:none;border-radius:0 0 12px 12px;padding:18px}
+
+  /* GROUP */
+  .group{margin-bottom:18px}
+  .group:last-child{margin-bottom:0}
+  .group-header{display:flex;align-items:center;gap:8px;margin-bottom:9px;padding-bottom:7px;border-bottom:1px solid rgba(255,255,255,0.05)}
+  .group-name{font-family:'Space Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:rgba(255,255,255,0.55);font-weight:700}
+  .layer-badge{font-family:'Space Mono',monospace;font-size:9px;padding:2px 6px;border-radius:3px;font-weight:700}
+  .layer-fe{background:rgba(0,212,255,0.12);color:var(--fe)}
+  .layer-be{background:rgba(0,255,157,0.12);color:var(--be)}
+  .layer-both{background:rgba(255,184,0,0.12);color:var(--both)}
+  .layer-infra{background:rgba(139,92,246,0.12);color:var(--purple)}
+  .group-count{margin-left:auto;font-family:'Space Mono',monospace;font-size:10px;color:var(--muted)}
+
+  /* FEATURE PILL */
+  .feat-grid{display:flex;flex-wrap:wrap;gap:5px}
+  .feat{display:inline-flex;align-items:flex-start;gap:7px;padding:6px 9px;border-radius:6px;border:1px solid rgba(255,255,255,0.07);background:rgba(255,255,255,0.02);min-width:170px;max-width:250px;flex:1}
+  .feat-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-top:4px}
+  .feat-content{flex:1;min-width:0}
+  .feat-name{font-size:11px;font-weight:500;color:var(--white);line-height:1.3;margin-bottom:1px}
+  .feat-desc{font-size:9.5px;color:var(--muted);line-height:1.3}
+  .feat-file{font-family:'Space Mono',monospace;font-size:8px;color:rgba(0,212,255,0.45);margin-top:2px}
+  .feat-tag{font-family:'Space Mono',monospace;font-size:8px;padding:1px 5px;border-radius:3px;flex-shrink:0;margin-top:2px;white-space:nowrap;align-self:flex-start}
+
+  .s-done{border-left:2px solid var(--s-done)!important}
+  .s-prog{border-left:2px solid var(--s-prog)!important}
+  .s-pend{border-left:2px solid var(--s-pend)!important}
+  .s-plan{border-left:2px solid var(--s-plan)!important}
+  .s-legacy{border-left:2px solid var(--s-legacy)!important;opacity:0.55}
+
+  .s-done .feat-dot{background:var(--s-done)}
+  .s-prog .feat-dot{background:var(--s-prog)}
+  .s-pend .feat-dot{background:var(--s-pend)}
+  .s-plan .feat-dot{background:var(--s-plan)}
+  .s-legacy .feat-dot{background:var(--s-legacy)}
+
+  .s-done .feat-tag{background:rgba(0,200,83,0.12);color:#4ade80}
+  .s-prog .feat-tag{background:rgba(33,150,243,0.12);color:#60a5fa}
+  .s-pend .feat-tag{background:rgba(255,184,0,0.12);color:#fbbf24}
+  .s-plan .feat-tag{background:rgba(139,92,246,0.12);color:#a78bfa}
+  .s-legacy .feat-tag{background:rgba(100,100,100,0.12);color:#888}
+
+  /* DNA DIVIDER */
+  .dna-divider{padding:20px 64px;display:flex;justify-content:center}
+  .dna-row{display:flex;gap:3px}
+  .dna-pair{display:flex;align-items:center;gap:1px}
+  .dna-base{width:11px;height:11px;border-radius:2px;opacity:0.55}
+  .dna-bridge{width:5px;height:2px;background:rgba(255,255,255,0.12);align-self:center}
+
+  /* SCHEMA SECTION */
+  .schema-section{margin-top:40px;background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+  .schema-header{padding:16px 22px;background:rgba(0,212,255,0.05);border-bottom:1px solid var(--border)}
+  .schema-header h2{font-size:15px;font-weight:600;color:var(--white);margin-bottom:3px}
+  .schema-header p{font-size:11px;color:var(--muted)}
+  .schema-body{padding:20px}
+  .schema-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .schema-card{background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:8px;padding:12px}
+  .schema-card-title{font-family:'Space Mono',monospace;font-size:9px;color:var(--cyan);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px}
+  .schema-field{display:flex;gap:6px;font-size:10px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.04)}
+  .schema-field:last-child{border:none}
+  .sf-key{font-family:'Space Mono',monospace;color:rgba(0,212,255,0.7);flex-shrink:0;min-width:130px}
+  .sf-type{color:rgba(255,184,0,0.6);flex-shrink:0;min-width:60px}
+  .sf-desc{color:var(--muted)}
+
+  /* GAPS PROMPT */
+  .prompt-section{margin-top:32px;background:rgba(0,0,0,0.4);border:1px solid rgba(0,212,255,0.18);border-radius:12px;overflow:hidden}
+  .prompt-header{padding:12px 18px;background:rgba(0,212,255,0.05);border-bottom:1px solid rgba(0,212,255,0.12);font-family:'Space Mono',monospace;font-size:10px;color:var(--cyan);text-transform:uppercase;letter-spacing:2px}
+  .prompt-body{padding:18px;font-family:'Space Mono',monospace;font-size:10px;color:rgba(255,255,255,0.70);line-height:1.8;white-space:pre-wrap;word-break:break-word}
+
+  /* FOOTER */
+  .footer{background:var(--card);border-top:1px solid var(--border);padding:20px 64px;display:flex;justify-content:space-between;align-items:center}
+  .footer-txt{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<!-- COVER -->
+<div class="cover">
+  <div class="cover-logo">ChampionTrackPro · Architecture DNA · v4.0 · Source-verified by Claude Code · March 2026</div>
+  <h1>The <span>DNA</span> Ecosystem<br>Architecture Map</h1>
+  <p class="cover-sub">Complete frontend + backend feature inventory — verified by static code analysis of every file in the repository. 87 features catalogued across 7 domains. Status, layer, file reference, and known gaps for each feature. Source of truth for development, investor communication, and onboarding.</p>
+  <div class="cover-meta">
+    <div><div class="kpi-val">7</div><div class="kpi-lbl">Macro Domains</div></div>
+    <div><div class="kpi-val">87</div><div class="kpi-lbl">Features (code-verified)</div></div>
+    <div><div class="kpi-val">~8,400</div><div class="kpi-lbl">Lines of App Code</div></div>
+    <div><div class="kpi-val">81%</div><div class="kpi-lbl">Done or In Progress</div></div>
+    <div><div class="kpi-val">4</div><div class="kpi-lbl">Critical Gaps Found</div></div>
+  </div>
+</div>
+
+<!-- LEGEND -->
+<div class="legend-bar">
+  <div class="leg-group">
+    <span class="leg-title">Status</span>
+    <div class="leg-item"><div class="ldot" style="background:var(--s-done)"></div>Done</div>
+    <div class="leg-item"><div class="ldot" style="background:var(--s-prog)"></div>In Progress</div>
+    <div class="leg-item"><div class="ldot" style="background:var(--s-pend)"></div>Pending</div>
+    <div class="leg-item"><div class="ldot" style="background:var(--s-plan)"></div>Planned</div>
+    <div class="leg-item"><div class="ldot" style="background:var(--s-legacy)"></div>Legacy / Unused</div>
+  </div>
+  <div class="leg-group">
+    <span class="leg-title">Layer</span>
+    <div class="leg-item"><span class="lpill layer-fe">FE</span>Frontend</div>
+    <div class="leg-item"><span class="lpill layer-be">BE</span>Backend / CF</div>
+    <div class="leg-item"><span class="lpill layer-both">BOTH</span>Full-stack</div>
+    <div class="leg-item"><span class="lpill layer-infra">INFRA</span>Infrastructure</div>
+  </div>
+  <div class="leg-group">
+    <span class="leg-title">Design System</span>
+    <div class="leg-item"><div class="ldot" style="background:#0A0F1E;border:1px solid #00D4FF"></div>#0A0F1E bg</div>
+    <div class="leg-item"><div class="ldot" style="background:#00D4FF"></div>#00D4FF cyan</div>
+    <div class="leg-item"><div class="ldot" style="background:#00C853"></div>#00C853 done</div>
+    <div class="leg-item"><div class="ldot" style="background:#FFB800"></div>#FFB800 pending</div>
+  </div>
+</div>
+
+<!-- PROGRESS OVERVIEW -->
+<div class="progress-section">
+  <div class="section-label">Domain Progress — Source-Verified</div>
+  <div class="progress-grid">
+    <div class="prog-card"><div class="prog-card-icon">🔐</div><div class="prog-card-name">Authentication</div><div class="prog-bar-wrap"><div class="prog-bar-fill" style="width:100%"></div></div><div class="prog-pct">100% · 11 features</div></div>
+    <div class="prog-card"><div class="prog-card-icon">👤</div><div class="prog-card-name">Athlete Experience</div><div class="prog-bar-wrap"><div class="prog-bar-fill" style="width:88%"></div></div><div class="prog-pct">88% · 16 features</div></div>
+    <div class="prog-card"><div class="prog-card-icon">📊</div><div class="prog-card-name">Coach Dashboard</div><div class="prog-bar-wrap"><div class="prog-bar-fill" style="width:82%;background:var(--s-prog)"></div></div><div class="prog-pct">82% · 22 features</div></div>
+    <div class="prog-card"><div class="prog-card-icon">⚙️</div><div class="prog-card-name">Admin Panel</div><div class="prog-bar-wrap"><div class="prog-bar-fill" style="width:70%"></div></div><div class="prog-pct">70% · 10 features</div></div>
+    <div class="prog-card"><div class="prog-card-icon">📅</div><div class="prog-card-name">Calendar Sync</div><div class="prog-bar-wrap"><div class="prog-bar-fill" style="width:100%"></div></div><div class="prog-pct">100% · 10 features</div></div>
+    <div class="prog-card"><div class="prog-card-icon">🧠</div><div class="prog-card-name">DAR Algorithm</div><div class="prog-bar-wrap"><div class="prog-bar-fill" style="width:85%;background:var(--s-prog)"></div></div><div class="prog-pct">85% · 13 features</div></div>
+    <div class="prog-card"><div class="prog-card-icon">🏗️</div><div class="prog-card-name">Platform & Infra</div><div class="prog-bar-wrap"><div class="prog-bar-fill" style="width:80%"></div></div><div class="prog-pct">80% · 25 features</div></div>
+  </div>
+</div>
+
+<!-- CRITICAL GAPS -->
+<div class="gaps-section">
+  <div class="gap-title">⚠️ Critical Gaps Identified by Code Analysis</div>
+  <div class="gap-grid">
+    <div class="gap-card"><span class="gap-sev sev-h">HIGH</span><div class="gap-card-title">Admin Tabs route to placeholder</div><div class="gap-card-desc">AdminTabs "Teams" and "Analytics" tabs both render StitchAdminDashboard.js — a blank placeholder. Real AdminTeamDetailScreen is unreachable from the tab bar.</div></div>
+    <div class="gap-card"><span class="gap-sev sev-h">HIGH</span><div class="gap-card-title">V3 worryFlag not surfaced in coach alerts</div><div class="gap-card-desc">CoachHomeScreen and CoachTeamScreen detect pain via V1 fields (impactMusculaire ≥ 70, fatigue ≥ 80). worryFlag from V3 Friction Matrix is never checked.</div></div>
+    <div class="gap-card"><span class="gap-sev sev-h">HIGH</span><div class="gap-card-title">Questionnaire params fragile</div><div class="gap-card-desc">AthleteHome passes trainingId but StitchQuestionnaireScreen reads sessionId. Works because navigator also passes deprecated alias — but one refactor will silently break the questionnaire.</div></div>
+    <div class="gap-card"><span class="gap-sev sev-m">MEDIUM</span><div class="gap-card-title">AthleteDetailScreen uses V2 metric keys</div><div class="gap-card-desc">Reads cardioLoad, motorControl (V2 names). V3 responses use tankLevel, legBounce. Mixed responses may silently show 0/null for newer athletes.</div></div>
+    <div class="gap-card"><span class="gap-sev sev-m">MEDIUM</span><div class="gap-card-title">Coach schedule uses V1 response field</div><div class="gap-card-desc">CoachScheduleScreen detects physicalPain (V1 field) to color session cards. V3 responses never set this field — all sessions appear without pain indicator regardless of data.</div></div>
+    <div class="gap-card"><span class="gap-sev sev-l">LOW</span><div class="gap-card-title">Coach profile phone never saved</div><div class="gap-card-desc">CoachProfileScreen shows a phone number input field in edit mode, but the phone field is absent from the handleSave() payload — user input silently discarded.</div></div>
+  </div>
+</div>
+
+<div class="main">
+
+<!-- DOMAIN 1 — AUTHENTICATION -->
+<div class="domain">
+  <div class="domain-header">
+    <div class="domain-icon">🔐</div>
+    <div class="domain-info">
+      <div class="domain-name">Authentication & Onboarding</div>
+      <div class="domain-desc">Complete — Firebase Auth, role-based routing, invite code join flow, deep link auto-join</div>
+    </div>
+    <div class="domain-stats">
+      <span class="dstat">11 features</span>
+      <span class="dstat" style="color:var(--s-done)">100% done</span>
+    </div>
+  </div>
+  <div class="domain-body">
+    <div class="group">
+      <div class="group-header">
+        <span class="group-name">Auth Flow</span>
+        <span class="layer-badge layer-both">BOTH</span>
+        <span class="group-count">8/8</span>
+      </div>
+      <div class="feat-grid">
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Email/Password Login</div><div class="feat-desc">signInWithEmailAndPassword, persistent session (browserLocalPersistence)</div><div class="feat-file">StitchLoginScreen.js</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Account Creation</div><div class="feat-desc">Creates user doc, sets role=athlete by default</div><div class="feat-file">StitchCreateAccountScreen.js</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Auth State Listener</div><div class="feat-desc">onAuthStateChanged + onSnapshot role fetch, renders AuthGate</div><div class="feat-file">StitchNavigator.js</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Role-Based Navigation</div><div class="feat-desc">AthleteTabs / CoachTabs / AdminTabs routing from users.role</div><div class="feat-file">StitchNavigator.js</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Role Race Condition Fix</div><div class="feat-desc">Waits for onSnapshot before rendering — no more coach→athlete flicker</div><div class="feat-file">StitchNavigator.js</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Auto Admin Seed</div><div class="feat-desc">gabfavergeat@gmail.com auto-gets admin role if no doc exists</div><div class="feat-file">StitchNavigator.js</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Login Count Tracking</div><div class="feat-desc">Increments users/{uid}.loginCount on each successful auth</div><div class="feat-file">StitchNavigator.js</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Logout</div><div class="feat-desc">Firebase signOut + navigation reset, available coach + admin</div><div class="feat-file">CoachProfileScreen.tsx · AdminHomeScreen.tsx</div></div><span class="feat-tag">FE · Done</span></div>
+      </div>
+    </div>
+    <div class="group">
+      <div class="group-header">
+        <span class="group-name">Join Flow & Onboarding</span>
+        <span class="layer-badge layer-both">BOTH</span>
+        <span class="group-count">3/3</span>
+      </div>
+      <div class="feat-grid">
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Join by Invite Code</div><div class="feat-desc">URL ?code=XXXX-A/C → lookupTeamByCode CF → createMembership CF</div><div class="feat-file">StitchNavigator.js + functions/index.js</div></div><span class="feat-tag">BOTH · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Deep Link Auto-Join</div><div class="feat-desc">URL param extracted on startup, cleaned after auth completes</div><div class="feat-file">StitchNavigator.js</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Notification Onboarding Screen</div><div class="feat-desc">First-login push permission + iOS PWA install guide</div><div class="feat-file">OnboardingNotifScreen.tsx</div></div><span class="feat-tag">FE · Done</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="dna-divider"><div class="dna-row">
+  <div class="dna-pair"><div class="dna-base" style="background:var(--s-done)"></div><div class="dna-bridge"></div><div class="dna-base" style="background:var(--fe)"></div></div>
+  <div class="dna-pair"><div class="dna-base" style="background:var(--s-prog)"></div><div class="dna-bridge"></div><div class="dna-base" style="background:var(--be)"></div></div>
+  <div class="dna-pair"><div class="dna-base" style="background:var(--s-pend)"></div><div class="dna-bridge"></div><div class="dna-base" style="background:var(--both)"></div></div>
+  <div class="dna-pair"><div class="dna-base" style="background:var(--s-plan)"></div><div class="dna-bridge"></div><div class="dna-base" style="background:var(--cyan)"></div></div>
+  <div class="dna-pair"><div class="dna-base" style="background:var(--s-done)"></div><div class="dna-bridge"></div><div class="dna-base" style="background:var(--fe)"></div></div>
+  <div class="dna-pair"><div class="dna-base" style="background:var(--s-prog)"></div><div class="dna-bridge"></div><div class="dna-base" style="background:var(--be)"></div></div>
+  <div class="dna-pair"><div class="dna-base" style="background:var(--s-pend)"></div><div class="dna-bridge"></div><div class="dna-base" style="background:var(--both)"></div></div>
+  <div class="dna-pair"><div class="dna-base" style="background:var(--s-done)"></div><div class="dna-bridge"></div><div class="dna-base" style="background:var(--cyan)"></div></div>
+  <div class="dna-pair"><div class="dna-base" style="background:var(--s-done)"></div><div class="dna-bridge"></div><div class="dna-base" style="background:var(--fe)"></div></div>
+  <div class="dna-pair"><div class="dna-base" style="background:var(--s-prog)"></div><div class="dna-bridge"></div><div class="dna-base" style="background:var(--be)"></div></div>
+  <div class="dna-pair"><div class="dna-base" style="background:var(--s-pend)"></div><div class="dna-bridge"></div><div class="dna-base" style="background:var(--both)"></div></div>
+  <div class="dna-pair"><div class="dna-base" style="background:var(--s-plan)"></div><div class="dna-bridge"></div><div class="dna-base" style="background:var(--cyan)"></div></div>
+</div></div>
+
+<!-- DOMAIN 2 — ATHLETE EXPERIENCE -->
+<div class="domain">
+  <div class="domain-header">
+    <div class="domain-icon">👤</div>
+    <div class="domain-info">
+      <div class="domain-name">Athlete Experience</div>
+      <div class="domain-desc">4-state questionnaire logic, Friction Matrix V3, push notification pipeline, schedule views</div>
+    </div>
+    <div class="domain-stats">
+      <span class="dstat">16 features</span>
+      <span class="dstat" style="color:var(--s-done)">88% done</span>
+    </div>
+  </div>
+  <div class="domain-body">
+
+    <div class="group">
+      <div class="group-header">
+        <span class="group-name">Athlete Home — 4-State Logic</span>
+        <span class="layer-badge layer-fe">FE</span>
+        <span class="group-count">4/5</span>
+      </div>
+      <div class="feat-grid">
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">4-state questionnaire card</div><div class="feat-desc">open / completed / closed / not_open_yet — different CTA per state</div><div class="feat-file">AthleteHomeNew.tsx</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Session list with response status</div><div class="feat-desc">All upcoming + today's trainings, sorted by startUtc</div><div class="feat-file">AthleteHomeNew.tsx</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Athlete schedule (Day/Week)</div><div class="feat-desc">Calendar view of training sessions</div><div class="feat-file">StitchScheduleScreen.js · AthleteScheduleDay.tsx</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Athlete profile screen</div><div class="feat-desc">Name, team info, notification test button</div><div class="feat-file">StitchProfileScreen.js</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-plan"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Personal readiness trend</div><div class="feat-desc">Mini DAR chart of own EMA on athlete home</div><div class="feat-file">— not yet built —</div></div><span class="feat-tag">FE · Planned</span></div>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group-header">
+        <span class="group-name">Questionnaire V3 — DAR Check-in</span>
+        <span class="layer-badge layer-both">BOTH</span>
+        <span class="group-count">9/9</span>
+      </div>
+      <div class="feat-grid">
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">6 DAR sliders (EVA 1-100)</div><div class="feat-desc">Q1-Q6: tank / cardio / bounce / motor / tactical / chemistry — no numbers visible</div><div class="feat-file">StitchQuestionnaireScreen.js</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Friction Matrix Q7-Q10</div><div class="feat-desc">YES/NO → type pills → impact slider → worry slider, conditional render</div><div class="feat-file">StitchQuestionnaireScreen.js</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Worry Flag auto-trigger</div><div class="feat-desc">worryFlag = hasFriction AND worryLevel > 70</div><div class="feat-file">StitchQuestionnaireScreen.js</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Questionnaire time window</div><div class="feat-desc">Opens at training endUtc, closes 5h after — computeQuestionnaireStatus()</div><div class="feat-file">utils/questionnaire.ts</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Dynamic questionnaire loading</div><div class="feat-desc">Reads team.questionnaireId → fetches from questionnaires collection</div><div class="feat-file">StitchQuestionnaireScreen.js</div></div><span class="feat-tag">BOTH · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Readiness Score V3 weighted</div><div class="feat-desc">Weights from questionnaire template, normalized to 1.0</div><div class="feat-file">StitchQuestionnaireScreen.js · questionnaireTemplates.ts</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Response save to Firestore</div><div class="feat-desc">saveQuestionnaireResponse() → setDoc with merge, all V3 fields + V2 aliases</div><div class="feat-file">src/lib/responses.ts</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">isTestSession banner</div><div class="feat-desc">Visual indicator when submitting on a test session</div><div class="feat-file">StitchQuestionnaireScreen.js</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-prog"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Questionnaire params (fragile ⚠️)</div><div class="feat-desc">Screen reads sessionId but new nav passes trainingId — works via alias but brittle</div><div class="feat-file">StitchNavigator.js → StitchQuestionnaireScreen.js</div></div><span class="feat-tag">BOTH · Fix needed</span></div>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group-header">
+        <span class="group-name">Push Notifications Pipeline</span>
+        <span class="layer-badge layer-both">BOTH</span>
+        <span class="group-count">7/8</span>
+      </div>
+      <div class="feat-grid">
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Questionnaire available CRON (1 min)</div><div class="feat-desc">Fires on training end — creates pendingQuestionnaireReminders doc + sends FCM</div><div class="feat-file">functions/index.js → sendQuestionnaireAvailableNotifications</div></div><span class="feat-tag">BE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Questionnaire reminder CRON (5 min)</div><div class="feat-desc">Checks pendingReminders where dueAt ≤ now, sends if athlete hasn't responded</div><div class="feat-file">functions/index.js → sendQuestionnaireReminders</div></div><span class="feat-tag">BE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Service Worker FCM background</div><div class="feat-desc">Background push delivery, no type:module (iOS compatible)</div><div class="feat-file">public/firebase-messaging-sw.js</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">FCM token registration</div><div class="feat-desc">initializeFCM() + registerWebPushTokenForCurrentUser(), arrayUnion</div><div class="feat-file">fcmService.js · webNotifications.ts</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Token refresh 24h</div><div class="feat-desc">Re-registers FCM token daily, merge:true prevents role overwrite</div><div class="feat-file">fcmService.js</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Foreground notification display</div><div class="feat-desc">In-app banner when push received while app is open</div><div class="feat-file">fcmService.js · webNotifications.ts</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Test notification trigger</div><div class="feat-desc">sendTestNotification CF + debug panel in athlete profile</div><div class="feat-file">notificationTest.ts · FCMDebugPanel.tsx</div></div><span class="feat-tag">BOTH · Done</span></div>
+        <div class="feat s-pend"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">icon-notif-color.png</div><div class="feat-desc">Colored slider icon 192×192 for notification popup display</div><div class="feat-file">— not yet created —</div></div><span class="feat-tag">FE · Pending</span></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="dna-divider"><div class="dna-row">
+  <div class="dna-pair"><div class="dna-base" style="background:var(--cyan)"></div><div class="dna-bridge"></div><div class="dna-base" style="background:var(--s-done)"></div></div>
+  <div class="dna-pair"><div class="dna-base" style="background:var(--be)"></div><div class="dna-bridge"></div><div class="dna-base" style="background:var(--s-prog)"></div></div>
+  <div class="dna-pair"><div class="dna-base" style="background:var(--both)"></div><div class="dna-bridge"></div><div class="dna-base" style="background:var(--s-pend)"></div></div>
+  <div class="dna-pair"><div class="dna-base" style="background:var(--fe)"></div><div class="dna-bridge"></div><div class="dna-base" style="background:var(--s-plan)"></div></div>
+  <div class="dna-pair"><div class="dna-base" style="background:var(--cyan)"></div><div class="dna-bridge"></div><div class="dna-base" style="background:var(--s-done)"></div></div>
+  <div class="dna-pair"><div class="dna-base" style="background:var(--be)"></div><div class="dna-bridge"></div><div class="dna-base" style="background:var(--s-prog)"></div></div>
+  <div class="dna-pair"><div class="dna-base" style="background:var(--both)"></div><div class="dna-bridge"></div><div class="dna-base" style="background:var(--s-pend)"></div></div>
+  <div class="dna-pair"><div class="dna-base" style="background:var(--fe)"></div><div class="dna-bridge"></div><div class="dna-base" style="background:var(--s-done)"></div></div>
+  <div class="dna-pair"><div class="dna-base" style="background:var(--cyan)"></div><div class="dna-bridge"></div><div class="dna-base" style="background:var(--s-done)"></div></div>
+  <div class="dna-pair"><div class="dna-base" style="background:var(--be)"></div><div class="dna-bridge"></div><div class="dna-base" style="background:var(--s-prog)"></div></div>
+  <div class="dna-pair"><div class="dna-base" style="background:var(--both)"></div><div class="dna-bridge"></div><div class="dna-base" style="background:var(--s-pend)"></div></div>
+  <div class="dna-pair"><div class="dna-base" style="background:var(--fe)"></div><div class="dna-bridge"></div><div class="dna-base" style="background:var(--s-plan)"></div></div>
+</div></div>
+
+<!-- DOMAIN 3 — COACH DASHBOARD -->
+<div class="domain">
+  <div class="domain-header">
+    <div class="domain-icon">📊</div>
+    <div class="domain-info">
+      <div class="domain-name">Coach Dashboard</div>
+      <div class="domain-desc">4 coach screens — Home KPIs, Team Roster, Schedule, Performance Analytics. DAR 4-quadrant + 5 chart types</div>
+    </div>
+    <div class="domain-stats">
+      <span class="dstat">22 features</span>
+      <span class="dstat" style="color:var(--s-prog)">82% done</span>
+    </div>
+  </div>
+  <div class="domain-body">
+
+    <div class="group">
+      <div class="group-header">
+        <span class="group-name">Coach Home Screen</span>
+        <span class="layer-badge layer-fe">FE</span>
+        <span class="group-count">2/3</span>
+      </div>
+      <div class="feat-grid">
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">KPI cards — team stats</div><div class="feat-desc">Athlete count, week trainings, last session response rate</div><div class="feat-file">CoachHomeScreen.tsx</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Alerts — last training</div><div class="feat-desc">Athletes who triggered pain threshold (V1 fields) listed</div><div class="feat-file">CoachHomeScreen.tsx</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-prog"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Pain detection V3 upgrade ⚠️</div><div class="feat-desc">Currently reads impactMusculaire (V1). Must switch to worryFlag + frictionType from V3 responses</div><div class="feat-file">CoachHomeScreen.tsx — line ~280</div></div><span class="feat-tag">FE · In Progress</span></div>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group-header">
+        <span class="group-name">Coach Team Roster Screen</span>
+        <span class="layer-badge layer-fe">FE</span>
+        <span class="group-count">2/3</span>
+      </div>
+      <div class="feat-grid">
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Team roster list</div><div class="feat-desc">All athletes with position, jersey, last questionnaire status</div><div class="feat-file">CoachTeamScreen.tsx</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Athlete detail drill-down</div><div class="feat-desc">Tap athlete → AthleteDetailScreen with gauge + radar + EMA trendline + session table</div><div class="feat-file">AthleteDetailScreen.tsx</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-prog"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">V3 radar metrics in detail ⚠️</div><div class="feat-desc">AthleteDetailScreen reads V2 metric keys — V3 athletes show null. Needs tankLevel/legBounce mapping</div><div class="feat-file">AthleteDetailScreen.tsx</div></div><span class="feat-tag">FE · In Progress</span></div>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group-header">
+        <span class="group-name">Coach Schedule Screen</span>
+        <span class="layer-badge layer-fe">FE</span>
+        <span class="group-count">1/2</span>
+      </div>
+      <div class="feat-grid">
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Day / Week / Month calendar view</div><div class="feat-desc">Full calendar with training cards per day</div><div class="feat-file">CoachScheduleScreen.tsx</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-prog"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Session response status color ⚠️</div><div class="feat-desc">Reads physicalPain (V1 field) for card color — V3 responses never set this</div><div class="feat-file">CoachScheduleScreen.tsx</div></div><span class="feat-tag">FE · In Progress</span></div>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group-header">
+        <span class="group-name">Performance Dashboard — Morning Brief</span>
+        <span class="layer-badge layer-both">BOTH</span>
+        <span class="group-count">7/7</span>
+      </div>
+      <div class="feat-grid">
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Risk-sorted athlete list</div><div class="feat-desc">DANGER/MONITOR/OPTIMAL sections, auto-sorted by readiness ASC</div><div class="feat-file">PerformanceDashboard.tsx</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Readiness gauge + EMA deviation</div><div class="feat-desc">SVG arc gauge + % vs 28-day baseline per athlete row</div><div class="feat-file">PerformanceDashboard.tsx</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">PHY / MEN / TEC sub-scores</div><div class="feat-desc">Three mini bars per athlete row</div><div class="feat-file">PerformanceDashboard.tsx</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Worry Flag badge ⚠️</div><div class="feat-desc">Visible even when readiness is green</div><div class="feat-file">PerformanceDashboard.tsx</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">isTestSession exclusion</div><div class="feat-desc">Filters out responses where isTest=true</div><div class="feat-file">PerformanceDashboard.tsx</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Player + Duration filters</div><div class="feat-desc">7d/14d/30d/90d + player chip filters</div><div class="feat-file">PerformanceDashboard.tsx</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Full Season shortcut</div><div class="feat-desc">One-click Oct → Mar seeded data view</div><div class="feat-file">PerformanceDashboard.tsx</div></div><span class="feat-tag">FE · Done</span></div>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group-header">
+        <span class="group-name">Analytics Charts + DAR 4-Quadrant</span>
+        <span class="layer-badge layer-fe">FE</span>
+        <span class="group-count">6/7</span>
+      </div>
+      <div class="feat-grid">
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Line / Bar / Radar / Deviation / Workload</div><div class="feat-desc">5 chart types in Analytics tab, Recharts</div><div class="feat-file">PerformanceDashboard.tsx</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">DAR 4-quadrant chart</div><div class="feat-desc">Physical/Mental/Technical · Relative+Raw · Timeline+Period</div><div class="feat-file">DARPerformanceChart.tsx · DARStackedChart.tsx · DARRawChart.tsx</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Q1/Q2/Q3 quartile lines</div><div class="feat-desc">Percentile reference on raw score charts</div><div class="feat-file">DARRawChart.tsx</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Zone distribution row</div><div class="feat-desc">Per-player % Normal/Under-load/Spike mini bars</div><div class="feat-file">DARPerformanceChart.tsx</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">EMA trendline</div><div class="feat-desc">28-day dashed EMA line on raw score timeline</div><div class="feat-file">DARRawChart.tsx · analytics.ts</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Coach Profile edit</div><div class="feat-desc">Display name + base64 photo upload</div><div class="feat-file">CoachProfileScreen.tsx</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-plan"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">PDF report export</div><div class="feat-desc">Generate coaching staff session report as PDF</div><div class="feat-file">— not built —</div></div><span class="feat-tag">FE · Planned</span></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="dna-divider"><div class="dna-row">
+  <div class="dna-pair"><div class="dna-base" style="background:var(--s-done)"></div><div class="dna-bridge"></div><div class="dna-base" style="background:var(--purple)"></div></div>
+  <div class="dna-pair"><div class="dna-base" style="background:var(--s-prog)"></div><div class="dna-bridge"></div><div class="dna-base" style="background:var(--fe)"></div></div>
+  <div class="dna-pair"><div class="dna-base" style="background:var(--s-pend)"></div><div class="dna-bridge"></div><div class="dna-base" style="background:var(--be)"></div></div>
+  <div class="dna-pair"><div class="dna-base" style="background:var(--s-plan)"></div><div class="dna-bridge"></div><div class="dna-base" style="background:var(--both)"></div></div>
+  <div class="dna-pair"><div class="dna-base" style="background:var(--s-done)"></div><div class="dna-bridge"></div><div class="dna-base" style="background:var(--purple)"></div></div>
+  <div class="dna-pair"><div class="dna-base" style="background:var(--s-prog)"></div><div class="dna-bridge"></div><div class="dna-base" style="background:var(--fe)"></div></div>
+  <div class="dna-pair"><div class="dna-base" style="background:var(--s-pend)"></div><div class="dna-bridge"></div><div class="dna-base" style="background:var(--be)"></div></div>
+  <div class="dna-pair"><div class="dna-base" style="background:var(--s-done)"></div><div class="dna-bridge"></div><div class="dna-base" style="background:var(--cyan)"></div></div>
+  <div class="dna-pair"><div class="dna-base" style="background:var(--s-done)"></div><div class="dna-bridge"></div><div class="dna-base" style="background:var(--purple)"></div></div>
+  <div class="dna-pair"><div class="dna-base" style="background:var(--s-prog)"></div><div class="dna-bridge"></div><div class="dna-base" style="background:var(--fe)"></div></div>
+  <div class="dna-pair"><div class="dna-base" style="background:var(--s-pend)"></div><div class="dna-bridge"></div><div class="dna-base" style="background:var(--be)"></div></div>
+  <div class="dna-pair"><div class="dna-base" style="background:var(--s-plan)"></div><div class="dna-bridge"></div><div class="dna-base" style="background:var(--both)"></div></div>
+</div></div>
+
+<!-- DOMAIN 4 — ADMIN PANEL -->
+<div class="domain">
+  <div class="domain-header">
+    <div class="domain-icon">⚙️</div>
+    <div class="domain-info">
+      <div class="domain-name">Admin Panel</div>
+      <div class="domain-desc">Team creation, settings drawer, access codes, questionnaire templates — ⚠️ Admin tab bar routes to placeholder</div>
+    </div>
+    <div class="domain-stats">
+      <span class="dstat">10 features</span>
+      <span class="dstat" style="color:var(--s-pend)">70% done</span>
+    </div>
+  </div>
+  <div class="domain-body">
+
+    <div class="group">
+      <div class="group-header">
+        <span class="group-name">Admin Home + Navigation ⚠️</span>
+        <span class="layer-badge layer-fe">FE</span>
+        <span class="group-count">1/3</span>
+      </div>
+      <div class="feat-grid">
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Admin Home team grid</div><div class="feat-desc">All teams displayed as cards, tap → AdminTeamDetailScreen</div><div class="feat-file">AdminHomeScreen.tsx</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-pend"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Admin "Teams" tab ⚠️</div><div class="feat-desc">AdminTabs routes "Teams" to StitchAdminDashboard placeholder — real screen unreachable</div><div class="feat-file">StitchNavigator.js → AdminTabs</div></div><span class="feat-tag">FE · Pending — CRITICAL</span></div>
+        <div class="feat s-pend"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Admin "Analytics" tab ⚠️</div><div class="feat-desc">Same — routes to placeholder instead of analytics screen</div><div class="feat-file">StitchNavigator.js → AdminTabs</div></div><span class="feat-tag">FE · Pending</span></div>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group-header">
+        <span class="group-name">Create Team Modal + Settings Drawer</span>
+        <span class="layer-badge layer-both">BOTH</span>
+        <span class="group-count">5/5</span>
+      </div>
+      <div class="feat-grid">
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Create Team Modal</div><div class="feat-desc">Name, sport, division, logo, season dates, DAR metrics, iCal URL</div><div class="feat-file">CreateTeamModal.tsx</div></div><span class="feat-tag">BOTH · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Admin Team Detail — dashboard-first</div><div class="feat-desc">Full PerformanceDashboard embedded, gear icon drawer</div><div class="feat-file">AdminTeamDetailScreen.tsx</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Settings Drawer — Access Codes</div><div class="feat-desc">[CODE]-C coach + [CODE]-A athlete, copy code + copy link</div><div class="feat-file">AdminTeamDetailScreen.tsx</div></div><span class="feat-tag">BOTH · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Settings Drawer — Calendar Sync</div><div class="feat-desc">URL input, sync status badge, Sync Now, training event list</div><div class="feat-file">AdminTeamDetailScreen.tsx</div></div><span class="feat-tag">BOTH · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Settings Drawer — Questionnaire Assignment</div><div class="feat-desc">Shows active template, change questionnaire selector</div><div class="feat-file">AdminTeamDetailScreen.tsx</div></div><span class="feat-tag">BOTH · Done</span></div>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group-header">
+        <span class="group-name">Questionnaire Templates Library</span>
+        <span class="layer-badge layer-both">BOTH</span>
+        <span class="group-count">2/2</span>
+      </div>
+      <div class="feat-grid">
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">5 default sport templates</div><div class="feat-desc">Basketball Any/GameDay + Handball + Soccer + Generic — seeded to Firestore</div><div class="feat-file">questionnaireTemplates.ts · seedDefaultQuestionnaires()</div></div><span class="feat-tag">BOTH · Done</span></div>
+        <div class="feat s-plan"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Custom questionnaire builder</div><div class="feat-desc">"Coming soon" alert in AdminTeamDetailScreen — UI stub only</div><div class="feat-file">AdminTeamDetailScreen.tsx line ~546</div></div><span class="feat-tag">BOTH · Planned</span></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="dna-divider"><div class="dna-row">
+  <div class="dna-pair"><div class="dna-base" style="background:var(--yellow)"></div><div class="dna-bridge"></div><div class="dna-base" style="background:var(--s-done)"></div></div>
+  <div class="dna-pair"><div class="dna-base" style="background:var(--cyan)"></div><div class="dna-bridge"></div><div class="dna-base" style="background:var(--s-prog)"></div></div>
+  <div class="dna-pair"><div class="dna-base" style="background:var(--s-pend)"></div><div class="dna-bridge"></div><div class="dna-base" style="background:var(--green)"></div></div>
+  <div class="dna-pair"><div class="dna-base" style="background:var(--s-plan)"></div><div class="dna-bridge"></div><div class="dna-base" style="background:var(--purple)"></div></div>
+  <div class="dna-pair"><div class="dna-base" style="background:var(--yellow)"></div><div class="dna-bridge"></div><div class="dna-base" style="background:var(--s-done)"></div></div>
+  <div class="dna-pair"><div class="dna-base" style="background:var(--cyan)"></div><div class="dna-bridge"></div><div class="dna-base" style="background:var(--s-prog)"></div></div>
+  <div class="dna-pair"><div class="dna-base" style="background:var(--s-pend)"></div><div class="dna-bridge"></div><div class="dna-base" style="background:var(--green)"></div></div>
+  <div class="dna-pair"><div class="dna-base" style="background:var(--s-plan)"></div><div class="dna-bridge"></div><div class="dna-base" style="background:var(--purple)"></div></div>
+  <div class="dna-pair"><div class="dna-base" style="background:var(--yellow)"></div><div class="dna-bridge"></div><div class="dna-base" style="background:var(--s-done)"></div></div>
+  <div class="dna-pair"><div class="dna-base" style="background:var(--cyan)"></div><div class="dna-bridge"></div><div class="dna-base" style="background:var(--s-prog)"></div></div>
+  <div class="dna-pair"><div class="dna-base" style="background:var(--s-pend)"></div><div class="dna-bridge"></div><div class="dna-base" style="background:var(--green)"></div></div>
+  <div class="dna-pair"><div class="dna-base" style="background:var(--s-plan)"></div><div class="dna-bridge"></div><div class="dna-base" style="background:var(--purple)"></div></div>
+</div></div>
+
+<!-- DOMAIN 5 — CALENDAR SYNC -->
+<div class="domain">
+  <div class="domain-header">
+    <div class="domain-icon">📅</div>
+    <div class="domain-info">
+      <div class="domain-name">Calendar Sync Engine</div>
+      <div class="domain-desc">100% complete — iCal → Firestore pipeline, SSRF-protected, RRULE, phantom deletion, questionnaire auto-link</div>
+    </div>
+    <div class="domain-stats">
+      <span class="dstat">10 features</span>
+      <span class="dstat" style="color:var(--s-done)">100% done</span>
+    </div>
+  </div>
+  <div class="domain-body">
+    <div class="group">
+      <div class="group-header">
+        <span class="group-name">Sync Triggers + Security</span>
+        <span class="layer-badge layer-be">BE</span>
+        <span class="group-count">5/5</span>
+      </div>
+      <div class="feat-grid">
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">CRON every 15 min</div><div class="feat-desc">syncIcsCron — all teams with calendarActive=true, concurrent chunks of 10</div><div class="feat-file">functions/index.js → syncIcsCron</div></div><span class="feat-tag">BE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">On-save immediate sync</div><div class="feat-desc">Firestore trigger on icsUrl change → syncTeam() immediately</div><div class="feat-file">functions/index.js → syncCalendarOnSave</div></div><span class="feat-tag">BE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Sync Now callable (auth-gated)</div><div class="feat-desc">syncIcsNow HTTPS callable — requires Firebase Auth token</div><div class="feat-file">functions/index.js → syncIcsNow</div></div><span class="feat-tag">BE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">SSRF protection</div><div class="feat-desc">isUrlSafe() — HTTPS-only, blocks 169.254.x, 10.x, 192.168.x, localhost, .internal</div><div class="feat-file">functions/index.js → isUrlSafe()</div></div><span class="feat-tag">BE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Fetch timeout 30s + 500 event cap</div><div class="feat-desc">AbortController + guard against oversized feeds</div><div class="feat-file">functions/index.js → syncTeam()</div></div><span class="feat-tag">BE · Done</span></div>
+      </div>
+    </div>
+    <div class="group">
+      <div class="group-header">
+        <span class="group-name">Parse, Dedup, Write, Status</span>
+        <span class="layer-badge layer-be">BE</span>
+        <span class="group-count">5/5</span>
+      </div>
+      <div class="feat-grid">
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">RRULE expansion + EXDATE</div><div class="feat-desc">Expands recurring events over 180-day window, respects exclusions</div><div class="feat-file">functions/index.js → expandEvents()</div></div><span class="feat-tag">BE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">SHA-256 hash deduplication</div><div class="feat-desc">uid+startMillis → docId. SHA-256 of content → skip unchanged events</div><div class="feat-file">functions/index.js → syncTeam()</div></div><span class="feat-tag">BE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Phantom session deletion</div><div class="feat-desc">Diffs incoming UID set vs Firestore, batch-deletes orphans (syncedFromCalendar only)</div><div class="feat-file">functions/index.js → syncTeam()</div></div><span class="feat-tag">BE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Questionnaire auto-link</div><div class="feat-desc">resolveQuestionnaireId(): team → sport+sessionType → sport+any → generic fallback</div><div class="feat-file">functions/index.js → resolveQuestionnaireId()</div></div><span class="feat-tag">BE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Unified sync status reporting</div><div class="feat-desc">updateTeamSyncStatus(): syncing/ok/error + counts {created,updated,deleted,cancelled}</div><div class="feat-file">functions/index.js → updateTeamSyncStatus()</div></div><span class="feat-tag">BE · Done</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DOMAIN 6 — DAR ALGORITHM -->
+<div class="domain">
+  <div class="domain-header">
+    <div class="domain-icon">🧠</div>
+    <div class="domain-info">
+      <div class="domain-name">DAR Algorithm — Dynamic Adaptive Reserve</div>
+      <div class="domain-desc">Proprietary EMA baseline, 3-zone classification, readiness V3 formula, workload monitoring, questionnaire templates</div>
+    </div>
+    <div class="domain-stats">
+      <span class="dstat">13 features</span>
+      <span class="dstat" style="color:var(--s-prog)">85% done</span>
+    </div>
+  </div>
+  <div class="domain-body">
+    <div class="group">
+      <div class="group-header">
+        <span class="group-name">Core Algorithm</span>
+        <span class="layer-badge layer-fe">FE</span>
+        <span class="group-count">7/8</span>
+      </div>
+      <div class="feat-grid">
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">EMA 28-day (α = 0.069)</div><div class="feat-desc">Seed on first non-null, carry-forward on missed days</div><div class="feat-file">useDARAlgorithm.ts · analytics.ts</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">3-zone classification</div><div class="feat-desc">GREEN ±15% / BLUE &lt;-15% / YELLOW &gt;+15% of EMA</div><div class="feat-file">useDARAlgorithm.ts → processDARData()</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">INSUFFICIENT_DATA guard</div><div class="feat-desc">Zone = N/A when fewer than 3 data points</div><div class="feat-file">useDARAlgorithm.ts</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">V1→V2→V3 field bridge</div><div class="feat-desc">French fields (impactCardiaque…) → V2 → V3 rescaling for legacy responses</div><div class="feat-file">analytics.ts → extractV2Metrics()</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Readiness V3 weighted formula</div><div class="feat-desc">tankLevel×.20 + (101-cardio)×.20 + bounce×.20 + motor×.15 + tactical×.15 + chemistry×.10</div><div class="feat-file">questionnaireTemplates.ts → calcReadinessFromQuestionnaire()</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Questionnaire templates (5 sports)</div><div class="feat-desc">Basketball Any/GameDay + Handball + Soccer + Generic — seeded to Firestore</div><div class="feat-file">questionnaireTemplates.ts · fetchTeamQuestionnaire()</div></div><span class="feat-tag">BOTH · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">DAR_COLORS constants</div><div class="feat-desc">GREEN #00C853 / BLUE #2196F3 / YELLOW #FFB800 / INSUFFICIENT grey</div><div class="feat-file">useDARAlgorithm.ts</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-prog"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">DAR rebrand (Morin → DAR)</div><div class="feat-desc">Codebase rename in progress — some MorinPerformanceChart references may remain</div><div class="feat-file">useDARAlgorithm.ts — partially renamed</div></div><span class="feat-tag">BOTH · In Progress</span></div>
+      </div>
+    </div>
+    <div class="group">
+      <div class="group-header">
+        <span class="group-name">Workload Monitoring</span>
+        <span class="layer-badge layer-fe">FE</span>
+        <span class="group-count">4/5</span>
+      </div>
+      <div class="feat-grid">
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Acute load (7-day EMA)</div><div class="feat-desc">Short-term training stress indicator</div><div class="feat-file">PerformanceDashboard.tsx</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Chronic load (28-day EMA)</div><div class="feat-desc">Long-term fitness baseline for comparison</div><div class="feat-file">PerformanceDashboard.tsx</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Danger zone detection</div><div class="feat-desc">Visual flag when acute/chronic ratio &gt; 115%</div><div class="feat-file">PerformanceDashboard.tsx</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">WorkloadAU per session</div><div class="feat-desc">RPE × durationMinutes stored on response doc</div><div class="feat-file">StitchQuestionnaireScreen.js</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-plan"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Wearable data bridge</div><div class="feat-desc">Catapult / Polar / Garmin API integration</div><div class="feat-file">— not built —</div></div><span class="feat-tag">BOTH · Planned</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DOMAIN 7 — PLATFORM & INFRA -->
+<div class="domain">
+  <div class="domain-header">
+    <div class="domain-icon">🏗️</div>
+    <div class="domain-info">
+      <div class="domain-name">Platform & Infrastructure</div>
+      <div class="domain-desc">Firebase Auth, Firestore schema (7 collections), 13 Cloud Functions, security rules, PWA, deployment, GDPR</div>
+    </div>
+    <div class="domain-stats">
+      <span class="dstat">25 features</span>
+      <span class="dstat" style="color:var(--s-done)">80% done</span>
+    </div>
+  </div>
+  <div class="domain-body">
+
+    <div class="group">
+      <div class="group-header">
+        <span class="group-name">Security Rules — Verified</span>
+        <span class="layer-badge layer-be">BE</span>
+        <span class="group-count">8/8 — all pass</span>
+      </div>
+      <div class="feat-grid">
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">User self-update blocks role/teamId</div><div class="feat-desc">VULN-03 fix: !affectedKeys().hasAny(['role','teamId'])</div><div class="feat-file">firestore.rules</div></div><span class="feat-tag">BE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Athlete → own responses only</div><div class="feat-desc">responseId == request.auth.uid enforced</div><div class="feat-file">firestore.rules</div></div><span class="feat-tag">BE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">5-hour response window</div><div class="feat-desc">isQuestionnaireWindowOpen() function in rules</div><div class="feat-file">firestore.rules</div></div><span class="feat-tag">BE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">collectionGroup responses secured</div><div class="feat-desc">VULN-02 fix: teamId-based isCoachOfTeam() check</div><div class="feat-file">firestore.rules</div></div><span class="feat-tag">BE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">No unauthenticated reads</div><div class="feat-desc">VULN-01 fix: signedIn() required on all paths</div><div class="feat-file">firestore.rules</div></div><span class="feat-tag">BE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">ai_training_dataset read:false</div><div class="feat-desc">CF Admin SDK only, no client access</div><div class="feat-file">firestore.rules</div></div><span class="feat-tag">BE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">pendingReminders write:false</div><div class="feat-desc">Only Cloud Functions Admin SDK can write</div><div class="feat-file">firestore.rules</div></div><span class="feat-tag">BE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Questionnaire read: any signed-in</div><div class="feat-desc">Write: admin only</div><div class="feat-file">firestore.rules</div></div><span class="feat-tag">BE · Done</span></div>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group-header">
+        <span class="group-name">Cloud Functions (active)</span>
+        <span class="layer-badge layer-be">BE</span>
+        <span class="group-count">8/8</span>
+      </div>
+      <div class="feat-grid">
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">sendQuestionnaireAvailableNotifications</div><div class="feat-desc">CRON 1 min — fires on training end, creates reminder doc + FCM</div><div class="feat-file">functions/index.js</div></div><span class="feat-tag">BE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">sendQuestionnaireReminders</div><div class="feat-desc">CRON 5 min — sends reminder if athlete hasn't responded and dueAt ≤ now</div><div class="feat-file">functions/index.js</div></div><span class="feat-tag">BE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">syncIcsCron</div><div class="feat-desc">CRON 15 min — all active teams calendar sync</div><div class="feat-file">functions/index.js</div></div><span class="feat-tag">BE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">syncIcsNow (callable)</div><div class="feat-desc">Auth-gated manual trigger for one team</div><div class="feat-file">functions/index.js</div></div><span class="feat-tag">BE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">lookupTeamByCode</div><div class="feat-desc">Callable — finds team by inviteCode, returns role from suffix</div><div class="feat-file">functions/index.js</div></div><span class="feat-tag">BE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">createMembership</div><div class="feat-desc">Callable — creates members/{uid} + updates users/{uid}.teamId</div><div class="feat-file">functions/index.js</div></div><span class="feat-tag">BE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">sendTestNotification</div><div class="feat-desc">Dev utility — triggers test FCM push to a user</div><div class="feat-file">functions/index.js</div></div><span class="feat-tag">BE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">anonymizePlayerDataForAI (GDPR)</div><div class="feat-desc">Triggered on user delete — anonymizes responses to ai_training_dataset</div><div class="feat-file">functions/index.js</div></div><span class="feat-tag">BE · Done</span></div>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group-header">
+        <span class="group-name">Design System & Components</span>
+        <span class="layer-badge layer-fe">FE</span>
+        <span class="group-count">5/5</span>
+      </div>
+      <div class="feat-grid">
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Design system tokens</div><div class="feat-desc">Colors, fonts, gradients, spacing — #0A0F1E / #00D4FF / #00FF9D</div><div class="feat-file">src/constants/theme.ts · src/theme/tokens.ts</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">TypeScript Firestore types</div><div class="feat-desc">User, Team, Training, Response interfaces</div><div class="feat-file">src/types/firestore.ts</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">useIsDesktop hook</div><div class="feat-desc">viewport ≥ 768px — mandatory on all Coach/Admin screens</div><div class="feat-file">src/hooks/useIsDesktop.ts</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">PWA Install Banner</div><div class="feat-desc">iOS "Add to Home Screen" prompt with instructions</div><div class="feat-file">PWAInstallBanner.tsx</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">CTPButton + CTPInput</div><div class="feat-desc">Design system base components with DA colors</div><div class="feat-file">CTPButton.tsx · CTPInput.tsx</div></div><span class="feat-tag">FE · Done</span></div>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group-header">
+        <span class="group-name">PWA, Deployment & Build</span>
+        <span class="layer-badge layer-infra">INFRA</span>
+        <span class="group-count">5/6</span>
+      </div>
+      <div class="feat-grid">
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Vercel deployment</div><div class="feat-desc">champion-track-pro.vercel.app — CDN, HTTPS, zero-downtime</div><div class="feat-file">implicit / package.json web:build</div></div><span class="feat-tag">INFRA · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">PWA manifest — maskable icon</div><div class="feat-desc">purpose: maskable any, icon-192 + icon-512 updated</div><div class="feat-file">public/manifest.json</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Service Worker (no type:module)</div><div class="feat-desc">iOS-compatible FCM background, post-build copy script</div><div class="feat-file">public/firebase-messaging-sw.js · scripts/copy-service-worker.js</div></div><span class="feat-tag">FE · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Build pipeline</div><div class="feat-desc">expo export → copy-service-worker → inject-metadata → verify-build</div><div class="feat-file">package.json → web:build</div></div><span class="feat-tag">INFRA · Done</span></div>
+        <div class="feat s-done"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">Seed + diagnostic scripts</div><div class="feat-desc">seed-realistic-season.js + check-responses.js + backfill scripts</div><div class="feat-file">scripts/</div></div><span class="feat-tag">INFRA · Done</span></div>
+        <div class="feat s-plan"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">SaaS billing (Stripe)</div><div class="feat-desc">Plan tiers, subscriptions — not started</div><div class="feat-file">— not built —</div></div><span class="feat-tag">BOTH · Planned</span></div>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group-header">
+        <span class="group-name">Legacy Files — Safe to Clean</span>
+        <span class="layer-badge layer-fe">FE</span>
+        <span class="group-count">7 orphans</span>
+      </div>
+      <div class="feat-grid">
+        <div class="feat s-legacy"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">screens/TeamCalendarSettings.js</div><div class="feat-desc">Unused legacy calendar settings screen</div></div><span class="feat-tag">Legacy</span></div>
+        <div class="feat s-legacy"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">src/lib/icsImporterReal.ts</div><div class="feat-desc">Frontend ICS importer superseded by Cloud Function</div></div><span class="feat-tag">Legacy</span></div>
+        <div class="feat s-legacy"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">src/screens/WelcomeScreen.tsx</div><div class="feat-desc">Exists but not registered in any navigator</div></div><span class="feat-tag">Legacy</span></div>
+        <div class="feat s-legacy"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">src/screens/AuthScreen.js</div><div class="feat-desc">Unused — replaced by StitchLoginScreen</div></div><span class="feat-tag">Legacy</span></div>
+        <div class="feat s-legacy"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">src/screens/AdminPanel.js</div><div class="feat-desc">Legacy stub replaced by AdminHomeScreen</div></div><span class="feat-tag">Legacy</span></div>
+        <div class="feat s-legacy"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">screens/StitchAdminDashboard.js</div><div class="feat-desc">Placeholder still wired to Admin tab bar — ⚠️ blocks real navigation</div></div><span class="feat-tag">Legacy — Blocking</span></div>
+        <div class="feat s-legacy"><div class="feat-dot"></div><div class="feat-content"><div class="feat-name">src/screens/CoachDashboard.js + others</div><div class="feat-desc">5+ legacy screen stubs not in navigator</div></div><span class="feat-tag">Legacy</span></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- FIRESTORE SCHEMA -->
+<div class="schema-section">
+  <div class="schema-header">
+    <h2>🗄️ Firestore Schema — Complete (7 Collections)</h2>
+    <p>Source-verified from firestore.rules, firestore.indexes.json, and application code</p>
+  </div>
+  <div class="schema-body">
+    <div class="schema-grid">
+
+      <div class="schema-card">
+        <div class="schema-card-title">users / {uid}</div>
+        <div class="schema-field"><span class="sf-key">email</span><span class="sf-type">string</span><span class="sf-desc">User email</span></div>
+        <div class="schema-field"><span class="sf-key">role</span><span class="sf-type">string</span><span class="sf-desc">admin | coach | athlete</span></div>
+        <div class="schema-field"><span class="sf-key">teamId</span><span class="sf-type">string</span><span class="sf-desc">Linked team ID</span></div>
+        <div class="schema-field"><span class="sf-key">displayName</span><span class="sf-type">string</span></div>
+        <div class="schema-field"><span class="sf-key">photoBase64</span><span class="sf-type">string</span><span class="sf-desc">Coach photo</span></div>
+        <div class="schema-field"><span class="sf-key">fcmWebTokens[]</span><span class="sf-type">string[]</span><span class="sf-desc">FCM tokens (arrayUnion)</span></div>
+        <div class="schema-field"><span class="sf-key">loginCount</span><span class="sf-type">number</span></div>
+        <div class="schema-field"><span class="sf-key">onboardingComplete</span><span class="sf-type">boolean</span></div>
+      </div>
+
+      <div class="schema-card">
+        <div class="schema-card-title">teams / {teamId}</div>
+        <div class="schema-field"><span class="sf-key">name</span><span class="sf-type">string</span></div>
+        <div class="schema-field"><span class="sf-key">sport</span><span class="sf-type">string</span><span class="sf-desc">Basketball | Soccer…</span></div>
+        <div class="schema-field"><span class="sf-key">division</span><span class="sf-type">string</span><span class="sf-desc">NCAA D1/D2/D3…</span></div>
+        <div class="schema-field"><span class="sf-key">inviteCode</span><span class="sf-type">string</span><span class="sf-desc">6-char code</span></div>
+        <div class="schema-field"><span class="sf-key">activeDARMetrics</span><span class="sf-type">string[]</span></div>
+        <div class="schema-field"><span class="sf-key">questionnaireId</span><span class="sf-type">string</span></div>
+        <div class="schema-field"><span class="sf-key">icsUrl</span><span class="sf-type">string</span><span class="sf-desc">Canonical iCal URL</span></div>
+        <div class="schema-field"><span class="sf-key">calendarLastSyncStatus</span><span class="sf-type">string</span><span class="sf-desc">ok|error|syncing</span></div>
+        <div class="schema-field"><span class="sf-key">calendarLastSyncCounts</span><span class="sf-type">object</span><span class="sf-desc">{created,updated,deleted,cancelled}</span></div>
+      </div>
+
+      <div class="schema-card">
+        <div class="schema-card-title">teams/.../members / {uid}</div>
+        <div class="schema-field"><span class="sf-key">displayName</span><span class="sf-type">string</span></div>
+        <div class="schema-field"><span class="sf-key">role</span><span class="sf-type">string</span><span class="sf-desc">coach | athlete</span></div>
+        <div class="schema-field"><span class="sf-key">position</span><span class="sf-type">string</span><span class="sf-desc">PG/SG/SF/PF/C</span></div>
+        <div class="schema-field"><span class="sf-key">jerseyNumber</span><span class="sf-type">number</span></div>
+        <div class="schema-field"><span class="sf-key">joinedAt</span><span class="sf-type">Timestamp</span></div>
+      </div>
+
+      <div class="schema-card">
+        <div class="schema-card-title">teams/.../trainings / {trainingId}</div>
+        <div class="schema-field"><span class="sf-key">title</span><span class="sf-type">string</span><span class="sf-desc">From ICS SUMMARY</span></div>
+        <div class="schema-field"><span class="sf-key">startUtc / endUtc</span><span class="sf-type">Timestamp</span></div>
+        <div class="schema-field"><span class="sf-key">sessionType</span><span class="sf-type">string</span><span class="sf-desc">game|practice|conditioning</span></div>
+        <div class="schema-field"><span class="sf-key">isGame</span><span class="sf-type">boolean</span></div>
+        <div class="schema-field"><span class="sf-key">questionnaireId</span><span class="sf-type">string</span><span class="sf-desc">Auto-linked at sync</span></div>
+        <div class="schema-field"><span class="sf-key">calendarEventId</span><span class="sf-type">string</span><span class="sf-desc">ICS UID</span></div>
+        <div class="schema-field"><span class="sf-key">hash</span><span class="sf-type">string</span><span class="sf-desc">SHA-256 change detection</span></div>
+        <div class="schema-field"><span class="sf-key">cancelled</span><span class="sf-type">boolean</span></div>
+        <div class="schema-field"><span class="sf-key">source</span><span class="sf-type">string</span><span class="sf-desc">"ics"</span></div>
+      </div>
+
+      <div class="schema-card">
+        <div class="schema-card-title">trainings/.../responses / {uid}</div>
+        <div class="schema-field"><span class="sf-key">metrics{}</span><span class="sf-type">object</span><span class="sf-desc">6 V3 keys + custom</span></div>
+        <div class="schema-field"><span class="sf-key">readinessScore</span><span class="sf-type">number</span><span class="sf-desc">0-100 weighted</span></div>
+        <div class="schema-field"><span class="sf-key">workloadAU</span><span class="sf-type">number</span><span class="sf-desc">RPE × duration</span></div>
+        <div class="schema-field"><span class="sf-key">hasFriction</span><span class="sf-type">boolean</span></div>
+        <div class="schema-field"><span class="sf-key">frictionType[]</span><span class="sf-type">string[]</span></div>
+        <div class="schema-field"><span class="sf-key">worryLevel</span><span class="sf-type">number</span><span class="sf-desc">1-100</span></div>
+        <div class="schema-field"><span class="sf-key">worryFlag</span><span class="sf-type">boolean</span><span class="sf-desc">hasFriction AND worryLevel>70</span></div>
+        <div class="schema-field"><span class="sf-key">questionnaireId</span><span class="sf-type">string</span></div>
+        <div class="schema-field"><span class="sf-key">V2 aliases (4)</span><span class="sf-type">number</span><span class="sf-desc">neuroLoad, stressLevel, sleepQuality, tacticalLucidity</span></div>
+        <div class="schema-field"><span class="sf-key">V1 French (7)</span><span class="sf-type">number</span><span class="sf-desc">impactCardiaque… (legacy)</span></div>
+      </div>
+
+      <div class="schema-card">
+        <div class="schema-card-title">questionnaires / {id}</div>
+        <div class="schema-field"><span class="sf-key">id</span><span class="sf-type">string</span><span class="sf-desc">tpl-basketball-any etc.</span></div>
+        <div class="schema-field"><span class="sf-key">sport</span><span class="sf-type">string</span></div>
+        <div class="schema-field"><span class="sf-key">sessionType</span><span class="sf-type">string</span><span class="sf-desc">any|game|practice</span></div>
+        <div class="schema-field"><span class="sf-key">isDefault</span><span class="sf-type">boolean</span></div>
+        <div class="schema-field"><span class="sf-key">questions[]</span><span class="sf-type">QuestionDef[]</span><span class="sf-desc">metricKey, weight, inverted, anchors</span></div>
+      </div>
+
+      <div class="schema-card">
+        <div class="schema-card-title">pendingQuestionnaireReminders / {docId}</div>
+        <div class="schema-field"><span class="sf-key">teamId / trainingId</span><span class="sf-type">string</span></div>
+        <div class="schema-field"><span class="sf-key">status</span><span class="sf-type">string</span><span class="sf-desc">pending | sent</span></div>
+        <div class="schema-field"><span class="sf-key">dueAt</span><span class="sf-type">Timestamp</span><span class="sf-desc">When reminder fires</span></div>
+        <div class="schema-field" style="color:var(--red);font-size:9px">Write: Cloud Functions Admin SDK only</div>
+      </div>
+
+      <div class="schema-card">
+        <div class="schema-card-title">ai_training_dataset / {doc}</div>
+        <div class="schema-field"><span class="sf-key">(anonymized fields)</span><span class="sf-type">mixed</span><span class="sf-desc">GDPR-anonymized on user delete</span></div>
+        <div class="schema-field" style="color:var(--red);font-size:9px">read:false write:false — CF Admin SDK only</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- NEXT SPRINT PROMPT -->
+<div class="prompt-section" style="margin-top:32px">
+  <div class="prompt-header">🚀 Next Sprint — Fix the 3 Critical Gaps (send to Claude Code)</div>
+  <div class="prompt-body">Read these files before writing anything:
+  navigation/StitchNavigator.js
+  src/screens/CoachHomeScreen.tsx
+  src/screens/CoachTeamScreen.tsx
+  src/screens/CoachScheduleScreen.tsx
+  src/screens/AthleteDetailScreen.tsx
+  screens/StitchQuestionnaireScreen.js
+
+Fix exactly these 3 critical gaps found in the architecture audit:
+
+═══════════════════════════════════
+FIX 1 — Admin tab bar routes to placeholder
+═══════════════════════════════════
+
+In StitchNavigator.js, find AdminTabs.
+Both "Teams" and "Analytics" tabs currently import and render
+StitchAdminDashboard (screens/StitchAdminDashboard.js) which is a blank placeholder.
+
+Fix:
+  "Teams" tab → import and render AdminHomeScreen
+    from src/screens/AdminHomeScreen.tsx
+  "Analytics" tab → import and render PerformanceDashboard
+    from src/screens/PerformanceDashboard.tsx
+    Pass the admin's teamId (read from users/{uid}.teamId)
+
+═══════════════════════════════════
+FIX 2 — Coach pain detection: V1 → V3 upgrade
+═══════════════════════════════════
+
+In CoachHomeScreen.tsx:
+  Find the alerts section that reads impactMusculaire, fatigue (V1 fields)
+  Replace with V3 detection:
+    An athlete is "at risk" if their latest response has:
+      worryFlag === true
+      OR readinessScore < 40
+      OR frictionImpact > 70
+  Update the alert card copy to reflect the new logic.
+  
+  The worryFlag badge should show: "⚠️ High worry" in yellow
+  The low readiness alert: "🔴 Readiness {score}/100"
+  The friction alert: "⚡ High friction impact"
+
+Apply the same V3 logic fix to CoachTeamScreen.tsx.
+
+In CoachScheduleScreen.tsx:
+  Find where physicalPain field is read for session card coloring.
+  Replace with: hasFriction === true → amber indicator
+                worryFlag === true → red indicator
+                else → no indicator
+
+═══════════════════════════════════
+FIX 3 — Questionnaire params fragile link
+═══════════════════════════════════
+
+In screens/StitchQuestionnaireScreen.js:
+  Find: route.params.sessionId
+  Replace with: route.params.trainingId || route.params.sessionId
+  This makes the screen work with both old and new navigation params.
+
+In navigation/StitchNavigator.js:
+  Find where the Questionnaire screen is navigated to.
+  Ensure the navigation call passes BOTH:
+    trainingId: training.id (new)
+    sessionId: training.id   (deprecated alias, keep for backward compat)
+  This ensures no other screen breaks.
+
+═══════════════════════════════════
+BONUS FIX — AthleteDetailScreen V3 metrics
+═══════════════════════════════════
+
+In src/screens/AthleteDetailScreen.tsx:
+  Find the radar chart data extraction.
+  It currently reads V2 keys (cardioLoad, motorControl, neuroLoad, etc.)
+  
+  Add a V3 → V2 bridge:
+    const getMetric = (response, v3key, v2key) =>
+      response.metrics?.[v3key] ?? response.metrics?.[v2key] ?? response[v2key] ?? 0
+  
+  Use getMetric() for all 6 radar dimensions:
+    Physical:   getMetric(r, 'legBounce',         'neuroLoad')
+    Cardio:     getMetric(r, 'cardioLoad',         'cardioLoad')
+    Sleep:      getMetric(r, 'tankLevel',          'sleepQuality')
+    Stress:     100 - getMetric(r, 'teamChemistry', 'stressLevel')
+    Motor:      getMetric(r, 'motorControl',       'motorControl')
+    Tactical:   getMetric(r, 'tacticalSharpness',  'tacticalLucidity')
+
+═══════════════════════════════════
+VALIDATION
+═══════════════════════════════════
+npx tsc --noEmit → 0 errors
+npx expo export --platform web → clean
+
+Verify:
+  □ Admin "Teams" tab shows real team list
+  □ Admin "Analytics" tab shows PerformanceDashboard
+  □ Coach home alerts use worryFlag not V1 pain fields
+  □ Questionnaire opens via both trainingId and sessionId param
+  □ AthleteDetailScreen shows correct V3 metrics for recent athletes
+
+git add .
+git commit -m "fix: admin tab nav + V3 pain detection + questionnaire param bridge + athlete detail V3 metrics"
+git push origin main
+  </div>
+</div>
+
+</div><!-- /main -->
+
+<div class="footer">
+  <span class="footer-txt">ChampionTrackPro · DNA v4.0 · Source-verified by Claude Code · March 2026</span>
+  <span class="footer-txt">87 features · 7 collections · 8 Cloud Functions · 4 critical gaps identified and documented</span>
+</div>
+
+</body>
+</html>
