@@ -197,7 +197,8 @@ footer{border-top:1px solid var(--border);padding:24px 40px;text-align:center;fo
   <div class="about-photo-text">
     <h3>Gabin Favergeat</h3>
     <p>Master's Degree in Sport Performance Science &amp; Athletic Data Analysis</p>
-<p>Founder of <strong style="color: var(--white);">ChampionTrack<span style="color: var(--cyan);">Pro</span></strong></p>    <img src="/images/icon-slider.png" alt="" class="founder-slider-icon"/>
+    <p class="founder-tag">Founder of ChampionTrackPro</p>
+    <img src="/images/icon-slider.png" alt="" class="founder-slider-icon"/>
   </div>
 </div>
 <div class="about-grid reveal">
@@ -399,6 +400,25 @@ const obs = new IntersectionObserver(entries=>{
 entries.forEach(e=>{ if(e.isIntersecting) e.target.classList.add('visible') });
 },{threshold:.07,rootMargin:'0px 0px -24px 0px'});
 document.querySelectorAll('.reveal').forEach(el=>obs.observe(el));
+</script>
+
+<script>
+(function(){
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get('ref');
+    if (ref) {
+      const email = atob(ref);
+      if (email && email.includes('@')) {
+        fetch('https://api.champtrackpro.com/webhook/click-tracking', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ email: email, event: 'click', ts: new Date().toISOString() })
+        });
+      }
+    }
+  } catch(e) {}
+})();
 </script>
 </body>
 </html>
