@@ -400,5 +400,15 @@ entries.forEach(e=>{ if(e.isIntersecting) e.target.classList.add('visible') });
 },{threshold:.07,rootMargin:'0px 0px -24px 0px'});
 document.querySelectorAll('.reveal').forEach(el=>obs.observe(el));
 </script>
+<script>
+  const params = new URLSearchParams(window.location.search);
+  const coachEmail = params.get('e');
+  const actionType = params.get('t');
+
+  if (coachEmail && actionType === 'click') {
+    const pixelUrl = "https://script.google.com/macros/s/AKfycbxuG9Fwpn1IJUmDJR7NvqvgL8Oog4ttcYmhJT46GsBuHINiRNqUoctcCWmAaMrkqXafJA/exec";
+    new Image().src = pixelUrl + "?e=" + encodeURIComponent(coachEmail) + "&t=click";
+  }
+</script>
 </body>
 </html>
