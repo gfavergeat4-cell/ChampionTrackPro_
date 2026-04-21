@@ -210,6 +210,54 @@ export default function StitchQuestionnaireScreen() {
   const [frictionImpact, setFrictionImpact] = useState(30);
   const [worryLevel, setWorryLevel] = useState(30);
 
+  // ─── V3 Question Definitions (fallback when no questionnaire in Firestore) ──
+  const Q5_CATEGORY = sessionType === "scrimmage" ? "Game IQ" : "Tactical Execution";
+
+  const QUESTIONS_V3 = [
+    {
+      key: "tankLevel",
+      category: "Physical Engine",
+      question: "How loaded is your tank walking into today's session?",
+      leftAnchor: "Running on empty",
+      rightAnchor: "Fully charged, ready to go",
+    },
+    {
+      key: "cardioLoad",
+      category: "Physical Engine",
+      question: "How gassed were your lungs and transitions yesterday?",
+      leftAnchor: "Barely felt it",
+      rightAnchor: "Completely gassed, lungs on fire",
+    },
+    {
+      key: "legBounce",
+      category: "Physical Engine",
+      question: "How bouncy do your legs feel right now?",
+      leftAnchor: "Legs are bricks",
+      rightAnchor: "Springy and explosive",
+    },
+    {
+      key: "motorControl",
+      category: "Technical Execution",
+      question: "How dialed-in does your handle and shot feel today?",
+      leftAnchor: "Completely off, nothing feels right",
+      rightAnchor: "Silky smooth, locked in",
+    },
+    {
+      key: "tacticalSharpness",
+      category: Q5_CATEGORY,
+      question: "How sharp are you at reading the floor and executing the playbook?",
+      leftAnchor: "Mentally foggy, one step behind",
+      rightAnchor: "Seeing everything, fully locked in",
+    },
+    {
+      key: "teamChemistry",
+      category: "Psychosocial",
+      question: "How connected do you feel to the team's energy and how well are you handling frustration?",
+      leftAnchor: "Disconnected, frustration is getting to me",
+      rightAnchor: "Locked in together, nothing breaks our focus",
+    },
+  ];
+
   // ─── Effective questions (dynamic or V3 fallback) ─────────────────────────
   const Q5_CATEGORY_RESOLVED = sessionType === "scrimmage" ? "Game IQ" : "Tactical Execution";
   const effectiveQuestions = (activeQuestions && activeQuestions.length > 0)
@@ -378,54 +426,6 @@ export default function StitchQuestionnaireScreen() {
     })();
     return () => { cancelled = true; };
   }, [teamIdState, sessionType]);
-
-  // ─── V3 Question Definitions (fallback when no questionnaire in Firestore) ──
-  const Q5_CATEGORY = sessionType === "scrimmage" ? "Game IQ" : "Tactical Execution";
-
-  const QUESTIONS_V3 = [
-    {
-      key: "tankLevel",
-      category: "Physical Engine",
-      question: "How loaded is your tank walking into today's session?",
-      leftAnchor: "Running on empty",
-      rightAnchor: "Fully charged, ready to go",
-    },
-    {
-      key: "cardioLoad",
-      category: "Physical Engine",
-      question: "How gassed were your lungs and transitions yesterday?",
-      leftAnchor: "Barely felt it",
-      rightAnchor: "Completely gassed, lungs on fire",
-    },
-    {
-      key: "legBounce",
-      category: "Physical Engine",
-      question: "How bouncy do your legs feel right now?",
-      leftAnchor: "Legs are bricks",
-      rightAnchor: "Springy and explosive",
-    },
-    {
-      key: "motorControl",
-      category: "Technical Execution",
-      question: "How dialed-in does your handle and shot feel today?",
-      leftAnchor: "Completely off, nothing feels right",
-      rightAnchor: "Silky smooth, locked in",
-    },
-    {
-      key: "tacticalSharpness",
-      category: Q5_CATEGORY,
-      question: "How sharp are you at reading the floor and executing the playbook?",
-      leftAnchor: "Mentally foggy, one step behind",
-      rightAnchor: "Seeing everything, fully locked in",
-    },
-    {
-      key: "teamChemistry",
-      category: "Psychosocial",
-      question: "How connected do you feel to the team's energy and how well are you handling frustration?",
-      leftAnchor: "Disconnected, frustration is getting to me",
-      rightAnchor: "Locked in together, nothing breaks our focus",
-    },
-  ];
 
   const handleMetricChange = (key, value) => {
     setMetrics(prev => ({ ...prev, [key]: value }));
