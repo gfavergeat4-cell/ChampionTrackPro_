@@ -532,6 +532,12 @@ footer{border-top:1px solid var(--border);padding:24px 40px;text-align:center;fo
 <footer>ChampionTrackPro · champtrackpro.com · Gabin Favergeat · gabin@champtrackpro.com</footer>
 
 <script>
+const obs = new IntersectionObserver(entries=>{
+  entries.forEach(e=>{ if(e.isIntersecting) e.target.classList.add("visible") });
+},{threshold:.07,rootMargin:"0px 0px -24px 0px"});
+document.querySelectorAll(".reveal").forEach(el=>obs.observe(el));
+</script>
+<script>
 (function(){
   try {
     const params = new URLSearchParams(window.location.search);
@@ -539,13 +545,13 @@ footer{border-top:1px solid var(--border);padding:24px 40px;text-align:center;fo
     // Système 1 : lien tracké depuis n8n (?ref=base64email)
     const ref = params.get("ref");
     if (ref) {
-      const email = atob(ref.replace(/-/g, '+').replace(/_/g, '/'));
+      const email = atob(ref);
       if (email && email.includes("@")) {
         // Ping vers /api/track (Vercel proxy → n8n)
-        fetch("/api/track?email=" + encodeURIComponent(email), { mode: 'no-cors' });
+        new Image().src = "/api/track?email=" + encodeURIComponent(email);
         // Ping vers Google Apps Script CRM
         const pixelUrl = "https://script.google.com/macros/s/AKfycbxuG9Fwpn1IJUmDJR7NvqvgL8Oog4ttcYmhJT46GsBuHINiRNqUoctcCWmAaMrkqXafJA/exec";
-        fetch(pixelUrl + "?e=" + encodeURIComponent(email) + "&t=click", { mode: 'no-cors' });
+        new Image().src = pixelUrl + "?e=" + encodeURIComponent(email) + "&t=click";
       }
     }
 
@@ -554,7 +560,7 @@ footer{border-top:1px solid var(--border);padding:24px 40px;text-align:center;fo
     const actionType = params.get("t");
     if (coachEmail && actionType === "click") {
       const pixelUrl = "https://script.google.com/macros/s/AKfycbxuG9Fwpn1IJUmDJR7NvqvgL8Oog4ttcYmhJT46GsBuHINiRNqUoctcCWmAaMrkqXafJA/exec";
-      fetch(pixelUrl + "?e=" + encodeURIComponent(coachEmail) + "&t=click", { mode: 'no-cors' });
+      new Image().src = pixelUrl + "?e=" + encodeURIComponent(coachEmail) + "&t=click";
     }
   } catch(e) {}
 })();
