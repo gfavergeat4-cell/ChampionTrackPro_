@@ -531,5 +531,14 @@ footer{border-top:1px solid var(--border);padding:24px 40px;text-align:center;fo
 
 <footer>ChampionTrackPro · champtrackpro.com · Gabin Favergeat · gabin@champtrackpro.com</footer>
 
+<script>
+(function(){
+  var els = document.querySelectorAll('.reveal');
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){ if(e.isIntersecting) e.target.classList.add('visible'); });
+  }, {threshold:0.1});
+  els.forEach(function(el){ io.observe(el); });
+})();
+</script>
 </body>
 </html>
