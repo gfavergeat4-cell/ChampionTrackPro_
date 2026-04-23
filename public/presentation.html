@@ -532,44 +532,43 @@ footer{border-top:1px solid var(--border);padding:24px 40px;text-align:center;fo
 <footer>ChampionTrackPro · champtrackpro.com · Gabin Favergeat · gabin@champtrackpro.com</footer>
 
 <script>
-(function(){
+window.addEventListener('load', function() {
   try {
-    const params = new URLSearchParams(window.location.search);
+    var params = new URLSearchParams(window.location.search);
+    var email = null;
 
-    // Fonction 100% robuste : force la requête GET en injectant une image invisible dans le DOM
-    const sendPing = function(url) {
-      const img = document.createElement('img');
-      img.style.position = 'absolute';
-      img.style.width = '1px';
-      img.style.height = '1px';
-      img.style.opacity = '0';
-      img.src = url;
-      document.body.appendChild(img);
-    };
-
-    // Système 1 : lien tracké depuis n8n (?ref=base64email)
-    const ref = params.get("ref");
+    // Format 1 : ?ref=base64(email) depuis n8n
+    var ref = params.get('ref');
     if (ref) {
-      const email = atob(ref.replace(/-/g, '+').replace(/_/g, '/'));
-      if (email && email.includes("@")) {
-        sendPing("/api/track?email=" + encodeURIComponent(email));
-        
-        const pixelUrl = "https://script.google.com/macros/s/AKfycbxuG9Fwpn1IJUmDJR7NvqvgL8Oog4ttcYmhJT46GsBuHINiRNqUoctcCWmAaMrkqXafJA/exec";
-        sendPing(pixelUrl + "?e=" + encodeURIComponent(email) + "&t=click");
+      try {
+        // Correction base64 URL-safe + padding manquant
+        var base64 = ref.replace(/-/g, '+').replace(/_/g, '/');
+        while (base64.length % 4) base64 += '=';
+        email = atob(base64);
+      } catch(e) {}
+    }
+
+    // Format 2 : ?e=email&t=click (ancien format)
+    if (!email) {
+      var e = params.get('e');
+      if (e && e.indexOf('@') > -1) email = e;
+    }
+
+    // Ping GAS si email valide
+    if (email && email.indexOf('@') > -1) {
+      var url = 'https://script.google.com/macros/s/AKfycbxuG9Fwpn1IJUmDJR7NvqvgL8Oog4ttcYmhJT46GsBuHINiRNqUoctcCWmAaMrkqXafJA/exec'
+        + '?e=' + encodeURIComponent(email) + '&t=click';
+
+      // Méthode 1 : sendBeacon (le plus fiable, non bloquant)
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon(url);
+      } else {
+        // Fallback : Image en mémoire, jamais injectée dans le DOM
+        (new Image()).src = url;
       }
     }
-
-    // Système 2 : lien direct avec ?e=email&t=click (ancien format)
-    const coachEmail = params.get("e");
-    const actionType = params.get("t");
-    if (coachEmail && actionType === "click") {
-      const pixelUrl = "https://script.google.com/macros/s/AKfycbxuG9Fwpn1IJUmDJR7NvqvgL8Oog4ttcYmhJT46GsBuHINiRNqUoctcCWmAaMrkqXafJA/exec";
-      sendPing(pixelUrl + "?e=" + encodeURIComponent(coachEmail) + "&t=click");
-    }
-  } catch(e) {
-    console.error("Tracking error:", e);
-  }
-})();
+  } catch(e) {}
+});
 </script>
 </body>
 </html>
