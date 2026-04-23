@@ -530,37 +530,6 @@ footer{border-top:1px solid var(--border);padding:24px 40px;text-align:center;fo
 </div>
 
 <footer>ChampionTrackPro · champtrackpro.com · Gabin Favergeat · gabin@champtrackpro.com</footer>
-<script>
-window.addEventListener('load', function() {
-  try {
-    var params = new URLSearchParams(window.location.search);
-    var email = null;
 
-    var ref = params.get('ref');
-    if (ref) {
-      try {
-        var base64 = ref.replace(/-/g, '+').replace(/_/g, '/');
-        while (base64.length % 4) base64 += '=';
-        email = atob(base64);
-      } catch(e) {}
-    }
-
-    if (!email) {
-      var e = params.get('e');
-      if (e && e.indexOf('@') > -1) email = e;
-    }
-
-    if (email && email.indexOf('@') > -1) {
-      var url = 'https://script.google.com/macros/s/AKfycbxuG9Fwpn1IJUmDJR7NvqvgL8Oog4ttcYmhJT46GsBuHINiRNqUoctcCWmAaMrkqXafJA/exec'
-        + '?e=' + encodeURIComponent(email) + '&t=click';
-      if (navigator.sendBeacon) {
-        navigator.sendBeacon(url);
-      } else {
-        (new Image()).src = url;
-      }
-    }
-  } catch(e) {}
-});
-</script>
 </body>
 </html>
