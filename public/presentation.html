@@ -532,26 +532,30 @@ footer{border-top:1px solid var(--border);padding:24px 40px;text-align:center;fo
 <footer>ChampionTrackPro · champtrackpro.com · Gabin Favergeat · gabin@champtrackpro.com</footer>
 
 <script>
-const obs = new IntersectionObserver(entries=>{
-  entries.forEach(e=>{ if(e.isIntersecting) e.target.classList.add("visible") });
-},{threshold:.07,rootMargin:"0px 0px -24px 0px"});
-document.querySelectorAll(".reveal").forEach(el=>obs.observe(el));
-</script>
-<script>
 (function(){
   try {
     const params = new URLSearchParams(window.location.search);
 
+    // Fonction 100% robuste : force la requête GET en injectant une image invisible dans le DOM
+    const sendPing = function(url) {
+      const img = document.createElement('img');
+      img.style.position = 'absolute';
+      img.style.width = '1px';
+      img.style.height = '1px';
+      img.style.opacity = '0';
+      img.src = url;
+      document.body.appendChild(img);
+    };
+
     // Système 1 : lien tracké depuis n8n (?ref=base64email)
     const ref = params.get("ref");
     if (ref) {
-      const email = atob(ref);
+      const email = atob(ref.replace(/-/g, '+').replace(/_/g, '/'));
       if (email && email.includes("@")) {
-        // Ping vers /api/track (Vercel proxy → n8n)
-        new Image().src = "/api/track?email=" + encodeURIComponent(email);
-        // Ping vers Google Apps Script CRM
+        sendPing("/api/track?email=" + encodeURIComponent(email));
+        
         const pixelUrl = "https://script.google.com/macros/s/AKfycbxuG9Fwpn1IJUmDJR7NvqvgL8Oog4ttcYmhJT46GsBuHINiRNqUoctcCWmAaMrkqXafJA/exec";
-        new Image().src = pixelUrl + "?e=" + encodeURIComponent(email) + "&t=click";
+        sendPing(pixelUrl + "?e=" + encodeURIComponent(email) + "&t=click");
       }
     }
 
@@ -560,9 +564,11 @@ document.querySelectorAll(".reveal").forEach(el=>obs.observe(el));
     const actionType = params.get("t");
     if (coachEmail && actionType === "click") {
       const pixelUrl = "https://script.google.com/macros/s/AKfycbxuG9Fwpn1IJUmDJR7NvqvgL8Oog4ttcYmhJT46GsBuHINiRNqUoctcCWmAaMrkqXafJA/exec";
-      new Image().src = pixelUrl + "?e=" + encodeURIComponent(coachEmail) + "&t=click";
+      sendPing(pixelUrl + "?e=" + encodeURIComponent(coachEmail) + "&t=click");
     }
-  } catch(e) {}
+  } catch(e) {
+    console.error("Tracking error:", e);
+  }
 })();
 </script>
 </body>
