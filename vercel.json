@@ -1,8 +1,8 @@
-{
+﻿{
   "version": 2,
   "buildCommand": "npm run web:build",
   "outputDirectory": "web/dist",
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
+  "rewrites": [{ "source": "/presentation.html", "destination": "/presentation.html" }, { "source": "/(.*)", "destination": "/index.html" }],
   "headers": [
     {
       "source": "/(.*)",
@@ -21,3 +21,4 @@
     }
   ]
 }
+
