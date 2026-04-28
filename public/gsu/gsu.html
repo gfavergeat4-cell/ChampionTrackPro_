@@ -213,8 +213,8 @@ footer{border-top:1px solid var(--border);padding:24px 40px;text-align:center;fo
 <!-- GSU LOGO -->
 <div class="gsu-banner">
   <div class="gsu-logo-wrap">
-    <img src="/images/gsu-logo.png" alt="Georgia Southern University" onerror="this.style.display='none';this.parentElement.querySelector('.gsu-fallback').style.display='flex'"/>
-    <div class="gsu-fallback" style="display:none;width:100px;height:100px;background:rgba(0,48,135,0.3);border:2px solid rgba(0,48,135,0.6);border-radius:50%;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:2px;color:#5B8CD7">GSU</div>
+    <img src="/images/gsu-logo.png" alt="Georgia Southern University" style="height:100px;width:auto;object-fit:contain;filter:drop-shadow(0 0 24px rgba(0,48,135,0.6))" onerror="this.onerror=null;this.src='/images/gsu-logo';this.onerror=function(){this.style.display='none';document.getElementById('gsu-fb').style.display='flex'}"/>
+    <div id="gsu-fb" style="display:none;width:100px;height:100px;background:rgba(0,48,135,0.3);border:2px solid rgba(0,48,135,0.6);border-radius:50%;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:2px;color:#5B8CD7">GSU</div>
     <div class="gsu-label">Georgia Southern University · NCAA D1 WBB</div>
   </div>
 </div>
@@ -222,6 +222,15 @@ footer{border-top:1px solid var(--border);padding:24px 40px;text-align:center;fo
 <!-- HERO -->
 <div class="hero">
   <div class="hero-callout" style="opacity:0;animation:fadeUp .5s ease .05s forwards">Prepared for Coach Trice &amp; GSU WBB Staff</div>
+
+  <!-- YES-QUESTION — Option B -->
+  <div style="margin-bottom:20px;opacity:0;animation:fadeUp .6s ease .08s forwards">
+    <p style="font-family:'Space Mono',monospace;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--muted2);margin-bottom:10px">One question before you scroll ↓</p>
+    <div style="background:rgba(0,212,255,.05);border-left:3px solid var(--cyan);padding:16px 22px;max-width:620px">
+      <p style="font-size:18px;color:var(--white);line-height:1.55;font-weight:500">Are you ready to know exactly which of your new GSU players can be pushed hard — and which ones need protection — <span style="color:var(--cyan)">before your first practice?</span></p>
+    </div>
+  </div>
+
   <h1 class="hero-title">Map Your New GSU<br><span class="a">Roster's Readiness</span><br><span class="b">in 48 Hours.</span></h1>
   <h1 class="hero-title" style="font-size:clamp(28px,4vw,52px);margin-top:-8px;margin-bottom:24px;opacity:0;animation:fadeUp .7s ease .2s forwards">Establish Your Culture<br><span class="a">Without Breaking</span> Your New Players.</h1>
   <p class="hero-sub">Stepping into a new D1 program together means applying your proven system to a roster you've never trained. You and Coach Macy are starting from zero with these athletes. ChampionTrackPro takes the guesswork out of Year One.</p>
@@ -341,7 +350,7 @@ footer{border-top:1px solid var(--border);padding:24px 40px;text-align:center;fo
   <div class="promise-strip reveal">
     <div class="promise-num">90<br><span style="font-size:24px;color:var(--muted)">SEC</span></div>
     <div class="promise-text">
-      <h3>Coach Trice gets the Morning Brief. Coach Macy gets the full picture.</h3>
+      <h3>Coach Trice manages the 60-second setup. Coach Macy gets the 90-second clarity.</h3>
       <p>Every morning, you open one screen — your entire GSU roster ranked by readiness, individual anomalies flagged automatically. No interpretation needed. Coach Macy sees exactly who can be pushed and who needs protection. In parallel, every week I walk you through the full data picture and give you 1–2 concrete adjustments. You coach. I do the science.</p>
     </div>
   </div>
@@ -377,6 +386,9 @@ footer{border-top:1px solid var(--border);padding:24px 40px;text-align:center;fo
         <tr><td>R. Thompson</td><td><div class="bar-wrap"><div class="bar" style="width:74%;background:var(--green)"></div></div></td><td>74</td><td>69</td><td>62</td><td><span class="badge bg">PUSH</span></td></tr>
       </tbody>
     </table>
+    <div style="margin:12px 0;padding:14px 18px;background:rgba(255,184,0,.06);border:1px solid rgba(255,184,0,.25);font-size:12px;color:var(--warn);font-family:'Space Mono',monospace;letter-spacing:1px;text-align:center">
+      [INSERT HERE: 3-second GIF showing a quick scroll through the Morning Brief on a phone screen — total coach interaction: under 90 seconds]
+    </div>
     <div class="dnote"><strong>What the Morning Brief gives you:</strong> Your full GSU roster ranked by readiness. Each player color-coded against her own baseline — built from Day 1 of your preseason. Individual anomalies surfaced automatically. You read it in 90 seconds before practice. No data science required — that's already done.</div>
   </div>
 
@@ -437,6 +449,9 @@ footer{border-top:1px solid var(--border);padding:24px 40px;text-align:center;fo
     <div style="margin-top:20px;padding:16px 20px;background:rgba(0,212,255,.06);border-left:3px solid var(--cyan)">
       <p style="font-size:13px;color:var(--cyan);font-family:'Space Mono',monospace;letter-spacing:1px">I don't give you software. I act as your embedded performance staff. One person. Fully dedicated. Not a vendor — your scientist.</p>
     </div>
+    <div style="margin-top:16px;padding:18px 22px;background:rgba(255,68,85,.05);border:1px solid rgba(255,68,85,.2)">
+      <p style="font-size:13px;color:var(--muted);line-height:1.7"><strong style="color:var(--white)">Full disclosure:</strong> My dashboards are incredibly boring. No animations. No AI buzzwords. Just a ranked list of your players with a color code and a number. If you want a slick corporate platform with a 50-person support team where you're a ticket number — this is not for you.<br><br>But if you want my personal attention, my direct line, and a sport scientist who knows your new GSU roster better than any software ever will — I take 5 programs. That's it.</p>
+    </div>
   </div>
 
   <div class="currently-working reveal">
@@ -462,7 +477,7 @@ footer{border-top:1px solid var(--border);padding:24px 40px;text-align:center;fo
   <div class="da-banner reveal">
     <div class="da-icon">💡</div>
     <div class="da-text">
-      <strong>Why free?</strong> I'm building the first irrefutable D1 case study on the US college basketball market. You get 6 weeks of D1-level readiness tracking at zero cost. I get a testimonial and two introductions if the system delivers. That's the honest deal — nothing hidden. For you and Coach Macy, this is zero-risk: you baseline your new roster, eliminate guesswork from preseason, and if you don't love it after 6 weeks — we shake hands.
+      <strong>Why free?</strong> I'm building the first irrefutable D1 case study on the US college basketball market. You get 6 weeks of D1-level readiness methodology at zero cost. I get a testimonial and two introductions if the system delivers. That's the honest deal — nothing hidden. For you and Coach Macy, this is zero-risk: you baseline your new roster, eliminate guesswork from preseason, and if you don't love it after 6 weeks — we shake hands.
     </div>
   </div>
 
@@ -473,7 +488,7 @@ footer{border-top:1px solid var(--border);padding:24px 40px;text-align:center;fo
 
   <div class="offer reveal">
     <div class="oc"><h3>What you get</h3><ul>
-      <li>Full platform access for your entire GSU roster</li>
+      <li>Full implementation of the Embedded Readiness Protocol for your entire GSU roster</li>
       <li>Daily readiness dashboard — 90-sec Morning Brief</li>
       <li>Baseline built from Day 1 of preseason</li>
       <li>Weekly 30-min call with me</li>
@@ -534,10 +549,10 @@ footer{border-top:1px solid var(--border);padding:24px 40px;text-align:center;fo
 <!-- CTA FINAL BLOCK -->
 <div class="cta" id="cta-final">
   <span class="label reveal" style="display:block;text-align:center">5 spots. First come, first in.</span>
-  <h2 class="cta-title reveal">Stop guessing.<br><span style="color:var(--cyan)">Start knowing</span><br>before practice starts.</h2>
+  <h2 class="cta-title reveal">Gain Absolute<br><span style="color:var(--cyan)">Clarity</span><br>Before Practice Starts.</h2>
 
   <div class="ps-box reveal" style="margin-bottom:32px">
-    <p><strong>I'm currently running a free 6-week pilot for NCAA programs — and I handle all the setup.</strong> You get D1-level readiness data on your entire GSU roster. If it works, I just ask for a testimonial and two coach introductions. I strictly cap this at 5 programs because I run the analysis personally. Claim one of the remaining spots today.</p>
+    <p><strong>I'm currently running a free 6-week pilot for NCAA programs — and I handle all the setup.</strong> You get D1-level readiness data on your entire GSU roster. If it works, I just ask for a testimonial and two coach introductions. I strictly cap this at 5 programs because I run the analysis personally. If you want to secure one of the 5 spots for your preseason, let's talk.</p>
   </div>
 
   <div style="background:var(--card);border:1px solid var(--border);padding:24px 28px;margin-bottom:28px;text-align:left" class="reveal">
@@ -565,6 +580,12 @@ footer{border-top:1px solid var(--border);padding:24px 40px;text-align:center;fo
 
   <a href="https://calendly.com/gabin-champtrackpro/30min" target="_blank" class="btn-primary reveal">Book a 15-min Review Call for the Staff →</a>
 
+</div>
+
+<div style="max-width:680px;margin:0 auto;padding:0 40px 48px;position:relative;z-index:1">
+  <div class="ps-box">
+    <p><strong>This pilot is 100% free for 6 weeks.</strong> A pro team used this exact methodology to jump +4 spots in the standings with zero load-related injuries in two months. If you and Coach Macy are serious about establishing your culture at GSU without breaking your new players before opening night — the only next step is a 15-minute call. First to book, first in. 5 spots. That's the whole offer.</p>
+  </div>
 </div>
 
 <footer style="border-top:1px solid var(--border);padding:32px 40px;text-align:center"><div style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--cyan);margin-bottom:12px">Ready to claim your spot?</div><div style="margin-top:16px;font-family:'Space Mono',monospace;font-size:8px;letter-spacing:2px;color:var(--muted2);text-transform:uppercase">champtrackpro.com/gsu · gabin@champtrackpro.com</div></footer>
