@@ -85,7 +85,6 @@ footer{border-top:1px solid var(--border);padding:32px 40px;text-align:center;fo
   section{padding:56px 20px}
   .hero{padding:140px 20px 48px}
   .stats,.offer{grid-template-columns:1fr}
-  .product-split{grid-template-columns:1fr}
 }
 </style>
 </head>
@@ -94,14 +93,15 @@ footer{border-top:1px solid var(--border);padding:32px 40px;text-align:center;fo
 <div class="eh-banner">Emory & Henry College · NCAA D2 Men's Basketball</div>
 
 <nav>
-  <div class="nav-logo">CHAMPIONTRACKPRO</div>
+  <div class="nav-logo"></div>
+  <a href="#offer" class="nav-cta">The Pilot</a>
 </nav>
 
 <!-- HERO -->
 <div class="hero">
-  <!-- LOGO E&H CENTRÉ AVEC CHEMIN RELATIF -->
+  <!-- LOGO E&H CENTRÉ AVEC CHEMIN ABSOLU -->
   <div style="width:100%; display:flex; justify-content:center; margin-bottom: 28px; opacity:0; animation:fadeUp .5s ease forwards">
-    <img src="../../images/eh-logo.png" alt="Emory & Henry Logo" style="height: 70px; width: auto; object-fit: contain; filter:drop-shadow(0 0 16px rgba(0,212,255,.2));" />
+    <img src="/images/eh-logo.png" alt="Emory & Henry Logo" style="height: 70px; width: auto; object-fit: contain; filter:drop-shadow(0 0 16px rgba(0,212,255,.2));" />
   </div>
 
   <div class="hero-callout" style="opacity:0;animation:fadeUp .5s ease .05s forwards">Prepared for the E&H MBB Coaching Staff</div>
