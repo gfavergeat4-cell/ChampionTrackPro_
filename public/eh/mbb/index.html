@@ -21,7 +21,7 @@ body::before{content:"";position:fixed;inset:0;background-image:url("data:image/
 .eh-banner{position:fixed;top:2px;left:0;right:0;background:rgba(0,212,255,0.1);border-bottom:1px solid rgba(0,212,255,0.2);color:var(--cyan);text-align:center;padding:10px;font-family:'Space Mono',monospace;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;z-index:99;backdrop-filter:blur(8px);}
 @keyframes topbarSlide{0%{background-position:0%}100%{background-position:200%}}
 nav{position:fixed;top:38px;left:0;right:0;padding:14px 40px;display:flex;justify-content:space-between;align-items:center;background:rgba(7,12,24,0.94);backdrop-filter:blur(16px);z-index:98;border-bottom:1px solid var(--border)}
-.nav-logo img{height:30px;display:block;mix-blend-mode:screen}
+.nav-logo{font-family:'Bebas Neue', sans-serif;font-size:24px;color:var(--white);letter-spacing:1px;}
 .hero{min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:150px 40px 60px;max-width:960px;margin:0 auto;align-items:center;text-align:center;position:relative;z-index:1}
 .hero-callout{font-family:"Space Mono",monospace;font-size:10px;letter-spacing:4px;text-transform:uppercase;color:var(--warn);margin-bottom:20px;border:1px solid rgba(255,184,0,.3);display:inline-block;padding:6px 12px;background:rgba(255,184,0,.05)}
 .hero-title{font-family:"Bebas Neue",sans-serif;font-size:clamp(46px,7vw,85px);line-height:.92;letter-spacing:2px;margin-bottom:24px;text-transform:uppercase;opacity:0;animation:fadeUp .7s ease .15s forwards}
@@ -50,7 +50,9 @@ section{padding:80px 40px;max-width:960px;margin:0 auto;position:relative;z-inde
 .sl{font-size:12px;font-weight:600;color:var(--white);margin-bottom:4px}
 .ss{font-size:11px;color:var(--muted);line-height:1.4}
 
-/* STEPS */
+/* DASHBOARD & STEPS */
+.dash{background:#060D1A;border:1px solid var(--border);padding:18px;margin:24px 0}
+.dhead{font-family:"Space Mono",monospace;font-size:9px;letter-spacing:3px;color:var(--cyan);text-transform:uppercase;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
 .steps{display:flex;flex-direction:column;gap:10px}
 .step{display:grid;grid-template-columns:64px 1fr;background:var(--card);border:1px solid var(--border);overflow:hidden}
 .snum{display:flex;align-items:center;justify-content:center;font-family:"Bebas Neue",sans-serif;font-size:28px;color:var(--cyan);background:rgba(0,212,255,.06)}
@@ -83,6 +85,7 @@ footer{border-top:1px solid var(--border);padding:32px 40px;text-align:center;fo
   section{padding:56px 20px}
   .hero{padding:140px 20px 48px}
   .stats,.offer{grid-template-columns:1fr}
+  .product-split{grid-template-columns:1fr}
 }
 </style>
 </head>
@@ -91,24 +94,20 @@ footer{border-top:1px solid var(--border);padding:32px 40px;text-align:center;fo
 <div class="eh-banner">Emory & Henry College · NCAA D2 Men's Basketball</div>
 
 <nav>
-  <div class="nav-logo"><img src="/images/king-logo.png" alt="ChampionTrackPro" style="height:24px;width:auto;mix-blend-mode:normal;filter:brightness(0) invert(1);"/></div>
-  <a href="#offer" class="nav-cta">The Pilot</a>
+  <div class="nav-logo">CHAMPIONTRACKPRO</div>
 </nav>
 
 <!-- HERO -->
 <div class="hero">
-  <!-- LOGO E&H CENTRÉ -->
+  <!-- LOGO E&H CENTRÉ AVEC CHEMIN RELATIF -->
   <div style="width:100%; display:flex; justify-content:center; margin-bottom: 28px; opacity:0; animation:fadeUp .5s ease forwards">
-    <img src="/images/eh-logo.png" alt="Emory & Henry Logo" style="height: 60px; width: auto; object-fit: contain; filter:drop-shadow(0 0 16px rgba(0,212,255,.2));" />
+    <img src="../../images/eh-logo.png" alt="Emory & Henry Logo" style="height: 70px; width: auto; object-fit: contain; filter:drop-shadow(0 0 16px rgba(0,212,255,.2));" />
   </div>
 
   <div class="hero-callout" style="opacity:0;animation:fadeUp .5s ease .05s forwards">Prepared for the E&H MBB Coaching Staff</div>
   <h1 class="hero-title">"You track what you do to them.<br><span class="a">But do you track what it actually costs them?"</span></h1>
   <p class="hero-sub" style="margin-bottom:0">Your S&C coach is doing a great job tracking external load.</p>
   <p class="hero-pain" style="margin-top:10px">Here is how to measure the internal load in 90 seconds a day — and get the missing 28-day baseline for your roster.</p>
-  <div class="hero-cta-row">
-    <a href="#offer" class="btn-primary">View the 6-Week Pilot</a>
-  </div>
 </div>
 
 <div class="div-line"></div>
