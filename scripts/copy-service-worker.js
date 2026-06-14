@@ -1,4 +1,4 @@
-﻿const fs = require("fs");
+const fs = require("fs");
 const path = require("path");
 
 function copy(src, dst) {
@@ -37,6 +37,31 @@ if (fs.existsSync(srcIcons)) {
       console.log("OK Copied:", s, "->", d);
     }
   });
+}
+
+// ── Landing page — homepage swap ──────────────────────────────────────────────
+// Vercel serves static files before rewrites: web/dist/index.html always wins.
+// Fix: save Expo shell as app.html, install landing/index.html as the new index.html.
+const srcLanding = path.join(process.cwd(), "public", "landing", "index.html");
+const dstIndex   = path.join(distRoot, "index.html");
+const dstApp     = path.join(distRoot, "app.html");
+const dstLandingCopy = path.join(distRoot, "landing", "index.html");
+
+if (fs.existsSync(srcLanding)) {
+  // 1. Save Expo-generated shell so the React app stays accessible at /app
+  if (fs.existsSync(dstIndex)) {
+    fs.copyFileSync(dstIndex, dstApp);
+    console.log("OK Saved Expo shell -> app.html");
+  }
+  // 2. Install landing page as the site homepage
+  fs.copyFileSync(srcLanding, dstIndex);
+  console.log("OK Installed public/landing/index.html -> web/dist/index.html (homepage)");
+  // 3. Also serve it at /landing/ for direct link sharing
+  fs.mkdirSync(path.join(distRoot, "landing"), { recursive: true });
+  fs.copyFileSync(srcLanding, dstLandingCopy);
+  console.log("OK Installed public/landing/index.html -> web/dist/landing/index.html");
+} else {
+  console.warn("WARN public/landing/index.html not found — homepage unchanged.");
 }
 
 // Validation: SW doit utiliser importScripts (mode classique pour Android/Chrome)
