@@ -42,7 +42,7 @@ const RootStack = createNativeStackNavigator();
 // Auth Stack (Landing, Create Account, Login)
 function AuthStackNavigator() {
   return (
-    <AuthStack.Navigator screenOptions={{ headerShown: false }}>
+    <AuthStack.Navigator initialRouteName="Login" screenOptions={{ headerShown: false }}>
       <AuthStack.Screen name="Landing" component={LandingScreen} />
       <AuthStack.Screen name="CreateAccount" component={CreateAccountScreen} />
       <AuthStack.Screen name="Login" component={LoginScreen} />
