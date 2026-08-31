@@ -230,6 +230,9 @@ section{padding:80px 40px;max-width:960px;margin:0 auto;position:relative;z-inde
 .reveal.visible{opacity:1;transform:none}
 footer{border-top:1px solid var(--border);padding:24px 40px;text-align:center;font-family:"Space Mono",monospace;font-size:8px;letter-spacing:2px;color:var(--muted2);text-transform:uppercase}
 
+.video-frame{position:relative;border-radius:18px;overflow:hidden;border:1px solid var(--border);box-shadow:0 40px 90px rgba(0,0,0,.5);background:#000;margin-top:8px}
+.video-frame video{border-radius:18px;background:#000}
+
 @media(max-width:640px){
   nav{padding:11px 18px}
   section{padding:56px 20px}
@@ -313,7 +316,7 @@ footer{border-top:1px solid var(--border);padding:24px 40px;text-align:center;fo
   </div>
 
   <div style="background:var(--card);border:1px solid rgba(255,184,0,.25);padding:18px 22px" class="reveal">
-    <p style="font-size:15px;color:var(--muted);line-height:1.65"><strong style="color:var(--white)">The coach thought he was protecting his players. He was under-preparing them.</strong> Game day was hitting harder than any practice all week. We fixed the load — having this data is what let us see what was actually costing them their potential.</p>
+    <p style="font-size:15px;color:var(--muted);line-height:1.65">Game day was hitting harder than any practice all week. We fixed the load — having this data is what let us see what was actually costing them their potential.</p>
   </div>
 </section>
 
@@ -391,57 +394,22 @@ footer{border-top:1px solid var(--border);padding:24px 40px;text-align:center;fo
 
 <!-- PRODUCT -->
 <section id="product">
-  <span class="label reveal">How It Works</span>
-  <h2 class="sec-title reveal">Read Your Whole Roster's Readiness.<br><span class="g">In 2 Minutes A Day.</span></h2>
-  <p class="reveal" style="font-size:15px;color:var(--muted);line-height:1.7;max-width:640px">Three simple steps. Built to run every single day without you lifting a finger — my judgment shows up on the part that actually moves the needle.</p>
+  <span class="label reveal">See It In Action</span>
+  <h2 class="sec-title reveal">Your Athletes Report It.<br><span class="g">You See It Every Morning.</span></h2>
+  <p class="reveal" style="font-size:15px;color:var(--muted);line-height:1.7;max-width:640px">90 seconds after every practice and game, from their phone. One screen for you and your staff, every morning — no charts to decode, no hardware to install.</p>
 
-  <div class="how-steps reveal">
-    <div class="how-step">
-      <div class="how-step-n">01 · After Practice</div>
-      <p>Players answer 9 quick questions on their phone. <strong style="color:var(--white)">90 seconds.</strong> They never see their own score.</p>
-    </div>
-    <div class="how-step">
-      <div class="how-step-n">02 · The Morning Brief</div>
-      <p>Every morning before practice, your team's numbers run through the method I built and calibrated myself. <strong style="color:var(--white)">Green. Yellow. Blue.</strong> Full roster, ranked by readiness, on your phone — reliable every day, whether I'm in the building or not.</p>
-    </div>
-    <div class="how-step">
-      <div class="how-step-n">03 · Once A Week</div>
-      <p><strong style="color:var(--white)">Zero prep required from your staff.</strong> Once a week, I personally audit the trend myself and hand you the 1-2 practical adjustments that keep your key players on the floor.</p>
-    </div>
+  <div class="video-frame reveal">
+    <video controls preload="metadata" poster="poster_brand.jpg" playsinline style="width:100%;display:block">
+      <source src="brand.mp4" type="video/mp4">
+      Your browser doesn't support embedded video — <a href="brand.mp4" style="color:var(--cyan)">watch it here</a>.
+    </video>
   </div>
 
-  <div class="reveal" style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap">
+  <div class="reveal" style="display:flex;gap:10px;margin-top:20px;flex-wrap:wrap">
     <span class="badge bg" style="font-size:11px;padding:6px 14px">PUSH — full capacity</span>
     <span class="badge by" style="font-size:11px;padding:6px 14px">MONITOR — fatigue spike</span>
     <span class="badge bb" style="font-size:11px;padding:6px 14px">PROTECT — overload risk</span>
   </div>
-
-<div class="dash reveal">
-    <div class="dhead"><span style="display:flex;align-items:center;gap:8px"><span class="live-dot"></span>Morning Brief — Example Roster</span><span style="color:var(--muted2)">Tuesday · Pre-practice</span></div>
-    <div class="brief-summary">
-      <div class="gauge-mini">
-        <svg width="64" height="64" viewBox="0 0 104 104"><defs><linearGradient id="ggThune" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#00D4FF"/><stop offset="100%" stop-color="#00FF9D"/></linearGradient></defs><circle cx="52" cy="52" r="45" fill="none" stroke="#1a2230" stroke-width="9"/><circle cx="52" cy="52" r="45" fill="none" stroke="url(#ggThune)" stroke-width="9" stroke-linecap="round" stroke-dasharray="282.7" stroke-dashoffset="82" transform="rotate(-90 52 52)"/></svg>
-        <div class="gauge-num"><b>71</b><span>Ready</span></div>
-      </div>
-      <div class="kpi-chips">
-        <div class="kpi-chip g"><b>3</b><span>Push</span></div>
-        <div class="kpi-chip y"><b>1</b><span>Monitor</span></div>
-        <div class="kpi-chip b"><b>1</b><span>Protect</span></div>
-      </div>
-    </div>
-    <table class="dtable">
-      <thead><tr><th>Player</th><th>Readiness Score</th><th>Decision</th></tr></thead>
-      <tbody>
-        <tr><td>A. Carter</td><td><div style="display:flex;align-items:center;gap:8px"><div class="bar-wrap" style="flex:1"><div class="bar" style="width:87%;background:var(--green)"></div></div><span style="font-size:12px;color:var(--muted);min-width:18px">87</span></div></td><td><span class="badge bg">PUSH</span></td></tr>
-        <tr><td>T. Williams</td><td><div style="display:flex;align-items:center;gap:8px"><div class="bar-wrap" style="flex:1"><div class="bar" style="width:64%;background:var(--warn)"></div></div><span style="font-size:12px;color:var(--muted);min-width:18px">64</span></div></td><td><span class="badge by">MONITOR</span></td></tr>
-        <tr><td>M. Johnson</td><td><div style="display:flex;align-items:center;gap:8px"><div class="bar-wrap" style="flex:1"><div class="bar" style="width:91%;background:var(--green)"></div></div><span style="font-size:12px;color:var(--muted);min-width:18px">91</span></div></td><td><span class="badge bg">PUSH</span></td></tr>
-        <tr><td>S. Davis</td><td><div style="display:flex;align-items:center;gap:8px"><div class="bar-wrap" style="flex:1"><div class="bar" style="width:39%;background:#4499FF"></div></div><span style="font-size:12px;color:var(--muted);min-width:18px">39</span></div></td><td><span class="badge bb">PROTECT</span></td></tr>
-        <tr><td>R. Thompson</td><td><div style="display:flex;align-items:center;gap:8px"><div class="bar-wrap" style="flex:1"><div class="bar" style="width:74%;background:var(--green)"></div></div><span style="font-size:12px;color:var(--muted);min-width:18px">74</span></div></td><td><span class="badge bg">PUSH</span></td></tr>
-      </tbody>
-    </table>
-    <div class="dnote"><strong>90 seconds, before practice.</strong> Full roster ranked by readiness. No data entry for you.</div>
-  </div>
-
 </section>
 
 <div class="div-line"></div>
