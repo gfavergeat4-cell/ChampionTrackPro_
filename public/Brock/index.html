@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ChampionTrackPro · Coach Matt Brock · UIS Prairie Stars MBB</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#070C18;--card:#0C1424;--border:rgba(0,212,255,0.1);
+  --royal:#00D4FF;--gold:#00FF9D;--caution:#FFB800;--red:#FF4455;
+  --white:#FFFFFF;--muted:rgba(255,255,255,0.5);--muted2:rgba(255,255,255,0.18);
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--white);font-family:"DM Sans",sans-serif;font-weight:300;line-height:1.65;overflow-x:hidden}
+body::before{content:"";position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");pointer-events:none;z-index:0;opacity:.4}
+.topbar{position:fixed;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--royal),var(--gold),var(--royal));background-size:200%;animation:topbarSlide 3s linear infinite;z-index:100}
+@keyframes topbarSlide{0%{background-position:0%}100%{background-position:200%}}
+nav{position:fixed;top:2px;left:0;right:0;padding:14px 40px;display:flex;justify-content:space-between;align-items:center;background:rgba(7,12,24,0.94);backdrop-filter:blur(16px);z-index:99;border-bottom:1px solid var(--border)}
+.nav-logo{font-family:"Space Mono",monospace;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--white)}
+.nav-logo span{color:var(--gold)}
+.nav-cta{font-family:"Space Mono",monospace;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--bg);background:var(--royal);padding:10px 20px;text-decoration:none;transition:all .2s;border-radius:2px;white-space:nowrap}
+.nav-cta:hover{background:var(--gold);transform:translateY(-1px)}
+.hero{min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:120px 40px 60px;max-width:960px;margin:0 auto;align-items:center;text-align:center;position:relative;z-index:1}
+.hero-callout{font-family:"Space Mono",monospace;font-size:10px;letter-spacing:4px;text-transform:uppercase;color:var(--caution);margin-bottom:20px;border:1px solid rgba(255,184,0,.3);display:inline-block;padding:6px 12px;background:rgba(255,184,0,.05)}
+.hero-title{font-family:"Bebas Neue",sans-serif;font-size:clamp(46px,7.5vw,92px);line-height:.95;letter-spacing:1px;margin-bottom:24px;opacity:0;animation:fadeUp .7s ease .15s forwards}
+.hero-title .a{color:var(--royal)}.hero-title .b{color:var(--gold)}
+.hero-sub{font-size:17px;color:var(--muted);max-width:660px;margin-bottom:40px;line-height:1.72;opacity:0;animation:fadeUp .7s ease .3s forwards}
+.hero-cta-row{display:flex;flex-direction:column;align-items:center;gap:14px;flex-wrap:wrap;opacity:0;animation:fadeUp .7s ease .6s forwards}
+.btn-primary{display:inline-flex;align-items:center;gap:8px;font-family:"Space Mono",monospace;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--bg);background:linear-gradient(135deg,var(--gold),#0088FF);padding:16px 36px;text-decoration:none;transition:all .25s;font-weight:700}
+.btn-primary:hover{transform:translateY(-3px);box-shadow:0 16px 48px rgba(0,255,157,.3)}
+.hero-or{font-size:11px;color:var(--muted2)}
+section{padding:80px 40px;max-width:960px;margin:0 auto;position:relative;z-index:1}
+.label{font-family:"Bebas Neue",sans-serif;font-size:14px;letter-spacing:2.5px;text-transform:uppercase;color:var(--royal);margin-bottom:18px;display:block}
+.sec-title{font-family:"Bebas Neue",sans-serif;font-size:clamp(28px,4.3vw,48px);line-height:.98;letter-spacing:1px;margin-bottom:32px}
+.sec-title .a{color:var(--royal)}.sec-title .g{color:var(--gold)}
+
+/* QUOTE CARD */
+.quote-card{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--caution);padding:26px 30px;margin-bottom:26px}
+.quote-card .qlabel{font-family:"Space Mono",monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--caution);margin-bottom:10px}
+.quote-card p{font-style:italic;font-size:16px;color:rgba(255,255,255,.85);line-height:1.7}
+.answer{font-size:15.5px;color:var(--muted);line-height:1.8}
+.answer strong{color:var(--white);font-weight:500}
+
+/* PAIN / TAX GRID */
+.pain-grid{display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:center;margin-top:28px}
+.tax-grid{display:flex;flex-direction:column;gap:12px}
+.tax-item{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--red);padding:16px 18px;display:flex;gap:14px;align-items:flex-start}
+.tax-n{font-family:"Bebas Neue",sans-serif;font-size:22px;color:var(--red);line-height:1;flex-shrink:0}
+.tax-h{font-family:"Bebas Neue",sans-serif;font-size:14.5px;letter-spacing:.5px;text-transform:uppercase;color:var(--white);margin-bottom:4px}
+.tax-item p{font-size:13.5px;color:var(--muted);line-height:1.6}
+.tax-item p.quote{font-style:italic;color:rgba(255,255,255,.72)}
+.flash-note{margin-top:16px;padding:16px 18px;background:rgba(0,212,255,.06);border:1px solid rgba(0,212,255,.25);font-size:13.5px;color:var(--muted);line-height:1.6}
+.pain-vis{position:relative;aspect-ratio:16/9;border:1px solid var(--border);background:var(--card);display:flex;align-items:center;justify-content:center;padding:0;overflow:hidden}
+.pain-vis video{width:100%;height:100%;object-fit:cover;display:block}
+
+/* TIME / STAFF SECTION */
+.time-box{background:linear-gradient(135deg,rgba(0,212,255,.06),rgba(0,255,157,.04));border:1px solid rgba(0,212,255,.2);padding:30px 32px;margin-top:24px}
+.time-box p{font-size:15.5px;color:rgba(255,255,255,.85);line-height:1.75;margin-bottom:14px}
+.time-box p:last-child{margin-bottom:0}
+.time-box strong{color:var(--gold)}
+
+/* VIDEO DEMO */
+.video-frame{position:relative;border-radius:20px;overflow:hidden;padding:2px;margin-top:8px;background:linear-gradient(135deg,rgba(0,212,255,.55),rgba(0,255,157,.35),rgba(0,212,255,.55));background-size:220% 220%;animation:videoBorderShift 6s ease infinite;box-shadow:0 50px 100px rgba(0,0,0,.6),0 0 70px rgba(0,212,255,.14)}
+@keyframes videoBorderShift{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+.video-frame video{position:relative;border-radius:18px;background:#000;display:block;width:100%}
+.demo-steps{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:18px}
+.demo-step{background:var(--card);border:1px solid var(--border);padding:14px 12px;text-align:center}
+.demo-step-n{font-family:"Bebas Neue",sans-serif;font-size:20px;color:var(--royal);line-height:1;margin-bottom:6px}
+.demo-step p{font-size:11.5px;color:var(--muted);line-height:1.4}
+@media(max-width:640px){.demo-steps{grid-template-columns:1fr 1fr}}
+
+/* PILOT BOX */
+.pilot-box{background:linear-gradient(180deg,rgba(0,212,255,.07),rgba(0,255,157,.03));border:1px solid rgba(0,255,157,.3);padding:34px}
+.pilot-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:14px;margin-bottom:28px;padding-bottom:26px;border-bottom:1px solid rgba(255,255,255,.08)}
+.pilot-price{font-family:"Bebas Neue",sans-serif;font-size:52px;color:var(--white)}
+.pilot-price span{font-family:"Space Mono",monospace;font-size:13px;color:var(--muted);letter-spacing:0}
+.pilot-tag{font-family:"Space Mono",monospace;font-size:10px;color:var(--gold);border:1px solid rgba(0,255,157,.3);background:rgba(0,255,157,.06);padding:6px 12px;border-radius:2px}
+.oc{background:var(--card);border:1px solid var(--border);padding:22px}
+.oc ul{list-style:none;display:flex;flex-direction:column;gap:10px}
+.oc li{font-size:14px;color:var(--muted);padding-left:16px;position:relative;line-height:1.55}
+.oc li::before{content:"→";position:absolute;left:0;color:var(--gold);font-size:11px;top:1px}
+.oc h4{font-family:"Space Mono",monospace;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--royal);margin-bottom:8px}
+.pilot-grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+
+/* PLANS LADDER */
+.plans-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:stretch;margin-top:12px}
+.plan-card{background:var(--card);border:1px solid var(--border);padding:26px 22px;display:flex;flex-direction:column}
+.plan-card.flagship{border:2px solid var(--royal);background:linear-gradient(180deg,rgba(0,212,255,.1),var(--card));position:relative}
+.plan-badge{position:absolute;top:-13px;left:50%;transform:translateX(-50%);font-family:"Space Mono",monospace;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;background:var(--royal);color:var(--white);padding:6px 14px;border-radius:20px;white-space:nowrap}
+.plan-name{font-family:"Bebas Neue",sans-serif;font-size:23px;color:var(--white);margin-bottom:6px;letter-spacing:.5px}
+.plan-price{font-family:"Bebas Neue",sans-serif;font-size:38px;color:var(--white)}
+.plan-price span{font-family:"Space Mono",monospace;font-size:11px;color:var(--muted);letter-spacing:0}
+.plan-desc{font-size:13px;color:var(--muted);line-height:1.6;margin:12px 0 16px}
+.plan-list{list-style:none;display:flex;flex-direction:column;gap:8px;flex:1;margin-bottom:16px}
+.plan-list li{font-size:12.5px;color:var(--muted);padding-left:14px;position:relative;line-height:1.5}
+.plan-list li::before{content:"–";position:absolute;left:0;color:var(--muted2)}
+.plan-card.flagship .plan-list li::before{content:"✓";color:var(--royal)}
+.plan-rollover{font-family:"Space Mono",monospace;font-size:11px;padding:10px 12px;border-radius:2px}
+.plan-card.flagship .plan-rollover{background:rgba(0,212,255,.12);color:#66E5FF}
+.plan-card:not(.flagship) .plan-rollover{background:rgba(255,255,255,.04);color:var(--muted)}
+
+/* GUARANTEE */
+.guarantee{display:flex;gap:16px;align-items:flex-start;background:var(--card);border:1px solid var(--border);padding:24px 26px;margin-top:20px}
+.guarantee-icon{font-size:22px;flex-shrink:0}
+.guarantee p{font-size:14.5px;color:var(--muted);line-height:1.7}
+.guarantee strong{color:var(--white)}
+
+/* FAQ ACCORDION */
+.pre-faq{display:flex;flex-direction:column;gap:12px}
+.pre-faq-item{background:var(--card);border:1px solid var(--border);border-radius:2px;overflow:hidden}
+.pfq-btn{width:100%;text-align:left;background:none;border:none;padding:18px 20px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-family:"DM Sans",sans-serif}
+.pfq{font-size:14.5px;font-weight:600;color:var(--white)}
+.pfq-chev{font-family:"Space Mono",monospace;color:var(--royal);transition:transform .3s ease;flex-shrink:0;margin-left:14px}
+.pfq-chev.rot{transform:rotate(45deg)}
+.pfa-wrap{max-height:0;overflow:hidden;transition:max-height .35s ease}
+.pfa-wrap.open{max-height:260px}
+.pfa{font-size:14px;color:var(--muted);line-height:1.6;padding:0 20px 18px}
+
+/* CTA */
+.cta{text-align:center;padding:96px 40px;max-width:680px;margin:0 auto}
+.cta-title{font-family:"Bebas Neue",sans-serif;font-size:clamp(34px,5.5vw,58px);line-height:1.02;letter-spacing:1px;margin-bottom:20px}
+.cta-sub{font-size:15.5px;color:var(--muted);margin-bottom:32px;line-height:1.7}
+.ps-box{margin-top:28px;padding:22px 26px;background:rgba(0,255,157,.04);border:1px solid rgba(0,255,157,.25);text-align:left;position:relative}
+.ps-box::before{content:"P.S.";position:absolute;top:-10px;left:20px;font-family:"Bebas Neue",sans-serif;font-size:18px;letter-spacing:2px;color:var(--gold);background:var(--bg);padding:0 8px}
+.ps-box p{font-size:15px;color:rgba(255,255,255,0.75);line-height:1.72}
+.ps-box strong{color:var(--gold)}
+
+.div-line{height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent);margin:0 40px}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
+.reveal{opacity:0;transform:translateY(22px);transition:opacity .6s ease,transform .6s ease}
+.reveal.visible{opacity:1;transform:none}
+footer{border-top:1px solid var(--border);padding:24px 40px;text-align:center;font-family:"Space Mono",monospace;font-size:8px;letter-spacing:2px;color:var(--muted2);text-transform:uppercase}
+
+@media(max-width:640px){
+  nav{padding:11px 18px}
+  section{padding:56px 20px}
+  .hero{padding:110px 20px 48px}
+  .pain-grid{grid-template-columns:1fr}
+  .plans-grid{grid-template-columns:1fr}
+  .plan-card.flagship{order:-1}
+  .pilot-grid2{grid-template-columns:1fr}
+  .cta{padding:64px 20px}
+  footer{padding:20px}
+}
+</style>
+</head>
+<body>
+<div class="topbar"></div>
+<nav>
+  <div class="nav-logo">ChampionTrackPro <span>×</span> UIS Prairie Stars MBB</div>
+  <a href="#pilot" class="nav-cta">See The Pilot</a>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-callout">UIS Prairie Stars Men's Basketball — Preseason Follow-Up</div>
+  <h1 class="hero-title">Your eye is world-class. <span class="a">Here's what</span><br>it <span class="b">structurally can't see.</span></h1>
+  <p class="hero-sub">On our call, I threw numbers at you before showing you what's under the hood — that's on me. Here's the engine, and exactly how it applies to your six new guys before October.</p>
+  <div class="hero-cta-row">
+    <a href="#pilot" class="btn-primary">See The 4-Week Pilot ($495) →</a>
+    <span class="hero-or">Credited 100% toward the season plan · No AD approval needed to start</span>
+  </div>
+</div>
+
+<div class="div-line"></div>
+
+<!-- OBJECTION -->
+<section id="objection">
+  <span class="label reveal">Your Question, Word For Word</span>
+  <h2 class="sec-title reveal">"Is it really changing our <span class="g">decision making?</span>"</h2>
+  <div class="quote-card reveal">
+    <div class="qlabel">Matt Brock, Discovery Call, Sept 8</div>
+    <p>"I have that data, but I also have my eyes. So, you know, sometimes the eye — that's why AI's not gonna be able to replace me... there's definitely the science and I'm definitely into the data, but you also gotta have some feel. So that's kind of the decision point."</p>
+  </div>
+  <p class="answer reveal">You've been coaching at an elite level for twenty years. Your eye is world-class — when a player is exhausted on the court, you see it. But heavy legs and sluggish body language are <strong>lagging indicators</strong>. By the time a player "looks tired," that fatigue is already <strong>5 to 7 days old</strong>. This isn't a re-pitch — it's the specific mechanism that answers your question, then how it maps onto your own roster.</p>
+</section>
+
+<div class="div-line"></div>
+
+<!-- ICEBERG -->
+<section id="iceberg">
+  <span class="label reveal">What The Eye Can't See</span>
+  <h2 class="sec-title reveal">Competitors <span class="g">lie</span> — not to you,<br>to themselves.</h2>
+
+  <div class="pain-grid reveal">
+    <div>
+      <div class="tax-grid">
+        <div class="tax-item">
+          <div class="tax-n">01</div>
+          <div>
+            <div class="tax-h">What Your Eye Reads</div>
+            <p>Effort, attitude, body language — the tip of the iceberg. Twenty years of experience makes you excellent at reading exactly this.</p>
+          </div>
+        </div>
+        <div class="tax-item">
+          <div class="tax-n">02</div>
+          <div>
+            <div class="tax-h">What It Structurally Can't</div>
+            <p>Academic stress, four hours of sleep, cumulative neural fatigue — everything underneath, invisible to any human eye, coach or not.</p>
+          </div>
+        </div>
+        <div class="tax-item">
+          <div class="tax-n">03</div>
+          <div>
+            <div class="tax-h">The Lag</div>
+            <p class="quote">"I'm good, Coach, put me in."</p>
+            <p>Ask your starting guard how he feels Tuesday morning before a rivalry game — he means it. He's not lying to you, he's lying to himself, because he's a competitor. His central nervous system doesn't care about his loyalty. It just snaps.</p>
+          </div>
+        </div>
+      </div>
+      <div class="flash-note"><strong style="color:var(--royal)">This is not a report card on your coaching.</strong> It's the flashlight for the one thing even a twenty-year eye can't see.</div>
+    </div>
+    <div class="pain-vis">
+      <video autoplay muted loop playsinline>
+        <source src="iceberg-fatigue.mp4" type="video/mp4">
+      </video>
+    </div>
+  </div>
+</section>
+
+<div class="div-line"></div>
+
+<!-- SEE IT IN ACTION -->
+<section id="demo">
+  <span class="label reveal">See It In Action</span>
+  <h2 class="sec-title reveal">Ninety Seconds For Them.<br>Ninety Seconds For You.</h2>
+  <p class="reveal" style="font-size:15px;color:var(--muted);line-height:1.7;max-width:640px">This is what your players see after practice, and what you see with your coffee at 7:00 AM.</p>
+
+  <div class="video-frame reveal">
+    <video controls preload="metadata" playsinline>
+      <source src="app-demo.mp4" type="video/mp4">
+      Your browser doesn't support embedded video.
+    </video>
+  </div>
+
+  <div class="demo-steps reveal">
+    <div class="demo-step"><div class="demo-step-n">01</div><p>90-second check-in after practice — they never see their own score</p></div>
+    <div class="demo-step"><div class="demo-step-n">02</div><p>7:00 AM Morning Brief — green push / yellow monitor / blue protect</p></div>
+    <div class="demo-step"><div class="demo-step-n">03</div><p>Physical load vs. technical load, side by side</p></div>
+    <div class="demo-step"><div class="demo-step-n">04</div><p>Each of your six new guys against his own 28-day baseline</p></div>
+  </div>
+</section>
+
+<div class="div-line"></div>
+
+<!-- BRIDGE TO HIS SITUATION -->
+<section id="bridge">
+  <span class="label reveal">Your Situation, Not A General Pitch</span>
+  <h2 class="sec-title reveal">Six new guys. <span class="a">Same open question.</span></h2>
+
+  <div class="tax-grid reveal">
+    <div class="tax-item">
+      <div class="tax-n">01</div>
+      <div>
+        <div class="tax-h">The Ramp You Described</div>
+        <p class="quote">"We're trying to slowly build and increase the volume, increase the intensity, to where in October they're ready to handle practice... a little bit more of an American football approach — hard Wednesday, then Thursday-Friday you're kind of ramped toward Saturday's game."</p>
+        <p>Smart plan, built on real experience. Neither of us can know from watching practice whether all six new guys are absorbing that ramp at the rate the plan assumes.</p>
+      </div>
+    </div>
+    <div class="tax-item">
+      <div class="tax-n">02</div>
+      <div>
+        <div class="tax-h">The Silent Split</div>
+        <p>Two years ago, losing one all-league point guard to season-ending surgery turned a tight schedule into a 12-16 season — <strong style="color:var(--white)">12 of those losses by 10 points or less.</strong> This year that same usage gets split across six new guys who've never carried it. If one of them starts absorbing more than he's ready for in November, how would you actually know before it shows up as an injury in January?</p>
+      </div>
+    </div>
+    <div class="tax-item">
+      <div class="tax-n">03</div>
+      <div>
+        <div class="tax-h">The Trade-Off You Raised</div>
+        <p>"What are the trade-offs... is the return on that worth what it costs." Fair question. The real comparison isn't $6,500 versus zero — it's whatever it costs if two or three of your six new guys hit their ceiling in November because the ramp was calibrated on feel instead of on their actual numbers, in a season where close games are the whole story.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="div-line"></div>
+
+<!-- STAFF TIME -->
+<section id="time">
+  <span class="label reveal">On Staff Time — Your Real Concern</span>
+  <h2 class="sec-title reveal">With three assistants, <span class="g">you don't do this.</span><br>I do.</h2>
+  <div class="time-box reveal">
+    <p>With only three assistants wearing ten different hats, if you had to spend even twenty minutes a day reading graphs, this system would die in three days. It should — you're basketball coaches, not data analysts.</p>
+    <p>Every Monday before 9:00 AM, I run your roster's load curves against each player's personal <strong>28-day baseline</strong> and send you and your staff a five-minute video plus a one-page PDF — my top two recommendations for the week. You watch five minutes with your coffee, adjust practice, and coach. Zero hours spent reading dashboards.</p>
+    <p>This exact system was validated with a professional team in Europe, second-to-last in the standings, players breaking down all season. Two months in: <strong>plus four spots in the standings, zero load-related injuries.</strong> In February, when you're Wednesday-Saturday back-to-back and bodies and minds are worn out, keeping that edge is the difference between a conference tournament run and going home early.</p>
+  </div>
+</section>
+
+<div class="div-line"></div>
+
+<!-- PILOT -->
+<section id="pilot">
+  <span class="label reveal">The Entry Point</span>
+  <h2 class="sec-title reveal">The Pilot: <span class="g">Preseason Roster Baseline</span></h2>
+  <p class="reveal" style="font-size:15px;color:var(--muted);line-height:1.7;max-width:640px;margin-bottom:8px">Your fall budget is already locked. This is sized to not need it.</p>
+
+  <div class="pilot-box reveal">
+    <div class="pilot-head">
+      <div>
+        <div class="label" style="margin-bottom:8px">4-Week Preseason Pilot</div>
+        <div class="pilot-price">$495 <span>flat fee</span></div>
+      </div>
+      <div class="pilot-tag">Under most P-Card thresholds — no AD approval needed</div>
+    </div>
+
+    <div class="oc" style="margin-bottom:16px">
+      <h4>What's Included</h4>
+      <ul>
+        <li>Full ChampionTrackPro platform access for your entire roster and staff</li>
+        <li>90-second daily check-in for players — zero app to install</li>
+        <li>Morning Brief sent to your staff every day, color-coded by readiness</li>
+        <li><strong style="color:var(--white)">Week 2 bonus:</strong> your first 5-minute video briefing, so you experience the weekly advisory firsthand</li>
+      </ul>
+    </div>
+
+    <div class="pilot-grid2">
+      <div class="oc">
+        <h4>The Guarantee</h4>
+        <p style="font-size:13px;color:var(--muted);line-height:1.6">If after four weeks your players have checked in and you don't feel this changed or confirmed a single coaching decision, we shake hands, you owe me nothing — and you keep every baseline report on your six new guys.</p>
+      </div>
+      <div class="oc">
+        <h4>If You Continue</h4>
+        <p style="font-size:13px;color:var(--muted);line-height:1.6">The $495 credits 100% toward whichever season plan you choose — you prove it on your own roster first, then make the case internally with your own players' data in hand.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="div-line"></div>
+
+<!-- PLANS LADDER -->
+<section id="plans">
+  <span class="label reveal">The Season Plans</span>
+  <h2 class="sec-title reveal">Exactly what was discussed <span class="a">on the call.</span></h2>
+  <p class="reveal" style="font-size:15px;color:var(--muted);line-height:1.7;max-width:640px;margin-bottom:8px">Same two numbers, no changes.</p>
+
+  <div class="plans-grid reveal">
+    <div class="plan-card flagship">
+      <div class="plan-badge">Recommended For UIS</div>
+      <div class="plan-name">Tactical Advisory</div>
+      <div class="plan-price">$6,500<span> / season</span></div>
+      <p class="plan-desc">Full roster, me included. I embed as your Sport Scientist — every Monday, your load curves get translated into the exact adjustment to make that week.</p>
+      <ul class="plan-list">
+        <li>Full platform access, whole roster and staff</li>
+        <li>Automated Morning Brief every day</li>
+        <li>Monday video + 1-page PDF: your top 2 tactical recommendations</li>
+        <li>No live meetings — five minutes with your coffee</li>
+      </ul>
+      <div class="plan-rollover">Pilot rollover: $495 credited 100% — balance: <strong>$6,005</strong></div>
+    </div>
+
+    <div class="plan-card">
+      <div class="plan-name">Self-Serve Platform</div>
+      <div class="plan-price">$3,000<span> / season</span></div>
+      <p class="plan-desc">Full platform access. I set your staff up at onboarding — you and your assistants run it yourselves the rest of the season.</p>
+      <ul class="plan-list">
+        <li>Full platform + Morning Brief, whole roster</li>
+        <li>No weekly video, no consulting</li>
+        <li>You and your assistants run it</li>
+      </ul>
+      <div class="plan-rollover">Pilot rollover: $495 credited — balance: <strong>$2,505</strong></div>
+    </div>
+  </div>
+
+  <div class="guarantee reveal">
+    <div class="guarantee-icon">🤝</div>
+    <p><strong>Founding Partner window:</strong> the first 20 programs to start before November 1st lock today's rate for life on whichever plan they land on — ahead of next season's standard pricing.</p>
+  </div>
+</section>
+
+<div class="div-line"></div>
+
+<!-- FAQ -->
+<section id="faq">
+  <span class="label reveal">Straight Answers</span>
+  <h2 class="sec-title reveal">Before You Decide.</h2>
+
+  <div class="pre-faq reveal">
+    <div class="pre-faq-item">
+      <button class="pfq-btn"><span class="pfq">Does this replace what I see with my own eyes?</span><span class="pfq-chev">+</span></button>
+      <div class="pfa-wrap"><p class="pfa">No, and it's not supposed to. What it replaces is guessing on the one input your eye was never built to measure — the actual ratio between what you're asking for in practice and what the game is going to demand. Your eye stays exactly where it's strongest: reading effort, body language, culture, who's mentally in it. The data just closes the one gap even a twenty-year eye can't close.</p></div>
+    </div>
+    <div class="pre-faq-item">
+      <button class="pfq-btn"><span class="pfq">Our fall budget's already locked. Where do the $495 come from?</span><span class="pfq-chev">+</span></button>
+      <div class="pfa-wrap"><p class="pfa">The $495 pilot is sized specifically to clear most departments' discretionary P-Card threshold, without a formal Athletic Director or purchasing-board approval process. You prove the system on your own six new guys first, then make the internal case with real data if you decide to continue.</p></div>
+    </div>
+    <div class="pre-faq-item">
+      <button class="pfq-btn"><span class="pfq">Can players game or falsify their check-in?</span><span class="pfq-chev">+</span></button>
+      <div class="pfa-wrap"><p class="pfa">No. Players never see their own readiness score, so there's nothing to protect by inflating it. Only your staff sees the final read.</p></div>
+    </div>
+    <div class="pre-faq-item">
+      <button class="pfq-btn"><span class="pfq">With a three-person staff, how do we manage one more tool?</span><span class="pfq-chev">+</span></button>
+      <div class="pfa-wrap"><p class="pfa">You don't manage it — I do. With Tactical Advisory, your staff reads nothing. You open a five-minute video Monday morning with your coffee, take the top two recommendations, and apply them to that week's practice plan.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<div class="cta">
+  <h2 class="cta-title reveal">Set your six new guys up<br>before October practice ramps up.</h2>
+  <p class="cta-sub reveal">Four weeks. $495. A full baseline report to keep either way — nothing to lose.</p>
+  <div class="reveal">
+    <a href="#pilot" class="btn-primary">Start The Preseason Pilot →</a>
+  </div>
+  <div class="ps-box reveal">
+    <p><strong>P.S.</strong> In February, when you're in the grind of conference play — Wednesday-Saturday back-to-back and everyone's worn out — keeping that fresh edge is the difference between a tournament run and going home early. The sooner your six new guys are baselined, the more precise that edge gets.</p>
+  </div>
+</div>
+
+<footer>Prepared for Coach Matt Brock &amp; UIS Prairie Stars Athletics — ChampionTrackPro</footer>
+
+<script>
+// Reveal on scroll
+(function(){
+  const obs = new IntersectionObserver(entries=>{
+    entries.forEach(e=>{ if(e.isIntersecting) e.target.classList.add("visible") });
+  },{threshold:.08,rootMargin:"0px 0px -24px 0px"});
+  document.querySelectorAll(".reveal").forEach(el=>obs.observe(el));
+})();
+
+// FAQ accordion
+document.querySelectorAll(".pfq-btn").forEach(function(btn){
+  btn.addEventListener("click", function(){
+    var wrap = btn.parentElement.querySelector(".pfa-wrap");
+    var chev = btn.querySelector(".pfq-chev");
+    var isOpen = wrap.classList.contains("open");
+    document.querySelectorAll(".pfa-wrap.open").forEach(function(w){
+      w.classList.remove("open");
+      w.parentElement.querySelector(".pfq-chev").classList.remove("rot");
+    });
+    if(!isOpen){ wrap.classList.add("open"); chev.classList.add("rot"); }
+  });
+});
+
+// CRM tracking pixel — same webhook as other ChampionTrackPro sales pages.
+// Fires only if the link opened includes ?ref=<base64email> or ?e=<email>&t=click
+(function(){
+  try {
+    var params = new URLSearchParams(window.location.search);
+    var ref = params.get("ref");
+    var email = null;
+    if (ref) { try { var d = atob(ref); if (d && d.indexOf("@") !== -1) email = d; } catch(e){} }
+    if (!email && params.get("t") === "click" && params.get("e")) email = params.get("e");
+    if (email) {
+      var pixelUrl = "https://script.google.com/macros/s/AKfycbxuG9Fwpn1IJUmDJR7NvqvgL8Oog4ttcYmhJT46GsBuHINiRNqUoctcCWmAaMrkqXafJA/exec";
+      new Image().src = pixelUrl + "?e=" + encodeURIComponent(email) + "&t=click";
+    }
+  } catch(e){}
+})();
+</script>
+</body>
+</html>
