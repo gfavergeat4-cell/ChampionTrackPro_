@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ChampionTrackPro · Coach Corry Irvin · Chicago State WBB</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#070C18;--card:#0C1424;--border:rgba(0,212,255,0.1);
+  --royal:#00D4FF;--gold:#00FF9D;--caution:#FFB800;--red:#FF4455;
+  --white:#FFFFFF;--muted:rgba(255,255,255,0.5);--muted2:rgba(255,255,255,0.18);
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--white);font-family:"DM Sans",sans-serif;font-weight:300;line-height:1.65;overflow-x:hidden}
+body::before{content:"";position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");pointer-events:none;z-index:0;opacity:.4}
+.topbar{position:fixed;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--royal),var(--gold),var(--royal));background-size:200%;animation:topbarSlide 3s linear infinite;z-index:100}
+@keyframes topbarSlide{0%{background-position:0%}100%{background-position:200%}}
+nav{position:fixed;top:2px;left:0;right:0;padding:14px 40px;display:flex;justify-content:space-between;align-items:center;background:rgba(7,12,24,0.94);backdrop-filter:blur(16px);z-index:99;border-bottom:1px solid var(--border)}
+.nav-logo{font-family:"DM Sans",sans-serif;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--white);display:flex;flex-direction:column;align-items:center;gap:4px}
+.nav-logo img{height:22px;width:22px;object-fit:contain;display:block}
+.nav-logo span{color:var(--gold)}
+.hero-kicker{font-family:"Bebas Neue",sans-serif;font-size:clamp(20px,3.2vw,30px);letter-spacing:.5px;color:var(--white);margin-bottom:18px;opacity:0;animation:fadeUp .7s ease .22s forwards}
+.hero-kicker span{color:var(--gold)}
+.nav-cta{font-family:"DM Sans",sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--bg);background:var(--royal);padding:10px 20px;text-decoration:none;transition:all .2s;border-radius:2px;white-space:nowrap}
+.nav-cta:hover{background:var(--gold);transform:translateY(-1px)}
+.hero{min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:120px 40px 60px;max-width:960px;margin:0 auto;align-items:center;text-align:center;position:relative;z-index:1}
+.hero-callout{font-family:"DM Sans",sans-serif;font-size:10px;letter-spacing:4px;text-transform:uppercase;color:var(--caution);margin-bottom:20px;border:1px solid rgba(255,184,0,.3);display:inline-block;padding:6px 12px;background:rgba(255,184,0,.05)}
+.hero-title{font-family:"Bebas Neue",sans-serif;font-size:clamp(42px,7vw,80px);line-height:.96;letter-spacing:2px;margin-bottom:24px;opacity:0;animation:fadeUp .7s ease .15s forwards}
+.hero-title .a{color:var(--royal)}.hero-title .b{color:var(--gold)}
+.hero-sub{font-size:16px;color:var(--muted);max-width:600px;margin-bottom:28px;line-height:1.65;opacity:0;animation:fadeUp .7s ease .3s forwards}
+.hero-cta-row{display:flex;flex-direction:column;align-items:center;gap:14px;flex-wrap:wrap;opacity:0;animation:fadeUp .7s ease .6s forwards}
+.btn-primary{display:inline-flex;align-items:center;gap:8px;font-family:"DM Sans",sans-serif;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--bg);background:linear-gradient(135deg,var(--gold),#0088FF);padding:16px 36px;text-decoration:none;transition:all .25s;font-weight:700}
+.btn-primary:hover{transform:translateY(-3px);box-shadow:0 16px 48px rgba(0,255,157,.3)}
+.hero-or{font-size:11px;color:var(--muted2)}
+section{padding:80px 40px;max-width:960px;margin:0 auto;position:relative;z-index:1}
+.label{font-family:"Bebas Neue",sans-serif;font-size:14px;letter-spacing:2.5px;text-transform:uppercase;color:var(--royal);margin-bottom:18px;display:block}
+.sec-title{font-family:"Bebas Neue",sans-serif;font-size:clamp(28px,4.2vw,48px);line-height:.98;letter-spacing:1px;margin-bottom:32px}
+.sec-title .a{color:var(--royal)}.sec-title .g{color:var(--gold)}
+
+/* PAIN */
+.pain-grid{display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:center;margin-top:28px}
+.tax-grid{display:flex;flex-direction:column;gap:12px}
+.tax-item{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--red);padding:16px 18px;display:flex;gap:14px;align-items:flex-start}
+.tax-n{font-family:"Bebas Neue",sans-serif;font-size:22px;color:var(--red);line-height:1;flex-shrink:0}
+.tax-h{font-family:"Bebas Neue",sans-serif;font-size:14.5px;letter-spacing:.5px;text-transform:uppercase;color:var(--white);margin-bottom:4px}
+.tax-item p{font-size:13.5px;color:var(--muted);line-height:1.6}
+.tax-item p.quote{font-style:italic;color:rgba(255,255,255,.72)}
+.flash-note{margin-top:16px;padding:16px 18px;background:rgba(0,212,255,.06);border:1px solid rgba(0,212,255,.25);font-size:13.5px;color:var(--muted);line-height:1.6}
+.pain-vis{position:relative;aspect-ratio:16/9;border:1px solid var(--border);background:var(--card);display:flex;align-items:center;justify-content:center;padding:0;overflow:hidden}
+.pain-vis video{width:100%;height:100%;object-fit:cover;display:block}
+
+/* VIDEO DEMO */
+.video-frame{position:relative;border-radius:20px;overflow:hidden;padding:2px;margin-top:8px;background:linear-gradient(135deg,rgba(0,212,255,.55),rgba(0,255,157,.35),rgba(0,212,255,.55));background-size:220% 220%;animation:videoBorderShift 6s ease infinite;box-shadow:0 50px 100px rgba(0,0,0,.6),0 0 70px rgba(0,212,255,.14)}
+.video-frame video{position:relative;border-radius:18px;background:#000;display:block;width:100%}
+.demo-steps{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:18px}
+.demo-step{background:var(--card);border:1px solid var(--border);padding:14px 12px;text-align:center}
+.demo-step-n{font-family:"Bebas Neue",sans-serif;font-size:20px;color:var(--royal);line-height:1;margin-bottom:6px}
+.demo-step p{font-size:11.5px;color:var(--muted);line-height:1.4}
+@media(max-width:640px){.demo-steps{grid-template-columns:1fr 1fr}}
+
+/* STATS */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:24px 0}
+.stat{background:var(--card);border:1px solid var(--border);padding:28px 16px 22px;text-align:center;position:relative;overflow:hidden}
+.stat::before{content:"";position:absolute;top:0;left:0;right:0;height:2px}
+.stat.g::before{background:var(--gold)}.stat.c::before{background:var(--royal)}.stat.w::before{background:var(--caution)}
+.sv{font-family:"Bebas Neue",sans-serif;font-size:52px;line-height:1;margin-bottom:6px}
+.stat.g .sv{color:var(--gold)}.stat.c .sv{color:var(--royal)}.stat.w .sv{color:var(--caution)}
+.sl{font-size:13.5px;font-weight:600;color:var(--white);margin-bottom:4px}
+.ss{font-size:12.5px;color:var(--muted);line-height:1.4}
+
+/* PRICING TIERS */
+.tier-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;margin-top:36px;align-items:stretch}
+.tier-card{position:relative;background:var(--card);border:1px solid var(--border);border-radius:18px;padding:32px 26px;display:flex;flex-direction:column}
+.tier-eyebrow{font-family:"DM Sans",sans-serif;font-size:10px;letter-spacing:2.5px;text-transform:uppercase;color:var(--muted2);margin-bottom:12px}
+.tier-name{font-family:"Bebas Neue",sans-serif;font-size:28px;letter-spacing:.5px;color:var(--white);margin-bottom:6px;display:flex;align-items:center;gap:12px}
+.tier-icon{width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;color:var(--gold);flex-shrink:0}
+.tier-icon svg{width:100%;height:100%;display:block}
+.tier-price{font-family:"Bebas Neue",sans-serif;font-size:36px;color:var(--white);margin-bottom:16px}
+.tier-price span{font-family:"DM Sans",sans-serif;font-size:11px;color:var(--muted);letter-spacing:0;text-transform:none}
+.tier-desc{font-size:13.5px;color:var(--muted);line-height:1.75;margin-bottom:22px;padding-bottom:22px;border-bottom:1px solid rgba(255,255,255,.06)}
+.tier-list{list-style:none;display:flex;flex-direction:column;gap:12px;flex:1}
+.tier-list li{font-size:13px;color:var(--muted);padding-left:24px;position:relative;line-height:1.6}
+.tier-list li::before{content:"→";position:absolute;left:0;color:var(--muted2);font-size:12px;top:1px}
+.tier-card.premium{padding:2px;border-radius:18px;background:linear-gradient(135deg,rgba(0,212,255,.65),rgba(0,255,157,.45),rgba(0,212,255,.65));background-size:220% 220%;animation:videoBorderShift 6s ease infinite;box-shadow:0 30px 70px rgba(0,0,0,.5),0 0 50px rgba(0,212,255,.1)}
+.tier-card.premium .tier-inner{background:linear-gradient(165deg,rgba(0,212,255,.1),var(--card) 55%);border-radius:16px;padding:32px 26px;height:100%;display:flex;flex-direction:column}
+.tier-card.premium .tier-list li::before{content:"✓";color:var(--gold);font-size:13px}
+.tier-card.premium .tier-icon{color:var(--royal)}
+.tier-badge{position:absolute;top:-15px;left:50%;transform:translateX(-50%);font-family:"DM Sans",sans-serif;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;background:linear-gradient(135deg,var(--gold),#0088FF);color:var(--bg);padding:8px 18px;border-radius:20px;white-space:nowrap;box-shadow:0 8px 22px rgba(0,255,157,.35);z-index:2}
+.tier-proof{margin-top:22px;padding:14px 16px;background:rgba(0,255,157,.05);border:1px solid rgba(0,255,157,.25);border-radius:10px;font-size:12.5px;color:rgba(255,255,255,.72);line-height:1.65;font-style:italic}
+.tier-proof strong{font-style:normal;color:var(--gold)}
+@media(max-width:980px){.tier-grid{grid-template-columns:1fr}}
+
+/* PILOT CALLOUT */
+.pilot-box{margin-top:28px;background:linear-gradient(180deg,rgba(0,212,255,.07),rgba(0,255,157,.03));border:1px solid rgba(0,255,157,.3);padding:34px}
+.pilot-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:14px;margin-bottom:24px;padding-bottom:22px;border-bottom:1px solid rgba(255,255,255,.08)}
+.pilot-title{font-family:"Bebas Neue",sans-serif;font-size:24px;letter-spacing:.5px;color:var(--white);margin-bottom:6px}
+.pilot-duration{font-family:"DM Sans",sans-serif;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted2);margin-bottom:10px}
+.pilot-price{font-family:"Bebas Neue",sans-serif;font-size:52px;color:var(--white)}
+.pilot-price span{font-family:"DM Sans",sans-serif;font-size:13px;color:var(--muted);letter-spacing:0}
+.pilot-tag{font-family:"DM Sans",sans-serif;font-size:10px;color:var(--gold);border:1px solid rgba(0,255,157,.3);background:rgba(0,255,157,.06);padding:6px 12px;border-radius:2px}
+.pilot-box p.pbody{font-size:14.5px;color:var(--muted);line-height:1.75;margin-bottom:14px}
+.pilot-box p.pbody:last-child{margin-bottom:0}
+.pilot-box strong{color:var(--white)}
+.pilot-list{list-style:none;display:flex;flex-direction:column;gap:10px;margin-bottom:20px}
+.pilot-list li{font-size:14px;color:var(--muted);padding-left:26px;position:relative;line-height:1.55}
+.pilot-list li::before{content:"✓";position:absolute;left:0;color:var(--gold);font-size:13px;top:2px}
+.pilot-list li strong{color:var(--white)}
+.guarantee-strip{display:flex;gap:12px;align-items:flex-start;margin-top:4px;margin-bottom:18px;padding:16px 18px;background:rgba(0,255,157,.05);border:1px solid rgba(0,255,157,.2);border-radius:10px}
+.guarantee-strip .g-icon{width:20px;height:20px;color:var(--gold);flex-shrink:0}
+.guarantee-strip .g-icon svg{width:100%;height:100%;display:block}
+.guarantee-strip p{font-size:13px;color:rgba(255,255,255,.75);line-height:1.6}
+.roi-line{font-size:13.5px;color:var(--muted);line-height:1.6;padding-top:14px;border-top:1px solid rgba(255,255,255,.08)}
+.roi-line strong{color:var(--gold)}
+
+/* BEATS */
+.beats-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:28px}
+.beat-card{background:var(--card);border:1px solid var(--border);padding:24px 22px}
+.beat-icon{width:22px;height:22px;margin-bottom:14px;color:var(--gold)}
+.beat-icon svg{width:100%;height:100%;display:block}
+.beat-card h3{font-family:"Bebas Neue",sans-serif;font-size:19px;color:var(--white);line-height:1.1;margin-bottom:10px;letter-spacing:.5px}
+.beat-card p{font-size:13px;color:var(--muted);line-height:1.65}
+.beat-card strong{color:var(--white)}
+
+/* FAQ ACCORDION */
+.pre-faq{display:flex;flex-direction:column;gap:12px}
+.pre-faq-item{background:var(--card);border:1px solid var(--border);border-radius:2px;overflow:hidden}
+.pfq-btn{width:100%;text-align:left;background:none;border:none;padding:18px 20px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-family:"DM Sans",sans-serif}
+.pfq{font-size:14.5px;font-weight:600;color:var(--white)}
+.pfq-chev{font-family:"DM Sans",sans-serif;color:var(--royal);transition:transform .3s ease;flex-shrink:0;margin-left:14px}
+.pfq-chev.rot{transform:rotate(45deg)}
+.pfa-wrap{max-height:0;overflow:hidden;transition:max-height .35s ease}
+.pfa-wrap.open{max-height:260px}
+.pfa{font-size:14px;color:var(--muted);line-height:1.6;padding:0 20px 18px}
+
+/* CTA */
+.cta{text-align:center;padding:96px 40px;max-width:680px;margin:0 auto}
+.cta-title{font-family:"Bebas Neue",sans-serif;font-size:clamp(32px,5.2vw,52px);line-height:1;letter-spacing:1px;margin-bottom:20px}
+.cta-sub{font-size:15.5px;color:var(--muted);margin-bottom:32px;line-height:1.7}
+.ps-box{margin-top:28px;padding:22px 26px;background:rgba(0,255,157,.04);border:1px solid rgba(0,255,157,.25);text-align:left;position:relative}
+.ps-box::before{content:"P.S.";position:absolute;top:-10px;left:20px;font-family:"Bebas Neue",sans-serif;font-size:18px;letter-spacing:2px;color:var(--gold);background:var(--bg);padding:0 8px}
+.ps-box p{font-size:15px;color:rgba(255,255,255,0.75);line-height:1.72}
+.ps-box strong{color:var(--gold)}
+
+.div-line{height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent);margin:0 40px}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
+@keyframes videoBorderShift{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+.reveal{opacity:0;transform:translateY(22px);transition:opacity .6s ease,transform .6s ease}
+.reveal.visible{opacity:1;transform:none}
+footer{border-top:1px solid var(--border);padding:24px 40px;text-align:center;font-family:"DM Sans",sans-serif;font-size:8px;letter-spacing:2px;color:var(--muted2);text-transform:uppercase}
+
+@media(max-width:640px){
+  nav{padding:11px 18px}
+  section{padding:56px 20px}
+  .hero{padding:110px 20px 48px}
+  .stats{grid-template-columns:1fr}
+  .pain-grid{grid-template-columns:1fr}
+  .beats-grid{grid-template-columns:1fr}
+  .cta{padding:64px 20px}
+  footer{padding:20px}
+}
+</style>
+</head>
+<body>
+<div class="topbar"></div>
+<nav>
+  <div class="nav-logo"><div>ChampionTrackPro <span>×</span> Chicago State WBB</div><img src="ctp-logo.png" alt="ChampionTrackPro"></div>
+  <a href="#access" class="nav-cta">Review The Pilot Proposal</a>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-callout">Prepared for Coach Corry Irvin &amp; Your Strength Staff — Chicago State · Northeast Conference</div>
+  <h1 class="hero-title">The 2026 Chicago State<br>Roster Protection<br>and Performance<br><span class="a">System.</span></h1>
+  <p class="hero-kicker">Know Exactly <span>Who To Push.</span> Who To <span>Protect.</span></p>
+  <p class="hero-sub">Titan reads the physical side well. What it can't catch is travel, sleep, and stress — the load between games, not a gap in judgment.</p>
+  <div class="hero-cta-row">
+    <a href="#access" class="btn-primary">Review The Pilot Proposal →</a>
+    <span class="hero-or">The numbers from the call, in writing, plus the full breakdown — for you and your strength coach</span>
+  </div>
+</div>
+
+<div class="div-line"></div>
+
+<!-- PAIN -->
+<section id="pain">
+  <span class="label reveal">Where Things Actually Stand</span>
+  <h2 class="sec-title reveal">Real Infrastructure —<br>With <span class="g">Three Gaps.</span></h2>
+
+  <div class="pain-grid reveal">
+    <div>
+      <div class="tax-grid">
+        <div class="tax-item">
+          <div class="tax-n">01</div>
+          <div>
+            <div class="tax-h">Physical Load — Already Handled</div>
+            <p class="quote">"He's actually the one that looks at the bulk of the information... I really only look at their intensity and their overall load."</p>
+            <p>Titan runs, your strength coach owns it. That layer works and isn't going anywhere.</p>
+          </div>
+        </div>
+        <div class="tax-item">
+          <div class="tax-n">02</div>
+          <div>
+            <div class="tax-h">Travel &amp; Match Load — Estimated, Not Measured</div>
+            <p class="quote">"We don't have an actual way to measure it. We just go off of like our trainer kind of gives us an idea."</p>
+            <p>No wearable tracks this — so it's read in the moment, every road trip and back-to-back all season.</p>
+          </div>
+        </div>
+        <div class="tax-item">
+          <div class="tax-n">03</div>
+          <div>
+            <div class="tax-h">The Cost Of Trusting The Wrong Read</div>
+            <p class="quote">"We had a girl that got injured that maybe shouldn't have gotten injured... she kept saying, 'I can keep going.' It also helped us because then we knew we couldn't trust what the girl was saying."</p>
+            <p>A proud competitor says "I'm good, Coach" until her body breaks down. That gap is still open today.</p>
+          </div>
+        </div>
+      </div>
+      <div class="flash-note"><strong style="color:var(--royal)">This doesn't replace Titan or your strength coach's work.</strong> It's the layer neither one was built to catch — travel load, mental state, and predicting instead of reviewing after the box score.</div>
+    </div>
+    <div class="pain-vis">
+      <video autoplay muted loop playsinline>
+        <source src="iceberg.mp4" type="video/mp4">
+      </video>
+    </div>
+  </div>
+</section>
+
+<div class="div-line"></div>
+
+<!-- SEE IT IN ACTION -->
+<section id="demo">
+  <span class="label reveal">See It In Action</span>
+  <h2 class="sec-title reveal">Titan Reads The Body.<br><span class="g">This Reads What's Behind It.</span></h2>
+  <p class="reveal" style="font-size:15px;color:var(--muted);line-height:1.7;max-width:640px">Titan tells your strength coach what the body did. This asks the player directly — the story Titan was never built to track.</p>
+
+  <div class="video-frame reveal">
+    <video controls preload="metadata" playsinline>
+      <source src="chicagostate-app-demo.mp4" type="video/mp4">
+      Your browser doesn't support embedded video.
+    </video>
+  </div>
+
+  <div class="demo-steps reveal">
+    <div class="demo-step"><div class="demo-step-n">01</div><p>90-second check-in — no app to download</p></div>
+    <div class="demo-step"><div class="demo-step-n">02</div><p>Morning Brief — green / yellow / blue, before practice</p></div>
+    <div class="demo-step"><div class="demo-step-n">03</div><p>Travel load and mental state, next to Titan's own numbers</p></div>
+    <div class="demo-step"><div class="demo-step-n">04</div><p>Individual baseline, built per player over the season</p></div>
+  </div>
+</section>
+
+<div class="div-line"></div>
+
+<!-- PROOF -->
+<section id="proof">
+  <span class="label reveal">Real Results — Proof Of Concept</span>
+  <h2 class="sec-title reveal">A Pro Team In Europe.<br>Second-To-Last, Starters Breaking Down.<br><span class="a">We Set Up The System — The Season Turned.</span></h2>
+  <p class="reveal" style="font-size:15px;color:var(--muted);line-height:1.7;max-width:640px;margin-bottom:14px">Power 5 programs spend <strong style="color:var(--white)">millions</strong> tracking how players respond to load. Most college programs make the same calls without that layer — not because the coaching is worse, but because <strong style="color:var(--white)">the resources and the tools aren't there</strong>. Train more, more often, and you get faster progress and fewer injuries — but only if you're <strong style="color:var(--gold)">training better, tracking the right indicators every session</strong>.</p>
+  <p class="reveal" style="font-size:15px;color:var(--muted);line-height:1.7;max-width:640px;margin-bottom:8px"><strong style="color:var(--white)">Second-to-last in the standings</strong>, starters breaking down all season. We set up a simple <strong style="color:var(--gold)">daily check-in — physical, mental, technical load.</strong></p>
+  <div class="stats reveal">
+    <div class="stat g"><div class="sv">+4</div><div class="sl">Spots in the standings</div><div class="ss">In two months, after setup</div></div>
+    <div class="stat c"><div class="sv">0</div><div class="sl">Load-related injuries</div><div class="ss">For the rest of that season</div></div>
+    <div class="stat w"><div class="sv">90s</div><div class="sl">Daily check-in</div><div class="ss">That's all it took from each player</div></div>
+  </div>
+</section>
+
+<div class="div-line"></div>
+
+<!-- ACCESS TIERS / PRICING -->
+<section id="access">
+  <span class="label reveal">How This Actually Works — The Numbers From The Call</span>
+  <h2 class="sec-title reveal">Three Ways Programs<br><span class="g">Run This.</span></h2>
+  <p class="reveal" style="font-size:15px;color:var(--muted);line-height:1.7;max-width:640px;margin-bottom:8px">Data is the tool; the read is what matters. The $6,500 and $25,000 numbers are exactly what we talked through on the call — the $3,000 platform-only option is here too, for comparison.</p>
+
+  <div class="tier-grid reveal">
+    <div class="tier-card">
+      <div class="tier-eyebrow">Option 01</div>
+      <div class="tier-name"><span class="tier-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>Platform Only</div>
+      <div class="tier-price">$3,000 <span>per season</span></div>
+      <p class="tier-desc">Full platform access, full roster, automatic Morning Brief every day — built for staffs who already have someone in-house to own the weekly read.</p>
+      <ul class="tier-list">
+        <li>Full roster, full season, full platform</li>
+        <li>Daily check-in and Morning Brief, automated</li>
+        <li>No weekly outside read — you and your strength coach make the call</li>
+      </ul>
+    </div>
+
+    <div class="tier-card premium">
+      <div class="tier-badge">Most D1 Programs Land Here</div>
+      <div class="tier-inner">
+        <div class="tier-eyebrow" style="color:var(--royal)">Option 02</div>
+        <div class="tier-name"><span class="tier-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3"/></svg></span>Tactical Advisory</div>
+        <div class="tier-price">$6,500 <span>per season</span></div>
+        <p class="tier-desc">Everything in the pilot — plus I personally read your roster every week and give you and your strength coach a clear weekly call on who to push and who to protect.</p>
+        <ul class="tier-list">
+          <li>Full platform, full roster, all season</li>
+          <li>Weekly personal read of your roster's load, not just the raw numbers</li>
+          <li>Direct answer on who to push and who to protect, every week</li>
+          <li>Built to forward straight to your strength coach — nothing needs translating</li>
+        </ul>
+        <div class="tier-proof"><strong>Already proven:</strong> this exact read caught starters' injury risk weeks early in Europe, and turned a professional team's season around — from second-to-last to a mid-table contender in two months.</div>
+      </div>
+    </div>
+
+    <div class="tier-card">
+      <div class="tier-eyebrow">Option 03</div>
+      <div class="tier-name"><span class="tier-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h4l2-7 4 14 3-9 2 4h5"/></svg></span>Full Service</div>
+      <div class="tier-price">$25,000 <span>per season</span></div>
+      <p class="tier-desc">Built for Power 5 budgets — everything in Tactical Advisory, run at full intensity for a staff that wants it embedded.</p>
+      <ul class="tier-list">
+        <li>Everything in Tactical Advisory</li>
+        <li>Live monthly session with your full staff</li>
+        <li>Direct line before games</li>
+        <li>First access as new features ship</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="pilot-box reveal">
+    <div class="pilot-head">
+      <div>
+        <div class="pilot-title">Preseason Readiness Pilot</div>
+        <div class="pilot-duration">4 Weeks · Full Roster</div>
+        <div class="pilot-price">$495<span> flat · the honest place to start</span></div>
+      </div>
+      <div class="pilot-tag">Credited toward whichever season plan you choose</div>
+    </div>
+    <ul class="pilot-list">
+      <li><strong>Real budget timing, not an excuse:</strong> NEC allocations lock in September — this is sized so you can approve it yourself, today, without waiting on a new budget cycle.</li>
+      <li><strong>Honest about where I'm at:</strong> I have the technology — what I don't have yet is a D1 case study at your level. The pilot proves it on your own roster before you commit to a full season.</li>
+      <li><strong>Real numbers for your AD:</strong> instead of asking you to commit to a full year on an idea, this gives you your own roster's data to bring to that conversation.</li>
+    </ul>
+    <div class="guarantee-strip">
+      <div class="g-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 8-7 9-4-1-7-4.5-7-9V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg></div>
+      <p><strong style="color:var(--white)">The guarantee:</strong> if after 4 weeks this hasn't changed or confirmed a single coaching decision, we shake hands, you owe nothing, and you keep every report the pilot generated.</p>
+    </div>
+    <p class="roi-line">For context: <strong>one ACL reconstruction alone runs $10,000 to $50,000</strong> in medical costs — a single avoided injury pays for the pilot many times over.</p>
+  </div>
+</section>
+
+<div class="div-line"></div>
+
+<!-- FOR YOUR STRENGTH STAFF -->
+<section id="staff">
+  <span class="label reveal">For Your Strength Coach — Since He'll Be On The Next Call</span>
+  <h2 class="sec-title reveal">Built to forward,<br>not translate.</h2>
+
+  <div class="beats-grid reveal">
+    <div class="beat-card">
+      <div class="beat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></div>
+      <h3>Different Data, Not Overlapping Data</h3>
+      <p>Titan can't ask a player how she slept, how travel hit her, or what's going on off the court. This does — so your strength coach isn't cross-checking, he's seeing the half of the picture Titan was never built to catch.</p>
+    </div>
+    <div class="beat-card">
+      <div class="beat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 8-7 9-4-1-7-4.5-7-9V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg></div>
+      <h3>You're Buying The Read, Not The App</h3>
+      <p>The daily check-in and the Morning Brief are the delivery mechanism. What Tactical Advisory actually pays for is a weekly outside read on your roster's load — feeding your strength coach's own decisions, not replacing them.</p>
+    </div>
+    <div class="beat-card">
+      <div class="beat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9 12l2 2 4-4"/></svg></div>
+      <h3>One Executable Thing</h3>
+      <p>No new dashboard to interpret — one clear green/yellow/blue call per player, every morning, before practice. Your strength coach reads the same brief you do.</p>
+    </div>
+    <div class="beat-card">
+      <div class="beat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M8.2 7.2L15.8 16.8M15.8 7.2L8.2 16.8"/></svg></div>
+      <h3>Runs Alongside Titan, Not Instead Of It</h3>
+      <p>Nothing about your current setup changes. Titan keeps doing what it does well. This fills the gap on travel load and mental state — the layer he already told you doesn't get measured.</p>
+    </div>
+  </div>
+</section>
+
+<div class="div-line"></div>
+
+<!-- FAQ -->
+<section id="faq">
+  <span class="label reveal">For You And Your Strength Coach</span>
+  <h2 class="sec-title reveal">Commercial FAQ.</h2>
+
+  <div class="pre-faq reveal">
+    <div class="pre-faq-item">
+      <button class="pfq-btn"><span class="pfq">We already run Titan — why add another layer?</span><span class="pfq-chev">+</span></button>
+      <div class="pfa-wrap"><p class="pfa">Titan measures physical and GPS load — what the body did in practice. This measures travel load and mental state, neither of which Titan tracks today, per what you told me on the call.</p></div>
+    </div>
+    <div class="pre-faq-item">
+      <button class="pfq-btn"><span class="pfq">Does this add work for our strength coach?</span><span class="pfq-chev">+</span></button>
+      <div class="pfa-wrap"><p class="pfa">No — with Tactical Advisory, he doesn't analyze anything new. He gets the same short daily read you do, adjustments already decided, before practice.</p></div>
+    </div>
+    <div class="pre-faq-item">
+      <button class="pfq-btn"><span class="pfq">Can players game or falsify their scores?</span><span class="pfq-chev">+</span></button>
+      <div class="pfa-wrap"><p class="pfa">No. Individual data is masked by design: players enter their own 90-second readiness score, but never see their own final score or their teammates'. Only the staff has visibility.</p></div>
+    </div>
+    <div class="pre-faq-item">
+      <button class="pfq-btn"><span class="pfq">Does the $495 pilot need to go through our AD?</span><span class="pfq-chev">+</span></button>
+      <div class="pfa-wrap"><p class="pfa">That's exactly why it's sized at $495 — most programs run it on a department card, no full approval cycle. If the season plan does need sign-off later, I'll help build the one-pager with real data from your own roster, not a pitch deck.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<div class="cta">
+  <h2 class="cta-title reveal">Let's look at this<br>together, Tuesday.</h2>
+  <p class="cta-sub reveal">Forwarding this to your strength coach ahead of our call so neither of you is seeing the numbers for the first time live.</p>
+  <div class="reveal">
+    <a href="mailto:championtrackpro@gmail.com?subject=Chicago%20State%20WBB%20—%20following%20up" class="btn-primary">Confirm Tuesday & Send Questions →</a>
+  </div>
+  <div class="ps-box reveal">
+    <p><strong>P.S.</strong> The earlier the pilot starts, the more of the season it covers before conference play gets demanding — and every dollar rolls into whichever season plan you pick.</p>
+  </div>
+</div>
+
+<footer>Prepared for Coach Corry Irvin &amp; Chicago State Athletics — ChampionTrackPro</footer>
+
+<script>
+(function(){
+  const obs = new IntersectionObserver(entries=>{
+    entries.forEach(e=>{ if(e.isIntersecting) e.target.classList.add("visible") });
+  },{threshold:.08,rootMargin:"0px 0px -24px 0px"});
+  document.querySelectorAll(".reveal").forEach(el=>obs.observe(el));
+})();
+
+document.querySelectorAll(".pfq-btn").forEach(function(btn){
+  btn.addEventListener("click", function(){
+    var wrap = btn.parentElement.querySelector(".pfa-wrap");
+    var chev = btn.querySelector(".pfq-chev");
+    var isOpen = wrap.classList.contains("open");
+    document.querySelectorAll(".pfa-wrap.open").forEach(function(w){
+      w.classList.remove("open");
+      w.parentElement.querySelector(".pfq-chev").classList.remove("rot");
+    });
+    if(!isOpen){ wrap.classList.add("open"); chev.classList.add("rot"); }
+  });
+});
+</script>
+</body>
+</html>
